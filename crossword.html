@@ -235,6 +235,9 @@
             <button class="btn secondary maker-only" id="toggleDirBtn" title="Toggle typing direction (Across/Down)">⇄ Direction: <span id="dirLabel">Across</span></button>
             <button class="btn secondary maker-only" id="clearLettersBtn" title="Clear all letters but keep blocks">Clear Letters</button>
             <button class="btn secondary maker-only" id="blockEmptiesBtn" title="Turn all empty (non-block) cells into blocks">Block Empty Cells </button>
+            <button class="btn secondary maker-only" id="clearBlocksBtn" title="Turn all blocks into empty cells">
+              Clear All Blocks
+            </button>
             <button class="btn warn maker-only" id="resetBtn" title="Reset the entire grid">Reset</button>
             <span class="legend">Type A–Z to fill • Space/# toggles block • Arrows to move • Enter toggles direction</span>
           </div>
@@ -296,6 +299,8 @@
     const acrossCount = document.getElementById('acrossCount');
     const downCount = document.getElementById('downCount');
     const blockEmptiesBtn = document.getElementById('blockEmptiesBtn');
+    const clearBlocksBtn = document.getElementById('clearBlocksBtn');
+
 
 
     // --- Helpers ---
@@ -625,6 +630,24 @@
       renderHighlights();
       renderClues();
     });
+
+    clearBlocksBtn?.addEventListener('click', ()=>{
+  if(!confirm('Clear ALL blocked cells? This will turn every # into an empty cell and renumber clues.')) return;
+
+  for (let i = 0; i < rows; i++){
+    for (let j = 0; j < cols; j++){
+      if (grid[i][j].block){
+        grid[i][j].block = false;          // unblock
+        // letters remain as-is (usually '')
+        updateCellEl(i, j);
+      }
+    }
+  }
+  numberGrid();
+  renderHighlights();
+  renderClues();
+});
+
 
     resetBtn.addEventListener('click', ()=>{
       if(!confirm('Reset the grid to all empty cells?')) return;
