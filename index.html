@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>dog — Projects</title>
+  <meta name="description" content="A tiny portfolio of playful web projects. Click a card to explore!" />
+  <meta name="color-scheme" content="light dark" />
+  <meta property="og:title" content="dog — Projects" />
+  <meta property="og:description" content="A tiny portfolio of playful web projects. Click a card to explore!" />
+  <meta property="og:type" content="website" />
+  <!-- Emoji favicon (no external files) -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='80'%3E🐶%3C/text%3E%3C/svg%3E">
+  <style>
+    :root{
+      /* base palette */
+      --bg: #0f172a;          /* dark slate */
+      --hero: #172554;        /* blue tint */
+      --panel: #0b1220f2;     /* glassy panel */
+      --ink: #e5e7eb;         /* text */
+      --muted: #94a3b8;       /* secondary text */
+      --border: #253046;      /* card borders */
+      --accent: #22d3ee;      /* cyan */
+      --accent-2: #a78bfa;    /* violet */
+      --good: #34d399;
+      --ring: #22d3ee;
+      --card: #0b1220cc;
+      --btn: linear-gradient(135deg, var(--accent), var(--accent-2));
+      --shadow: 0 10px 30px rgba(0,0,0,.25);
+      --radius: 16px;
+    }
+    [data-theme="light"]{
+      --bg:#f8fafc; --hero:#dbeafe; --panel:#ffffffee; --ink:#0f172a;
+      --muted:#475569; --border:#cbd5e1; --card:#ffffff; --ring:#0ea5e9;
+      --shadow: 0 10px 24px rgba(15,23,42,.10);
+    }
+    
+    /* Stick footer to the bottom */
+html, body{ height:auto; min-height:100%; }
+body{ min-height:100svh; display:flex; flex-direction:column; }
+main{ flex:1 0 auto; }   /* fill the space between header and footer */
+footer{ margin-top:auto; }
+
+/* Lay out footer content without floats */
+footer .wrap{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, Arial;
+      color:var(--ink);
+      background: radial-gradient(1100px 800px at 10% -10%, var(--hero) 0%, var(--bg) 45%);
+      display:flex; flex-direction:column;
+    }
+
+    a{ color:inherit; text-decoration:none; }
+    a:focus-visible, button:focus-visible{ outline: none; box-shadow: 0 0 0 3px var(--ring); border-radius: 12px; }
+
+    .wrap{ width:min(1100px, 92vw); margin:0 auto; }
+
+    /* Header */
+    header{
+      position:sticky; top:0; z-index:20;
+      backdrop-filter: blur(10px) saturate(1.2);
+      background: color-mix(in oklab, var(--panel) 82%, transparent);
+      border-bottom:1px solid var(--border);
+    }
+    .topbar{
+      display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0;
+    }
+    .brand{
+      display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.2px;
+    }
+    .brand .logo{
+      width:36px; height:36px; display:grid; place-items:center; border-radius:10px;
+      background: var(--btn); color:#0b1220; box-shadow: var(--shadow); font-size:20px;
+    }
+    .actions{ display:flex; gap:10px; align-items:center; }
+    .btn{
+      appearance:none; border:none; cursor:pointer; font-weight:700;
+      padding:9px 12px; border-radius:12px; background: var(--btn);
+      color:#0b1220; box-shadow: var(--shadow); transition: transform .06s ease;
+    }
+    .btn:active{ transform: translateY(1px) }
+    .btn.ghost{
+      background: transparent; color: var(--ink);
+      border:1px solid var(--border); box-shadow:none;
+    }
+
+    /* Hero */
+    .hero{ padding:36px 0 10px 0; }
+    .hero h1{ margin:0; font-size: clamp(28px, 4.2vw, 44px); line-height:1.05; letter-spacing:.2px; }
+    .hero p{ margin:10px 0 0 0; color:var(--muted); max-width:60ch; }
+
+    /* Projects Grid */
+    .grid{
+      display:grid; gap:16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      padding:24px 0 40px 0;
+    }
+    .card{
+      position:relative; background: var(--card); border:1px solid var(--border);
+      border-radius: var(--radius); padding:16px; box-shadow: var(--shadow);
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+      overflow: clip;
+    }
+    .card:hover{ transform: translateY(-2px); box-shadow: 0 14px 40px rgba(0,0,0,.28); border-color: color-mix(in oklab, var(--accent), var(--border) 65%); }
+    .card .badge{
+      position:absolute; top:12px; right:12px; font-size:11px; padding:4px 8px; border-radius:999px;
+      color: #0b1220; background: var(--btn); border: 1px solid color-mix(in oklab, var(--accent-2), #000 10%);
+    }
+    .card h3{ margin: 6px 0 4px 0; font-size:18px; letter-spacing:.2px; }
+    .card p{ margin: 6px 0 10px 0; color: var(--muted); min-height: 2.2em; }
+    .tags{ display:flex; flex-wrap:wrap; gap:6px; }
+    .tag{ font-size:11px; padding:4px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); background: color-mix(in oklab, var(--panel) 70%, transparent); }
+
+    .card a.stretch{
+      position:absolute; inset:0; /* clickable card */
+    }
+
+    /* Footer */
+    footer{
+      border-top:1px solid var(--border); background: color-mix(in oklab, var(--panel) 78%, transparent);
+      padding:14px 0; color:var(--muted); font-size:14px;
+    }
+
+    /* Reduce motion */
+    @media (prefers-reduced-motion: reduce) {
+      .card, .btn { transition:none; }
+    }
+  </style>
+</head>
+<body data-theme="dark">
+  <header>
+    <div class="wrap topbar">
+      <div class="brand">
+        <div class="logo">🐶</div>
+        <div>
+          <div style="font-size:15px; opacity:.9;">dog</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:-2px;">projects & little experiments</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="themeBtn" class="btn ghost" title="Toggle light/dark">🌗 Theme</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <h1>Small site. Big vibes.</h1>
+      <p>Hand-rolled web things—fast, offline-friendly, and fun to poke at. Click a card below to open a project.</p>
+    </section>
+
+    <section id="projects" class="grid" aria-label="Projects">
+      <!-- Project: Crossword Maker -->
+      <article class="card">
+        <span class="badge">New</span>
+        <h3>Crossword Maker</h3>
+        <p>Design a crossword, share a play link, print it, and celebrate a win with a popup. All in one file.</p>
+        <div class="tags">
+          <span class="tag">Vanilla JS</span>
+          <span class="tag">Offline</span>
+          <span class="tag">Maker + Play</span>
+        </div>
+        <a class="stretch" href="crossword.html" aria-label="Open Crossword Maker"></a>
+      </article>
+
+      <!-- Add more projects by duplicating the card above -->
+      <!--
+      <article class="card">
+        <h3>Project Name</h3>
+        <p>One sentence about what it does.</p>
+        <div class="tags"><span class="tag">Tech</span></div>
+        <a class="stretch" href="project.html" aria-label="Open Project Name"></a>
+      </article>
+      -->
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>© <span id="year"></span> dog</span>
+      <span style="float:right">Built with ♥ — no frameworks</span>
+    </div>
+  </footer>
+
+  <script>
+    // Year stamp
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Theme toggle with memory
+    const root = document.documentElement;
+    const btn = document.getElementById('themeBtn');
+    const KEY = 'dog.theme';
+    const saved = localStorage.getItem(KEY);
+    if (saved) document.body.setAttribute('data-theme', saved);
+
+    btn.addEventListener('click', ()=>{
+      const cur = document.body.getAttribute('data-theme') || 'dark';
+      const next = cur === 'dark' ? 'light' : 'dark';
+      document.body.setAttribute('data-theme', next);
+      localStorage.setItem(KEY, next);
+      // Optional: update the meta theme-color for mobile UI chrome
+      const meta = document.querySelector('meta[name="theme-color"]') || (()=>{const m=document.createElement('meta');m.name='theme-color';document.head.appendChild(m);return m})();
+      meta.content = next === 'dark' ? '#0f172a' : '#f8fafc';
+    });
+  </script>
+</body>
+</html>
