@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Wordle Maker</title>
+<meta name="color-scheme" content="light dark" />
+<style>
+  :root{
+    --bg:#0f172a; --hero:#172554; --panel:#0b1220ee; --card:#0b1220cc;
+    --ink:#e5e7eb; --muted:#94a3b8; --border:#253046;
+    --accent:#22d3ee; --accent2:#a78bfa; --good:#34d399; --warn:#f59e0b; --bad:#475569;
+    --cell:#0b1220cc; --cell-empty:#0b1220; --cell-size:54px; --radius:14px; --shadow:0 10px 30px #0006;
+  }
+  [data-theme="light"]{
+    --bg:#f8fafc; --hero:#dbeafe; --panel:#ffffffee; --card:#ffffff;
+    --ink:#0f172a; --muted:#475569; --border:#cbd5e1;
+    --cell:#ffffff; --cell-empty:#e2e8f0;
+    --shadow:0 10px 24px rgba(15,23,42,.12);
+    --accent:#0ea5e9; --accent2:#d946ef;
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,Arial;
+    color:var(--ink);
+    background: radial-gradient(1100px 800px at 10% -10%, var(--hero) 0%, var(--bg) 45%);
+    display:flex; flex-direction:column;
+  }
+
+  header{
+    position:sticky; top:0; z-index:10;
+    background:var(--panel); border-bottom:1px solid var(--border);
+    backdrop-filter: blur(8px) saturate(1.2);
+  }
+  .wrap{ width:min(1100px, 92vw); margin:0 auto; padding:12px 0; }
+  .row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  h1{ margin:0 10px 0 0; font-size:18px; letter-spacing:.2px; }
+  .pill{ font-size:12px; padding:4px 10px; border-radius:999px; color:var(--accent); border:1px solid color-mix(in oklab, var(--accent), transparent 70%); background: color-mix(in oklab, var(--accent), transparent 92%); }
+  .spacer{ flex:1; }
+  .btn{
+    appearance:none; border:none; cursor:pointer; font-weight:700;
+    padding:9px 12px; border-radius:12px; color:#0b1220;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    box-shadow: var(--shadow);
+  }
+  .btn.secondary{ background:transparent; color:var(--ink); border:1px solid var(--border); box-shadow:none; }
+  .btn:active{ transform: translateY(1px); }
+
+  main{ flex:1; }
+  .grid-area{ display:grid; gap:16px; grid-template-columns: 1.05fr .95fr; align-items:start; width:min(1100px,92vw); margin:18px auto 28px; }
+  @media (max-width: 960px){ .grid-area{ grid-template-columns: 1fr; } }
+
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); box-shadow: var(--shadow); }
+  .content{ padding:16px; }
+  .card h2{ margin:0 0 8px 0; font-size:14px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); }
+
+  /* Maker */
+  .maker-only .stack{ display:grid; gap:10px; }
+  textarea{
+    width:100%; min-height:220px; resize:vertical; border-radius:12px; padding:12px; font-size:14px;
+    background:var(--card); color:var(--ink); border:1px solid var(--border);
+  }
+  .hint{ font-size:12px; color:var(--muted); }
+  .tools{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+
+  /* Play */
+  body.play .maker-only{ display:none !important; }
+  .board-wrap{ padding:10px; display:grid; place-items:center; }
+  #board{
+    display:grid; gap:6px; background:transparent; padding:6px;
+  }
+  .row-cells{ display:grid; gap:6px; }
+  .cell{
+    width:var(--cell-size); height:var(--cell-size);
+    display:grid; place-items:center; font-weight:800; font-size:24px; border-radius:10px;
+    background:var(--cell); color:var(--ink); border:1px solid var(--border);
+    text-transform:uppercase;
+  }
+  .cell.empty{ background:var(--cell-empty); }
+  .cell.fill{ border-color: color-mix(in oklab, var(--accent), var(--border) 70%); }
+  .cell.correct{ background: var(--good); color:#0b1220; border-color: var(--good); }
+  .cell.present{ background: var(--warn); color:#0b1220; border-color: var(--warn); }
+  .cell.absent{ background: #334155; border-color:#334155; }
+  [data-theme="light"] .cell.absent{ background:#cbd5e1; border-color:#cbd5e1; color:#334155; }
+
+  .keyboard{ display:grid; gap:8px; grid-template-columns: repeat(20, 1fr); margin:6px 0 0; }
+  .key{ grid-column: span 2; }
+  .key.wide{ grid-column: span 3; }
+  .key, .key:disabled{
+    background:var(--card); border:1px solid var(--border); color:var(--ink);
+    border-radius:10px; padding:10px 8px; font-weight:700; cursor:pointer;
+  }
+  .key.correct{ background: var(--good); color:#0b1220; border-color: var(--good); }
+  .key.present{ background: var(--warn); color:#0b1220; border-color: var(--warn); }
+  .key.absent{ background:#334155; border-color:#334155; color:#cbd5e1; }
+  [data-theme="light"] .key.absent{ background:#cbd5e1; border-color:#cbd5e1; color:#334155; }
+
+  .status{ min-height:24px; margin-top:6px; color:var(--muted); font-size:14px; text-align:center; }
+  .meta{ color:var(--muted); font-size:12px; text-align:center; margin-top:4px; }
+
+  /* Overlay */
+  #overlay{
+    position: fixed; inset:0; display:none; align-items:center; justify-content:center;
+    background: rgba(0,0,0,.55); z-index: 50;
+  }
+  #overlay.show{ display:flex; }
+  .modal{
+    background: var(--panel); border:1px solid var(--border); border-radius:16px; padding:16px; width:min(92vw,420px);
+    box-shadow: 0 20px 60px rgba(0,0,0,.4);
+  }
+
+  footer{ border-top:1px solid var(--border); background:var(--panel); color:var(--muted); font-size:14px; }
+  footer .wrap{ display:flex; justify-content:space-between; align-items:center; padding:12px 0; }
+
+  /* === Animations === */
+@keyframes popIn { 0%{transform:scale(.9)} 60%{transform:scale(1.08)} 100%{transform:scale(1)} }
+@keyframes shake {
+  0%,100%{ transform:translateX(0) }
+  20%{ transform:translateX(-6px) }
+  40%{ transform:translateX(6px) }
+  60%{ transform:translateX(-4px) }
+  80%{ transform:translateX(4px) }
+}
+@keyframes flip {
+  0%   { transform:rotateX(0) }
+  49%  { transform:rotateX(90deg) }
+  50%  { transform:rotateX(90deg); background:var(--reveal-bg); border-color:var(--reveal-bg); color:#0b1220 }
+  100% { transform:rotateX(0);    background:var(--reveal-bg); border-color:var(--reveal-bg); color:#0b1220 }
+}
+@keyframes dance { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+
+/* per-tile effects */
+.cell.pop{ animation: popIn .12s ease-out }
+.row-cells.shake{ animation: shake .32s ease }
+.cell.reveal{ transform-origin:center top; animation: flip .55s ease var(--delay,0ms) both; }
+/* color picked via classes */
+.cell.reveal.correct{ --reveal-bg: var(--good); }
+.cell.reveal.present{ --reveal-bg: var(--warn); }
+.cell.reveal.absent { --reveal-bg: #334155; }
+[data-theme="light"] .cell.reveal.absent{ --reveal-bg:#cbd5e1; color:#334155 }
+
+/* win dance */
+.cell.dance{ animation: dance .4s ease var(--delay,0ms) }
+
+/* keyboard bump */
+.key.bump{ animation: popIn .12s ease-out }
+
+/* Overlay fade instead of hard display:none */
+#overlay{
+  display:flex; opacity:0; visibility:hidden; pointer-events:none;
+  transition: opacity .18s ease, visibility .18s ease;
+}
+#overlay.show{ opacity:1; visibility:visible; pointer-events:auto; }
+
+/* Reusable overlay (fade in/out like result modal) */
+.overlay{
+  position: fixed; inset:0;
+  display:flex; opacity:0; visibility:hidden; pointer-events:none;
+  align-items:center; justify-content:center;
+  background: rgba(0,0,0,.55); z-index: 60;
+  transition: opacity .18s ease, visibility .18s ease;
+}
+.overlay.show{ opacity:1; visibility:visible; pointer-events:auto; }
+.overlay .modal{ background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:16px; width:min(92vw,520px); box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+
+/* pretty switch */
+.switch{ display:flex; align-items:center; gap:12px; }
+.switch input{
+  appearance:none; width:44px; height:26px; border-radius:999px;
+  background:var(--border); border:1px solid var(--border); position:relative; cursor:pointer; transition:.15s;
+}
+.switch input::after{
+  content:""; position:absolute; inset:2px auto auto 2px; width:20px; height:20px; border-radius:50%;
+  background:#fff; transition: transform .15s ease;
+}
+.switch input:checked{ background:var(--good); border-color:var(--good); }
+.switch input:checked::after{ transform: translateX(18px); }
+</style>
+</head>
+<body data-theme="dark">
+  <header>
+    <div class="wrap row">
+      <h1>Wordle Maker</h1>
+      <span class="pill">Single-file • Shareable</span>
+      <div class="spacer"></div>
+      <button id="themeBtn" class="btn secondary">🌗 Theme</button>
+      <button id="settingsBtn" class="btn secondary">⚙️ Settings</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="grid-area">
+      <!-- Left: Board / Play -->
+      <div class="card">
+        <div class="content">
+          <h2>Play</h2>
+          <div class="board-wrap">
+            <div id="board"></div>
+          </div>
+
+          <div class="keyboard" id="keyboard"></div>
+          <div class="status" id="status"></div>
+          <div class="meta" id="meta"></div>
+        </div>
+      </div>
+
+      <!-- Right: Maker -->
+      <div class="card maker-only">
+        <div class="content">
+          <h2>Maker</h2>
+          <div class="stack">
+            <label class="hint">Words list (one per line, any length ≥2; letters only — spaces & punctuation are removed)</label>
+            <textarea id="wordsInput" placeholder="HELLO
+WORLD
+JAVASCRIPT
+DOG"></textarea>
+            <div class="tools">
+              <button class="btn" id="openBtn">🔗 Open Play Link</button>
+              <button class="btn secondary" id="copyBtn">📋 Copy Link</button>
+              <span class="hint" id="countHint">0 valid words</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Win/Lose overlay -->
+  <div id="overlay">
+    <div class="modal">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <h3 id="overlayTitle" style="margin:0;font-size:18px;">Result</h3>
+        <button class="btn secondary" id="closeOverlay">Close</button>
+      </div>
+      <p id="overlayMsg" style="margin:10px 0 14px;color:var(--muted)"></p>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn" id="againBtn">🔄 Try another</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+<div id="settingsOverlay" class="overlay">
+  <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
+      <h3 style="margin:0;font-size:18px;">Settings</h3>
+      <button class="btn secondary" id="closeSettings">Close</button>
+    </div>
+
+    <div class="switch" style="margin:6px 0 12px;">
+      <input id="allowReal" type="checkbox" />
+      <label for="allowReal">Allow actual words only</label>
+    </div>
+
+    <label class="hint" for="dictInput">Custom dictionary (optional) — one word per line</label>
+    <textarea id="dictInput" placeholder="(Paste your allowed words here, one per line)"></textarea>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;">
+      <button class="btn" id="saveSettings">Save</button>
+    </div>
+  </div>
+</div>
+
+  <footer>
+    <div class="wrap">
+      <span>© <span id="year"></span> Wordle Maker</span>
+      <span>Built with ♥ — by dog-blip</span>
+    </div>
+  </footer>
+
+<script>
+  /* ---------- SETTINGS & DICTIONARY ---------- */
+const SETTINGS_KEY = 'wordle.settings';
+let settings = { allowReal: false, customDict: '' };
+
+// Tiny built-in dictionary
+const BUILT_IN_DICT = `
+about after again air all also always animal answer apple area back ball bank base beach bear beat beauty become bed before begin behind believe best better between big bird
+black blue boat body book both box boy break bring brown build busy buy call came can capital car care carry case cat cause cell center certain chair chance change check
+child choose city class clean clear close cold color come common company complete contain correct could country course cover create cross cut dark data day deal decide deep degree develop
+did differ direct discover distance divide does dog door down draw drive during each early earth east easy eat edge effect eight element else end energy enough equal ever every
+example excited exercise face fact fall family far farm fast father feel felt few field figure fill final find fine finger fire first fish five flat floor flower fly follow
+food foot force forest form found four free friend from front fruit full game garden gas gave get girl give glass go gold good great green ground group grow guess
+had hair half hand happen happy hard have head hear heard heart heat held help her here high him his hold home hope horse hot hour house how huge human
+if image important include increase interest island job join jump keep kept key kind king knew know lake land language large last late laugh law lead learn least leave left
+length less letter level life light like line list little live long look love machine made make man many map mark market mass material matter maybe mean measure meet member
+memory men metal method middle might mile milk million mind minute modern moment money month moon more morning most mother motion mountain move much music must name nation natural nature
+near need never new next night nine north note nothing notice noun number object ocean off often oil old on once one only open opposite order other our out over own
+page paint pair paper paragraph parent part party past pattern pay people perhaps period person picture piece place plan plane planet plant play point poor position possible power practice prepare
+present problem process produce product property protect prove provide public pull push put question quickly quiet quite radio rain raise reach read ready real reason receive record region remember result
+rich ride right river road rock room round rule run said sail salt same sand save saw say scale school science sea season second section see seed seem seen self
+sense sentence serve set seven several shape sharp she ship shoe short should show side simple since sing sister six size skin sleep slow small snow so soft soil solid
+solution solve some song soon sound south space speak special speed spring square stand star start state stay step stick still stone stood stop story stream street strong student study
+subject substance such sudden summer sun supply support surface system table tail take talk teach team tell ten test than that their them then there these they thick thin thing
+think third this those though thought thousand three through time tiny together told tone too took tool top total touch toward town track trade train travel tree triangle true try
+turn two under unit until up upon use usual valley value vary verb very view village visit voice vowel walk want warm was watch water wave way we wear week
+weight well went were west what wheel where whether which while white who whole whose why wide wife wild will wind window winter wire wish with woman wonder wood word
+work world would write written wrong yard year yellow yes yet you young your juice
+`.trim().split(/\s+/);
+let dictSet = new Set(BUILT_IN_DICT.map(w => w.toUpperCase()));
+function rebuildDictionary(){
+  const custom = (settings.customDict || '').split(/\r?\n/).map(sanitizeWord).filter(Boolean);
+  dictSet = new Set([...BUILT_IN_DICT.map(w=>w.toUpperCase()), ...custom.map(w=>w.toUpperCase())]);
+}
+function dictHas(w){ return dictSet.has((w||'').toUpperCase()); }
+
+/* ---------- THEME ---------- */
+const THEME_KEY = 'wordle.theme';
+const savedTheme = localStorage.getItem(THEME_KEY);
+if(savedTheme) document.body.setAttribute('data-theme', savedTheme);
+document.getElementById('themeBtn').addEventListener('click', ()=>{
+  const cur = document.body.getAttribute('data-theme') || 'dark';
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.body.setAttribute('data-theme', next);
+  localStorage.setItem(THEME_KEY, next);
+});
+document.getElementById('year').textContent = new Date().getFullYear();
+
+/* ---------- SETTINGS UI ---------- */
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsOverlay = document.getElementById('settingsOverlay');
+const allowRealToggle = document.getElementById('allowReal');
+const dictInput = document.getElementById('dictInput');
+const saveSettingsBtn = document.getElementById('saveSettings');
+const closeSettingsBtn = document.getElementById('closeSettings');
+
+try{
+  const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+  Object.assign(settings, saved);
+}catch{}
+rebuildDictionary();
+
+settingsBtn.addEventListener('click', ()=>{
+  allowRealToggle.checked = !!settings.allowReal;
+  dictInput.value = settings.customDict || '';
+  settingsOverlay.classList.add('show');
+});
+closeSettingsBtn.addEventListener('click', ()=> settingsOverlay.classList.remove('show'));
+saveSettingsBtn.addEventListener('click', ()=>{
+  settings.allowReal = !!allowRealToggle.checked;
+  settings.customDict = dictInput.value || '';
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  rebuildDictionary();
+  updateCount();
+  settingsOverlay.classList.remove('show');
+});
+
+/* ---------- BASE64 (URL-safe + Unicode) ---------- */
+function b64urlEncodeString(str){
+  const bytes = new TextEncoder().encode(str);
+  let bin = ''; for (let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function b64urlDecodeToString(s){
+  s = s.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = s.length % 4; if (pad) s += '='.repeat(4 - pad);
+  const bin = atob(s); const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+/* ---------- MAKER ---------- */
+const wordsInput = document.getElementById('wordsInput');
+const openBtn = document.getElementById('openBtn');
+const copyBtn = document.getElementById('copyBtn');
+const countHint = document.getElementById('countHint');
+
+function sanitizeWord(w){
+  return (w || '').normalize('NFKD').replace(/[^A-Za-z]/g,'').toUpperCase();
+}
+function getMakerWords(){
+  const lines = (wordsInput.value || '').split(/\r?\n/);
+  const out = []; const seen = new Set();
+  for(const raw of lines){
+    const w = sanitizeWord(raw);
+    if(w.length < 2 || w.length > 32) continue;
+    // do NOT filter by dictionary here; the guessing check handles "real words"
+    if(!seen.has(w)){ out.push(w); seen.add(w); }
+  }
+  return out;
+}
+
+function updateCount(){
+  const raw = (wordsInput.value || '').split(/\r?\n/).map(sanitizeWord).filter(w => w.length>=2 && w.length<=32);
+  if(settings.allowReal){
+    const valid = raw.filter(dictHas);
+    countHint.textContent = `${valid.length} valid of ${raw.length}`;
+  }else{
+    countHint.textContent = `${raw.length} valid words`;
+  }
+}
+function makePlayURL(){
+  const raw = (wordsInput.value || '').split(/\r?\n/).map(sanitizeWord).filter(w=>w.length>=2 && w.length<=32);
+  const list = getMakerWords();
+  if(settings.allowReal && list.length < raw.length){
+    const drop = raw.length - list.length;
+    if(!confirm(`${drop} word(s) are not in the dictionary and will be removed. Continue?`)) return null;
+  }
+  if(list.length === 0){ alert('Add at least one valid word.'); return null; }
+  const payload = b64urlEncodeString(JSON.stringify({ list }));
+  const base = location.href.split('#')[0];
+  return `${base}#play=${payload}`;
+}
+openBtn?.addEventListener('click', ()=>{
+  const url = makePlayURL(); if(url) window.open(url, '_blank');
+});
+copyBtn?.addEventListener('click', async ()=>{
+  const url = makePlayURL(); if(!url) return;
+  try{ await navigator.clipboard.writeText(url); copyBtn.textContent = '✅ Copied!'; setTimeout(()=>copyBtn.textContent='📋 Copy Link',900);}
+  catch{ prompt('Copy this link:', url); }
+});
+
+/* ---------- PLAY ---------- */
+const boardEl = document.getElementById('board');
+const keyboardEl = document.getElementById('keyboard');
+const statusEl = document.getElementById('status');
+const metaEl = document.getElementById('meta');
+
+let list = [];           // words list
+let bag = [];            // randomized order to avoid repeats
+let target = '';         // current target
+let row = 0;             // 0..5
+let cols = 5;            // dynamic: target length
+let cur = '';            // current input for the row
+let gameOver = false;
+let listSet = new Set(); // NEW: uppercased words from maker list
+
+/* Utility */
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){
+    const j = (crypto.getRandomValues(new Uint32Array(1))[0] % (i+1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* Board */
+function buildBoard(len){
+  cols = len;
+  boardEl.innerHTML = '';
+  boardEl.style.gridTemplateRows = `repeat(6, var(--cell-size))`;
+  for(let r=0;r<6;r++){
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'row-cells';
+    rowDiv.style.gridTemplateColumns = `repeat(${cols}, var(--cell-size))`;
+    for(let c=0;c<cols;c++){
+      const cell = document.createElement('div');
+      cell.className = 'cell empty';
+      cell.dataset.r = r; cell.dataset.c = c;
+      rowDiv.appendChild(cell);
+    }
+    boardEl.appendChild(rowDiv);
+  }
+}
+
+/* Keyboard */
+const KEYS = [ ..."QWERTYUIOP", ..."ASDFGHJKL", ..."ZXCVBNM" ];
+function buildKeyboard(){
+  keyboardEl.innerHTML = '';
+  function keyBtn(label, cls=''){
+    const b = document.createElement('button');
+    b.className = `key ${cls}`.trim();
+    b.textContent = label;
+    b.addEventListener('click', ()=> handleVirtual(label));
+    keyboardEl.appendChild(b);
+    return b;
+  }
+  for(let i=0;i<10;i++) keyBtn(KEYS[i]);
+  for(let i=10;i<19;i++) keyBtn(KEYS[i]);
+  keyBtn('⌫','wide');
+  for(let i=19;i<26;i++) keyBtn(KEYS[i]);
+  keyBtn('Enter','wide');
+}
+
+/* Row render + pop */
+function renderRow(){
+  for(let c=0;c<cols;c++){
+    const el = boardEl.querySelector(`.row-cells:nth-child(${row+1}) .cell:nth-child(${c+1})`);
+    el.textContent = cur[c] || '';
+    el.classList.toggle('empty', !cur[c]);
+    el.classList.toggle('fill', !!cur[c]);
+  }
+  const idx = cur.length - 1;
+  if (idx >= 0){
+    const el = boardEl.querySelector(`.row-cells:nth-child(${row+1}) .cell:nth-child(${idx+1})`);
+    el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+    setTimeout(()=> el.classList.remove('pop'), 150);
+  }
+}
+
+/* Scoring */
+function score(guess, answer){
+  const res = Array(cols).fill('absent');
+  const counts = {};
+  for(let i=0;i<cols;i++){ const ch = answer[i]; counts[ch] = (counts[ch]||0) + 1; }
+  for(let i=0;i<cols;i++){ if(guess[i] === answer[i]){ res[i] = 'correct'; counts[guess[i]]--; } }
+  for(let i=0;i<cols;i++){
+    if(res[i] === 'correct') continue;
+    const ch = guess[i];
+    if(counts[ch] > 0){ res[i] = 'present'; counts[ch]--; }
+  }
+  return res;
+}
+
+/* Keyboard state */
+const keyStates = new Map();
+function bumpKey(letter, kind){
+  const rank = { absent:0, present:1, correct:2 };
+  const prev = keyStates.get(letter) ?? 'absent';
+  if(rank[kind] > rank[prev]) keyStates.set(letter, kind);
+  const btn = Array.from(keyboardEl.querySelectorAll('.key')).find(b => b.textContent === letter);
+  if(btn){
+    btn.classList.remove('correct','present','absent');
+    btn.classList.add(keyStates.get(letter));
+    btn.classList.remove('bump'); void btn.offsetWidth; btn.classList.add('bump');
+    setTimeout(()=> btn.classList.remove('bump'), 160);
+  }
+}
+
+/* Helpers for messages/anim */
+function flash(text){
+  statusEl.textContent = text;
+  setTimeout(()=>{ if(!gameOver) statusEl.textContent = `Row ${row+1} of 6`; }, 900);
+}
+function shakeRow(){
+  const rowEl = boardEl.querySelector(`.row-cells:nth-child(${row+1})`);
+  rowEl.classList.remove('shake'); void rowEl.offsetWidth; rowEl.classList.add('shake');
+  setTimeout(()=> rowEl.classList.remove('shake'), 350);
+}
+function revealRow(rIdx, kinds, guess){
+  return new Promise(resolve=>{
+    for(let c=0;c<cols;c++){
+      const el = boardEl.querySelector(`.row-cells:nth-child(${rIdx+1}) .cell:nth-child(${c+1})`);
+      el.textContent = guess[c];
+      el.classList.remove('fill','empty','correct','present','absent');
+      el.style.setProperty('--delay', `${c*120}ms`);
+      el.classList.add('reveal', kinds[c]);
+      setTimeout(()=>{ bumpKey(guess[c], kinds[c]); }, c*120 + 300);
+    }
+    const total = (cols-1)*120 + 550;
+    setTimeout(resolve, total + 20);
+  });
+}
+function rowDance(rIdx){
+  for(let c=0;c<cols;c++){
+    const el = boardEl.querySelector(`.row-cells:nth-child(${rIdx+1}) .cell:nth-child(${c+1})`);
+    el.style.setProperty('--delay', `${c*60}ms`);
+    el.classList.add('dance');
+    setTimeout(()=> el.classList.remove('dance'), 500 + c*60);
+  }
+}
+
+/* Input */
+function handleLetter(ch){ if(gameOver) return; if(cur.length >= cols) return; cur += ch; renderRow(); }
+function handleBackspace(){ if(gameOver) return; if(cur.length>0){ cur = cur.slice(0,-1); renderRow(); } }
+function handleVirtual(label){
+  if(label === '⌫'){ handleBackspace(); return; }
+  if(label === 'Enter'){ submitGuess(); return; }
+  if(/^[A-Z]$/.test(label)) handleLetter(label);
+}
+document.addEventListener('keydown', (e)=>{
+  if(document.body.classList.contains('play')){
+    if(e.key === 'Enter'){ e.preventDefault(); submitGuess(); return; }
+    if(e.key === 'Backspace'){ e.preventDefault(); handleBackspace(); return; }
+    const ch = e.key.length===1 ? e.key.toUpperCase() : '';
+    if(/^[A-Z]$/.test(ch)){ e.preventDefault(); handleLetter(ch); }
+  }
+});
+
+// allow if: in dictionary OR in the maker's list OR exactly equals target
+function isAllowedGuess(word){
+  if (!settings.allowReal) return true;           // free mode
+  const W = (word || '').toUpperCase();
+  // allow if: in dictionary OR in the maker's list OR exactly equals target
+  return dictHas(W) || listSet.has(W) || W === (target || '').toUpperCase();
+}
+
+/* Submit */
+async function submitGuess(){
+  if(gameOver) return;
+  if(cur.length !== cols){
+    flash(`Need ${cols} letters`);
+    shakeRow();
+    return;
+  }
+
+  // NEW: accept creator words even with "Allow actual words" ON
+  if(!isAllowedGuess(cur)){
+    flash('Not a word');
+    shakeRow();
+    return; // do not consume a row
+  }
+
+  const guess = cur;                 // freeze guess
+  const kinds = score(guess, target);
+  await revealRow(row, kinds, guess); // animate tiles + update keys
+
+  if(guess === target){
+    rowDance(row);
+    endGame(true);
+  } else if(row === 5){
+    endGame(false);
+  } else {
+    row++; cur=''; renderRow();
+    statusEl.textContent = `Row ${row+1} of 6`;
+  }
+}
+
+
+/* End / overlay */
+function endGame(win){
+  gameOver = true;
+  statusEl.textContent = '';
+  metaEl.textContent = `Answer: ${target}`;
+  const title = win ? '🎉 You got it!' : '😅 Out of tries';
+  const msg = win ? `Nice! The word was **${target}**.` : `The word was **${target}**. Better luck next time!`;
+  showOverlay(title, msg);
+}
+function showOverlay(title, msg){
+  document.getElementById('overlayTitle').textContent = title;
+  document.getElementById('overlayMsg').innerHTML = msg.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+  document.getElementById('overlay').classList.add('show');
+}
+document.getElementById('closeOverlay').addEventListener('click', ()=> {
+  document.getElementById('overlay').classList.remove('show');
+});
+document.getElementById('againBtn').addEventListener('click', ()=> {
+  document.getElementById('overlay').classList.remove('show');
+  startNewRound();
+});
+
+/* Round setup */
+function startNewRound(){
+  if(bag.length === 0) bag = shuffle(list.slice());
+  target = bag.pop();
+  row = 0; cur=''; gameOver=false; keyStates.clear();
+  statusEl.textContent = `Row 1 of 6`;
+  metaEl.textContent = `Word length: ${target.length}`;
+  buildBoard(target.length);
+  buildKeyboard();
+  renderRow();
+}
+
+/* Boot */
+(function boot(){
+  const h = location.hash || '';
+  if(h.startsWith('#play=')){
+    try{
+      const data = JSON.parse(b64urlDecodeToString(h.slice(6)));
+      list = (data.list || []).map(sanitizeWord).filter(w => w.length>=2);
+if(list.length === 0) throw new Error('Empty word list');
+
+listSet = new Set(list.map(w => w.toUpperCase())); // ← NEW
+
+document.body.classList.add('play');
+startNewRound();
+
+      
+      
+
+      document.body.classList.add('play');
+      startNewRound();
+      return;
+    }catch(err){
+      alert('Invalid play link. Loading maker.');
+    }
+  }
+  // Maker default preview
+  document.body.classList.remove('play');
+updateCount();
+// provide a small demo board so page doesn't look empty
+list = ['HELLO','DOG'];
+listSet = new Set(list.map(w => w.toUpperCase())); // ← NEW
+startNewRound();
+
+})();
+</script>
+</body>
+</html>
