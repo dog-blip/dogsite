@@ -177,6 +177,28 @@
 }
 .switch input:checked{ background:var(--good); border-color:var(--good); }
 .switch input:checked::after{ transform: translateX(18px); }
+
+/* Center the play view */
+body.play .grid-area{
+  grid-template-columns: 1fr;       /* collapse to one column in play */
+  justify-items: center;            /* center the single card horizontally */
+}
+
+body.play .grid-area > .card:first-child{
+  width: min(740px, 94vw);          /* nicer readable width */
+  margin: 0 auto;                   /* ensure it's centered */
+}
+
+/* Center the board and keyboard inside the card */
+body.play .board-wrap{ width: 100%; }
+body.play #board{ justify-content: center; }
+body.play .keyboard{
+  justify-content: center;          /* center the grid of keys */
+  width: 100%;
+  max-width: 740px;                 /* match the card width */
+  margin-inline: auto;
+}
+
 </style>
 </head>
 <body data-theme="dark">
