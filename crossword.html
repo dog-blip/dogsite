@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Crossword Maker</title>
+  <style>
+    :root{
+      --bg: #0f172a;          /* slate-900 */
+      --panel: #111827ee;     /* gray-900 translucent */
+      --ink: #e5e7eb;         /* gray-200 */
+      --muted: #94a3b8;       /* slate-400 */
+      --accent: #22d3ee;      /* cyan-400 */
+      --accent-2: #f472b6;    /* pink-400 */
+      --good: #34d399;        /* green-400 */
+      --warn: #f59e0b;        /* amber-500 */
+      --danger: #ef4444;      /* red-500 */
+      --cell-size: 38px;      /* default */
+      --gap: 6px;
+      --radius: 14px;
+      --grid-border: #1f2937; /* gray-800 */
+  
+      /* NEW: themeable surfaces */
+      --hero: #172554;        /* dark radial splash */
+      --cell-fill: #0b1220cc; /* playable cell surface */
+      --cell-block: #0b1220;  /* block cell surface */
+      --panel-tint: #0b12201a;/* light wash on panels/cards */
+      --field: #0b12202a;     /* inputs / secondary buttons */
+    }
+  
+    [data-theme="light"]{
+      --bg: #f8fafc;          /* slate-50 */
+      --panel: #ffffffee;     /* white */
+      --ink: #0f172a;         /* slate-900 */
+      --muted: #475569;       /* slate-600 */
+      --accent: #0ea5e9;      /* sky-500 */
+      --accent-2: #d946ef;    /* fuchsia-500 */
+      --grid-border: #cbd5e1; /* slate-300 */
+  
+      /* light-mode surfaces */
+      --hero: #e0f2fe;        /* sky-100 */
+      --cell-fill: #ffffff;   /* playable cell = white */
+      --cell-block: #e2e8f0;  /* slate-200 */
+      --panel-tint: #0f172a0a;/* subtle ink wash */
+      --field: #eef2f7;       /* light field bg */
+    }
+    
+    #publishBtn{ display:none !important; }
+
+  
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+  
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      color: var(--ink);
+      background: radial-gradient(1200px 800px at 20% -10%, var(--hero) 0%, var(--bg) 45%);
+      display:flex; flex-direction:column;
+    }
+  
+    header{
+      position: sticky; top:0; z-index: 50;
+      backdrop-filter: saturate(1.5) blur(8px);
+      background: var(--panel);
+      border-bottom: 1px solid var(--grid-border);
+    }
+    .wrap{ max-width: 1200px; margin: 0 auto; padding: 12px 16px; }
+    .topbar{ display:flex; gap:12px; align-items:center; flex-wrap: wrap; }
+    h1{ font-size: 18px; margin:0 12px 0 0; letter-spacing: .2px; }
+    .badge{ padding:4px 10px; border-radius: 999px; font-size:12px; background:#0ea5e91a; border:1px solid #0ea5e94d; color:var(--accent); }
+  
+    main{ flex:1; }
+    .grid-area{
+      display:grid; gap: var(--gap);
+      grid-template-columns: 1.2fr .8fr;
+      align-items:start; max-width: 1200px; margin: 18px auto; padding: 0 16px 24px;
+    }
+    @media (max-width: 960px){ .grid-area{ grid-template-columns: 1fr; } }
+  
+    .card{
+      background: var(--panel);
+      border: 1px solid var(--grid-border);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 30px #00000022;
+    }
+    .card h2{ font-size: 14px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin:0 0 6px 0; }
+    .card .content{ padding: 14px; }
+  
+    /* Controls */
+    .controls{ display:flex; flex-wrap: wrap; gap:8px; align-items:center; }
+    .controls .group{
+      display:flex; align-items:center; gap:8px; padding:6px 8px;
+      border-radius: 10px; background: var(--panel-tint);
+      border:1px dashed var(--grid-border);
+    }
+    label{ font-size:12px; color:var(--muted); }
+    input[type="number"], input[type="text"], input[type="file"], select{
+      background: var(--field); color:var(--ink);
+      border:1px solid var(--grid-border); border-radius: 8px; padding:8px 10px; font-size: 14px; outline: none;
+    }
+    input[type="range"]{ width:160px; }
+    .btn{
+      appearance:none; border:none; outline:none; cursor:pointer; color:#0b1220;
+      background:linear-gradient(135deg, var(--accent), var(--accent-2));
+      padding:9px 12px; border-radius: 12px; font-weight: 700; font-size: 14px; letter-spacing:.2px; box-shadow: 0 6px 18px #22d3ee44; transition: transform .05s ease-in;
+    }
+    .btn.secondary{ background: var(--field); color:var(--ink); border:1px solid var(--grid-border); box-shadow:none; }
+    .btn.warn{ background: var(--warn); color:#111; }
+    .btn:active{ transform: translateY(1px); }
+  
+    .legend { font-size:12px; color:var(--muted); margin-top:8px; }
+  
+    /* Crossword grid */
+    #gridWrap{ padding: 14px; }
+    #grid{
+      display:grid; grid-template-columns: repeat(15, var(--cell-size));
+      gap:2px; background:var(--grid-border); padding:2px; border-radius: 10px; user-select: none;
+    }
+    .cell{
+      width: var(--cell-size); height: var(--cell-size);
+      display:grid; place-items:center; position:relative; font-weight:800; font-size: calc(var(--cell-size) * 0.44);
+      background: var(--cell-block); color:var(--ink); border-radius: 6px; outline:none; caret-color: transparent;
+    }
+    .cell:not(.block){ background: var(--cell-fill); }
+    .cell.block{ background: var(--cell-block); }
+    .cell .num{ position:absolute; left:4px; top:2px; font-size: 10px; color: var(--muted); font-weight:700; }
+    .cell .letter{ line-height:1; transform: translateY(1px); }
+    .cell.hl{ outline: 2px solid var(--accent); outline-offset: -2px; }
+    .cell.focused{ box-shadow: inset 0 0 0 2px var(--accent-2); }
+  
+    /* PLAY: strong green focus ring */
+    body.play .cell.focused{ box-shadow: 0 0 0 3px var(--good); }
+  
+    .publish .cell .letter{ opacity:0; }
+  
+    .tools{ display:flex; flex-wrap: wrap; gap:10px; margin-top:10px; }
+  
+    /* Clues */
+    #cluesWrap{ display:grid; grid-template-columns: 1fr; gap:12px; padding: 14px; }
+    .clue-card{ background: var(--panel-tint); border:1px solid var(--grid-border); border-radius: 12px; padding: 12px; }
+    .clue-title{ display:flex; align-items:center; justify-content: space-between; }
+    .clue-title h3{ margin:0; font-size: 16px; letter-spacing:.4px; }
+    .clue-list{ list-style:none; margin:10px 0 0 0; padding:0; max-height: 480px; overflow:auto; }
+    .clue-list li{ display:grid; grid-template-columns: 46px 1fr; gap:8px; align-items:center; padding:6px 0; border-bottom:1px dashed var(--grid-border); }
+    .clue-list li:last-child{ border-bottom:none; }
+    .clue-num{ color: var(--muted); font-weight:700; text-align:right; padding-right: 8px; }
+  
+    .pill{ font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--grid-border); color:var(--muted); }
+  
+    /* Play view (shared link) */
+    body.play .maker-only{ display:none !important; }
+    /* keep clues visible in play */
+  
+    /* Victory overlay (play-only) */
+    #winOverlay{
+      position: fixed; inset: 0;
+      display: none;
+      align-items: center; justify-content: center;
+      background: rgba(0,0,0,.55);
+      z-index: 100;
+    }
+    #winOverlay.show{ display: flex; }
+    #winOverlay .modal{
+      background: var(--panel);
+      border: 1px solid var(--grid-border);
+      border-radius: 16px;
+      padding: 16px 18px;
+      width: min(90vw, 420px);
+      box-shadow: 0 20px 60px #0008;
+    }
+  
+    /* PLAY: disable native selection highlight */
+    body.play, body.play *{
+      -webkit-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+      user-select: none !important;
+    }
+    body.play ::selection{ background: transparent; color: inherit; }
+    body.play ::-moz-selection{ background: transparent; color: inherit; }
+    body.play :focus{ outline: none; }
+    body.play #cluesWrap input{ pointer-events: none; }
+  
+    /* Print tweaks */
+    @media print{
+      header, .tools, .legend, .controls, .badge { display:none !important; }
+      body{ background:white; color:black; }
+      .card{ border:none; box-shadow:none; }
+      .grid-area{ padding:0; margin:0; }
+      .publish .cell .letter{ opacity:0 !important; }
+      .cell{ border-radius:0; }
+    }
+  </style>
+  
+</head>
+<body data-theme="dark">
+  <header>
+    <div class="wrap topbar">
+      <h1>🧩 Crossword Maker</h1>
+      <span class="badge">made by a programmer</span>
+      <div class="controls" style="margin-left:auto">
+        <div class="group maker-only">
+          <label for="rows">Rows</label>
+          <input id="rows" type="number" min="3" max="25" value="15" />
+          <label for="cols">Cols</label>
+          <input id="cols" type="number" min="3" max="25" value="15" />
+          <button class="btn secondary" id="newGridBtn" title="Create a new empty grid">New Grid</button>
+        </div>
+        <div class="group">
+          <label for="cellSize">Cell</label>
+          <input id="cellSize" type="range" min="28" max="56" value="41" />
+          <span class="pill" id="zoomLabel">41px</span>
+        </div>
+        <div class="group">
+          <button class="btn secondary" id="themeBtn" title="Toggle light/dark">🌗 Theme</button>
+          <button class="btn secondary maker-only" id="publishBtn" title="Hide letters for printing/playing">📰 Publish</button>
+          <button class="btn" id="printBtn" title="Print the puzzle">🖨️ Print</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="grid-area">
+      <div class="card" id="gridCard">
+        <div class="content">
+          <h2>Grid</h2>
+          <div id="gridWrap">
+            <div id="grid" aria-label="Crossword grid" role="grid"></div>
+          </div>
+          <div class="tools">
+            <!-- fixed duplicate class attributes -->
+            <button class="btn maker-only" id="cluesBtn">Generate Clue List</button>
+            <button class="btn secondary maker-only" id="toggleDirBtn" title="Toggle typing direction (Across/Down)">⇄ Direction: <span id="dirLabel">Across</span></button>
+            <button class="btn secondary maker-only" id="clearLettersBtn" title="Clear all letters but keep blocks">Clear Letters</button>
+            <button class="btn secondary maker-only" id="blockEmptiesBtn" title="Turn all empty (non-block) cells into blocks">Block Empty Cells </button>
+            <button class="btn warn maker-only" id="resetBtn" title="Reset the entire grid">Reset</button>
+            <span class="legend">Type A–Z to fill • Space/# toggles block • Arrows to move • Enter toggles direction</span>
+          </div>
+          <div class="tools">
+            <button class="btn maker-only" id="saveBtn">💾 Save JSON</button>
+            <label class="btn secondary maker-only" for="loadInput" style="cursor:pointer">📂 Load JSON</label>
+            <input id="loadInput" type="file" accept="application/json" style="display:none" />
+            <button class="btn maker-only" id="shareBtn">🔗 Open Play Link</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="cluesCard">
+        <div class="content">
+          <h2>Clues</h2>
+          <div id="cluesWrap">
+            <div class="clue-card" id="acrossCard">
+              <div class="clue-title"><h3>Across</h3><span class="pill" id="acrossCount">0</span></div>
+              <ul class="clue-list" id="acrossList"></ul>
+            </div>
+            <div class="clue-card" id="downCard">
+              <div class="clue-title"><h3>Down</h3><span class="pill" id="downCount">0</span></div>
+              <ul class="clue-list" id="downList"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // --- State ---
+    let rows = 15, cols = 15;
+    let grid = []; // 2D array of cells
+    let orientation = 'across'; // or 'down'
+    let active = { r:0, c:0 };
+    const clues = { across: new Map(), down: new Map() };
+
+    // --- Elements ---
+    const gridEl = document.getElementById('grid');
+    const rowsEl = document.getElementById('rows');
+    const colsEl = document.getElementById('cols');
+    const newGridBtn = document.getElementById('newGridBtn');
+    const cluesBtn = document.getElementById('cluesBtn');
+    const dirBtn = document.getElementById('toggleDirBtn');
+    const dirLabel = document.getElementById('dirLabel');
+    const publishBtn = document.getElementById('publishBtn');
+    const printBtn = document.getElementById('printBtn');
+    const themeBtn = document.getElementById('themeBtn');
+    const zoom = document.getElementById('cellSize');
+    const zoomLabel = document.getElementById('zoomLabel');
+    const clearLettersBtn = document.getElementById('clearLettersBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const loadInput = document.getElementById('loadInput');
+    const shareBtn = document.getElementById('shareBtn');
+    const acrossList = document.getElementById('acrossList');
+    const downList = document.getElementById('downList');
+    const acrossCount = document.getElementById('acrossCount');
+    const downCount = document.getElementById('downCount');
+    const blockEmptiesBtn = document.getElementById('blockEmptiesBtn');
+
+
+    // --- Helpers ---
+    function makeEmptyCell(){ return { block:false, letter:'', acrossNum:null, downNum:null }; }
+
+    function initGrid(r=rows, c=cols){
+      rows = r; cols = c; rowsEl.value = r; colsEl.value = c;
+      grid = Array.from({length:r}, () => Array.from({length:c}, makeEmptyCell));
+      renderGrid();
+      numberGrid();
+      renderHighlights();
+    }
+
+    function renderGrid(){
+      gridEl.style.gridTemplateColumns = `repeat(${cols}, var(--cell-size))`;
+      gridEl.innerHTML = '';
+      for(let r=0;r<rows;r++){
+        for(let c=0;c<cols;c++){
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.setAttribute('role','gridcell');
+          cell.dataset.r = r; cell.dataset.c = c;
+          cell.tabIndex = 0;
+
+          const num = document.createElement('span'); num.className='num'; cell.appendChild(num);
+          const letter = document.createElement('span'); letter.className='letter'; letter.textContent = grid[r][c].letter || '';
+          cell.appendChild(letter);
+
+          if(grid[r][c].block) cell.classList.add('block');
+
+          // Events
+          cell.addEventListener('click', (e)=>{
+            const rr = Number(cell.dataset.r), cc = Number(cell.dataset.c);
+            if(active.r===rr && active.c===cc){ toggleDirection(); } else { setActive(rr, cc); }
+          });
+          cell.addEventListener('keydown', handleKey);
+
+          gridEl.appendChild(cell);
+        }
+      }
+    }
+
+    function setActive(r, c){
+      active = {r, c};
+      renderHighlights();
+      focusCell(r,c);
+    }
+
+    function focusCell(r,c){
+      const sel = `.cell[data-r="${r}"][data-c="${c}"]`;
+      const el = gridEl.querySelector(sel);
+      if(!el) return;
+      gridEl.querySelectorAll('.cell').forEach(x=>x.classList.remove('focused'));
+      el.classList.add('focused');
+      el.focus({preventScroll:true});
+    }
+
+    function inBounds(r,c){ return r>=0 && r<rows && c>=0 && c<cols; }
+
+    function move(deltaR, deltaC){
+      let r = active.r + deltaR, c = active.c + deltaC;
+      while(inBounds(r,c) && grid[r][c].block){ r += deltaR; c += deltaC; }
+      if(inBounds(r,c)){ setActive(r,c); }
+    }
+
+    function toggleBlock(r=active.r, c=active.c){
+      const cell = grid[r][c];
+      cell.block = !cell.block; cell.letter = cell.block ? '' : cell.letter;
+      updateCellEl(r,c);
+      numberGrid();
+      renderHighlights();
+    }
+
+    function updateCellEl(r,c){
+      const el = gridEl.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+      if(!el) return;
+      el.classList.toggle('block', grid[r][c].block);
+      el.querySelector('.letter').textContent = grid[r][c].letter || '';
+      el.querySelector('.num').textContent = grid[r][c].acrossNum || grid[r][c].downNum || '';
+    }
+
+    function handleKey(e){
+      const r = Number(this.dataset.r), c = Number(this.dataset.c);
+      active = {r, c};
+      const cell = grid[r][c];
+
+      if(e.key === 'Enter'){ e.preventDefault(); toggleDirection(); return; }
+      if(e.key === ' ' || e.key === '#'){ e.preventDefault(); if(!document.body.classList.contains('play')) toggleBlock(r,c); return; }
+      if(e.key === 'Backspace'){
+        e.preventDefault();
+        if(!cell.block){
+          if(cell.letter){ cell.letter = ''; updateCellEl(r,c); }
+          else { orientation==='across' ? move(0,-1) : move(-1,0); }
+        }
+        return;
+      }
+      if(e.key.startsWith('Arrow')){
+        e.preventDefault();
+        if(e.key==='ArrowLeft'){ orientation='across'; move(0,-1); }
+        if(e.key==='ArrowRight'){ orientation='across'; move(0,1); }
+        if(e.key==='ArrowUp'){ orientation='down'; move(-1,0); }
+        if(e.key==='ArrowDown'){ orientation='down'; move(1,0); }
+        dirLabel.textContent = cap(orientation);
+        return;
+      }
+      const letter = e.key.length===1 ? e.key.toUpperCase() : '';
+      if(letter && /[A-Z]/.test(letter)){
+        e.preventDefault();
+        if(!cell.block){ cell.letter = letter; updateCellEl(r,c); orientation==='across' ? move(0,1) : move(1,0); }
+        return;
+      }
+    }
+
+    function cap(s){ return s[0].toUpperCase()+s.slice(1); }
+
+    function toggleDirection(){
+      orientation = orientation==='across' ? 'down' : 'across';
+      dirLabel.textContent = cap(orientation);
+      renderHighlights();
+    }
+
+    // --- Numbering ---
+    function numberGrid(){
+      let n = 1;
+      for(let r=0;r<rows;r++){
+        for(let c=0;c<cols;c++){
+          const cell = grid[r][c];
+          cell.acrossNum = null; cell.downNum = null;
+          if(cell.block) continue;
+          const startAcross = (c===0 || grid[r][c-1].block) && (c+1<cols);
+          const startDown = (r===0 || grid[r-1][c].block) && (r+1<rows);
+          if(startAcross || startDown){
+            if(startAcross) cell.acrossNum = n;
+            if(startDown) cell.downNum = n;
+            n++;
+          }
+        }
+      }
+      // Draw numbers into DOM
+      for(let r=0;r<rows;r++){
+        for(let c=0;c<cols;c++){
+          const el = gridEl.querySelector(`.cell[data-r="${r}"][data-c="${c}"] .num`);
+          if(!el) continue;
+          const cell = grid[r][c];
+          el.textContent = cell.acrossNum || cell.downNum || '';
+        }
+      }
+    }
+
+    function getWordCells(r,c,dir){
+      if(grid[r][c].block) return [];
+      let sr=r, sc=c;
+      if(dir==='across'){ while(sc>0 && !grid[r][sc-1].block) sc--; }
+      else { while(sr>0 && !grid[sr-1][c].block) sr--; }
+      const out=[];
+      if(dir==='across'){
+        for(let j=sc;j<cols && !grid[r][j].block;j++){ out.push({r, c:j}); }
+      } else {
+        for(let i=sr;i<rows && !grid[i][c].block;i++){ out.push({r:i, c}); }
+      }
+      return out;
+    }
+
+    function renderHighlights(){
+      gridEl.querySelectorAll('.cell').forEach(x=>x.classList.remove('hl'));
+      const {r,c} = active;
+      if(!inBounds(r,c) || grid[r][c].block) return;
+      const cells = getWordCells(r,c,orientation);
+      for(const p of cells){
+        const el = gridEl.querySelector(`.cell[data-r="${p.r}"][data-c="${p.c}"]`);
+        if(el) el.classList.add('hl');
+      }
+      focusCell(r,c);
+    }
+
+    // --- Clues generation ---
+    function buildEntries(){
+      const across = []; const down = [];
+      // Across
+      for(let r=0;r<rows;r++){
+        for(let c=0;c<cols;c++){
+          const cell = grid[r][c];
+          if(cell.block) continue;
+          const startAcross = (c===0 || grid[r][c-1].block) && (c+1<cols) && !grid[r][c+1].block;
+          if(startAcross){
+            let j=c, answer='';
+            while(j<cols && !grid[r][j].block){ answer += grid[r][j].letter || '·'; j++; }
+            across.push({ num: cell.acrossNum, len: answer.replace(/·/g,'').length || (j-c), pattern: j-c, answer });
+          }
+        }
+      }
+      // Down
+      for(let c=0;c<cols;c++){
+        for(let r=0;r<rows;r++){
+          const cell = grid[r][c];
+          if(cell.block) continue;
+          const startDown = (r===0 || grid[r-1][c].block) && (r+1<rows) && !grid[r+1][c].block;
+          if(startDown){
+            let i=r, answer='';
+            while(i<rows && !grid[i][c].block){ answer += grid[i][c].letter || '·'; i++; }
+            down.push({ num: cell.downNum, len: answer.replace(/·/g,'').length || (i-r), pattern: i-r, answer });
+          }
+        }
+      }
+      // sort by number
+      across.sort((a,b)=>a.num-b.num); down.sort((a,b)=>a.num-b.num);
+      return { across, down };
+    }
+
+    function renderClues(){
+      const { across, down } = buildEntries();
+
+      acrossList.innerHTML = '';
+      for(const it of across){
+        const li = document.createElement('li');
+        const n = document.createElement('div'); n.className='clue-num'; n.textContent = it.num; li.appendChild(n);
+        const input = document.createElement('input');
+        input.type='text'; input.placeholder = `(${it.pattern})`;
+        input.value = clues.across.get(it.num) || '';
+        input.addEventListener('input', ()=> clues.across.set(it.num, input.value));
+        li.appendChild(input);
+        acrossList.appendChild(li);
+      }
+
+      downList.innerHTML = '';
+      for(const it of down){
+        const li = document.createElement('li');
+        const n = document.createElement('div'); n.className='clue-num'; n.textContent = it.num; li.appendChild(n);
+        const input = document.createElement('input');
+        input.type='text'; input.placeholder = `(${it.pattern})`;
+        input.value = clues.down.get(it.num) || '';
+        input.addEventListener('input', ()=> clues.down.set(it.num, input.value));
+        li.appendChild(input);
+        downList.appendChild(li);
+      }
+
+      acrossCount.textContent = across.length; downCount.textContent = down.length;
+    }
+
+    // --- Export/Import ---
+    function saveJSON(){
+      const data = {
+        rows, cols,
+        grid: grid.map(row => row.map(cell => cell.block ? '#' : (cell.letter || '.')).join('')),
+        clues: {
+          across: Object.fromEntries(clues.across),
+          down: Object.fromEntries(clues.down)
+        }
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `crossword_${rows}x${cols}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function loadJSON(file){
+      const fr = new FileReader();
+      fr.onload = () => {
+        try{
+          const data = JSON.parse(fr.result);
+          const r = data.rows, c = data.cols;
+          initGrid(r, c);
+          // load cells
+          for(let i=0;i<r;i++){
+            const line = data.grid[i];
+            for(let j=0;j<c;j++){
+              const ch = line[j];
+              if(ch === '#'){ grid[i][j].block = true; grid[i][j].letter = ''; }
+              else { grid[i][j].block = false; grid[i][j].letter = (ch==='.'? '' : ch.toUpperCase()); }
+              updateCellEl(i,j);
+            }
+          }
+          numberGrid();
+          clues.across = new Map(Object.entries(data.clues?.across || {}).map(([k,v])=>[Number(k), v]));
+          clues.down   = new Map(Object.entries(data.clues?.down   || {}).map(([k,v])=>[Number(k), v]));
+          renderClues();
+          renderHighlights();
+        }catch(err){ alert('Invalid file: '+err.message); }
+      };
+      fr.readAsText(file);
+    }
+
+    // Create a shareable play link (blocks only grid, WITH clues)
+    function openPlayLink(){
+      const data = {
+        rows, cols,
+        grid: grid.map(row => row.map(cell => cell.block ? '#' : '.').join('')),
+        clues: {
+          across: Object.fromEntries(clues.across),
+          down: Object.fromEntries(clues.down)
+        }
+      };
+      const payload = btoa(JSON.stringify(data));
+      const base = location.href.split('#')[0];
+      const url = `${base}#play=${payload}`;
+      window.open(url, '_blank');
+    }
+
+    // --- UI bindings ---
+    newGridBtn.addEventListener('click', ()=>{
+      const r = clamp(parseInt(rowsEl.value||15), 3, 25);
+      const c = clamp(parseInt(colsEl.value||15), 3, 25);
+      if(!confirm('Create a new empty grid? Current work will be cleared.')) return;
+      initGrid(r,c);
+      clues.across.clear(); clues.down.clear(); renderClues();
+    });
+
+    dirBtn.addEventListener('click', toggleDirection);
+    cluesBtn.addEventListener('click', renderClues);
+    publishBtn.addEventListener('click', ()=> document.body.classList.toggle('publish'));
+    printBtn.addEventListener('click', ()=> window.print());
+    themeBtn.addEventListener('click', ()=>{
+      const cur = document.body.getAttribute('data-theme');
+      document.body.setAttribute('data-theme', cur==='dark' ? 'light' : 'dark');
+    });
+
+    zoom.addEventListener('input', ()=>{
+      const v = Number(zoom.value);
+      document.documentElement.style.setProperty('--cell-size', v+"px");
+      zoomLabel.textContent = v+"px";
+    });
+
+    clearLettersBtn.addEventListener('click', ()=>{
+      grid.forEach((row,i)=> row.forEach((cell,j)=>{ if(!cell.block){ cell.letter=''; updateCellEl(i,j); } }));
+      renderHighlights();
+      renderClues();
+    });
+
+    resetBtn.addEventListener('click', ()=>{
+      if(!confirm('Reset the grid to all empty cells?')) return;
+      initGrid(rows, cols);
+      clues.across.clear(); clues.down.clear(); renderClues();
+    });
+
+    saveBtn.addEventListener('click', saveJSON);
+    if(shareBtn) shareBtn.addEventListener('click', openPlayLink);
+    loadInput.addEventListener('change', ()=>{ const f = loadInput.files?.[0]; if(f) loadJSON(f); });
+
+    function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+    blockEmptiesBtn?.addEventListener('click', () => {
+  let changed = false;
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      const cell = grid[i][j];
+      if (!cell.block && !cell.letter) {
+        cell.block = true;
+        changed = true;
+        updateCellEl(i, j);
+      }
+    }
+  }
+  if (changed) {
+    numberGrid();
+    renderHighlights();
+    renderClues();
+  }
+});
+
+
+    // --- Boot ---
+    (function boot(){
+      const h = location.hash || '';
+      if(h.startsWith('#play=')){
+        try{
+          const data = JSON.parse(atob(h.slice(6)));
+          document.title = 'Crossword — Play';
+          initGrid(data.rows, data.cols);
+          // load blocks only
+          for(let i=0;i<data.rows;i++){
+            const line = data.grid[i];
+            for(let j=0;j<data.cols;j++){
+              const ch = line[j];
+              grid[i][j].block = (ch === '#');
+              grid[i][j].letter = '';
+              updateCellEl(i,j);
+            }
+          }
+          numberGrid();
+          // load clues passed in link (so they show in play view)
+          if (data.clues){
+            clues.across = new Map(Object.entries(data.clues.across || {}).map(([k,v])=>[Number(k), v]));
+            clues.down   = new Map(Object.entries(data.clues.down   || {}).map(([k,v])=>[Number(k), v]));
+          } else {
+            clues.across.clear(); clues.down.clear();
+          }
+          renderClues();
+          document.body.classList.add('play');
+          setActive(0,0);
+        }catch(err){
+          alert('Invalid play link. Loading default grid.');
+          initGrid(rows, cols); setActive(0,0);
+        }
+      } else {
+        initGrid(rows, cols); setActive(0,0);
+      }
+    })();
+
+// Keyboard focus on grid wrapper to catch stray arrows
+document.addEventListener('keydown', (e)=>{
+  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){
+    // In play mode, stop the browser from extending a selection or scrolling
+    if (document.body.classList.contains('play')) e.preventDefault();
+    const el = gridEl.querySelector(`.cell[data-r="${active.r}"][data-c="${active.c}"]`);
+    if(el) el.focus();
+  }
+});
+
+
+    
+  </script>
+</body>
+</html>
