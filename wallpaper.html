@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Wave Wallpaper Generator</title>
+<title>Wallpaper Generator</title>
 <meta name="color-scheme" content="light dark" />
 <style>
   :root{
@@ -20,17 +20,9 @@
   html,body{height:100%}
   body{
     margin:0; font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,Roboto,Arial;
-    background: radial-gradient(1200px 800px at 12% -12%, #0e2a6a 0%, var(--bg) 50%);
-    color:var(--ink); display:flex; flex-direction:column; gap:16px;
+    color:var(--ink); background: var(--bg);
+    display:flex; flex-direction:column; gap:16px;
   }
-
-  body{
-  background:
-    radial-gradient(900px 600px at 50% -300px, color-mix(in oklab, var(--accent) 18%, transparent), var(--bg) 60%) ,
-    var(--bg);
-  background-attachment: fixed; /* keeps it at the top while scrolling */
-}
-
 
   header{
     position:sticky; top:0; z-index:10;
@@ -81,7 +73,7 @@
 <body data-theme="dark">
 <header>
   <div class="wrap row">
-    <h1>🎨 Wave Wallpaper Generator</h1>
+    <h1>🎨 Wallpaper Generator</h1>
     <div class="spacer"></div>
     <button id="themeBtn" class="btn secondary">🌗 Theme</button>
   </div>
@@ -103,6 +95,13 @@
 
         <div class="swatch-list" id="editor"></div>
 
+        <label class="hint" for="quality">Quality</label>
+        <select id="quality">
+          <option value="1">1×</option>
+          <option value="2" selected>2× (recommended)</option>
+          <option value="4">4×</option>
+        </select>
+
         <div class="line" style="margin-top:4px;">
           <button class="btn secondary" id="addColor">+ Add color</button>
           <button class="btn secondary" id="removeLast">– Remove last</button>
@@ -119,15 +118,23 @@
         </div>
       </div>
 
-      <!-- Size + seed + presets -->
-      <div style="flex:0 0 170px;">
+      <!-- Size + style + seed -->
+      <div style="flex:0 0 190px;">
         <label>Resolution</label>
         <div class="line" style="align-items:center;">
           <input id="w" type="number" min="256" value="1920" style="width:86px">×
           <input id="h" type="number" min="256" value="1080" style="width:86px">
         </div>
+
+        <label style="margin-top:6px;">Style</label>
+        <select id="styleSel" style="width:100%;">
+          <option value="waves">Waves</option>
+          <option value="rings">Rings (WORK IN PROGRESS)</option>
+        </select>
+
         <label style="margin-top:6px;">Seed</label>
         <input id="seed" type="number" value="0" />
+
         <label style="margin-top:6px;">Preset size</label>
         <select id="sizePreset" style="width:100%;">
           <option value="">— Custom —</option>
@@ -143,7 +150,7 @@
     </div>
 
     <div class="line">
-      <button id="genBtn" class="btn">Generate Waves</button>
+      <button id="genBtn" class="btn">Generate</button>
       <button id="randBtn" class="btn secondary">🎲 Randomize</button>
       <button id="dlBtn" class="btn secondary">⬇️ Download PNG</button>
     </div>
@@ -156,11 +163,11 @@
   </div>
 </div>
 
-<footer>Built with ♥ by dog-blip • single file, works offline</footer>
+<footer>Built with ♥ — no frameworks • single file, works offline</footer>
 
 <script>
 /* ---------- THEME ---------- */
-const THEME_KEY='waves.theme';
+const THEME_KEY='wp.theme';
 const savedTheme = localStorage.getItem(THEME_KEY);
 if(savedTheme) document.body.setAttribute('data-theme', savedTheme);
 document.getElementById('themeBtn').addEventListener('click', ()=>{
@@ -188,69 +195,48 @@ const removeBtn  = document.getElementById('removeLast');
 const importBtn  = document.getElementById('importTxt');
 const exportBtn  = document.getElementById('exportTxt');
 
-let internalChange = false; // avoid infinite sync loops
+let internalChange = false;
 
 function renderEditor(colors){
   editorEl.innerHTML = '';
-  colors.forEach((hex, idx)=>{
-    const row = document.createElement('div');
-    row.className = 'swatch-row';
-
-    const col = document.createElement('input');
-    col.type = 'color';
-    col.value = to6(hex);
-    const txt = document.createElement('input');
-    txt.type = 'text';
-    txt.value = to6(hex).toUpperCase();
-    const kill = document.createElement('button');
-    kill.className = 'kill';
-    kill.textContent = '×';
-
-    col.addEventListener('input', ()=>{
-      txt.value = col.value.toUpperCase();
-      syncEditorToTextarea();
-      draw();
-    });
-    txt.addEventListener('input', ()=>{
-      const v = sanitizeHex(txt.value);
-      if(v){ col.value = v; txt.value = v.toUpperCase(); }
-      syncEditorToTextarea();
-      draw();
-    });
-    kill.addEventListener('click', ()=>{
-      row.remove();
-      syncEditorToTextarea();
-      draw();
-    });
-
-    row.appendChild(col); row.appendChild(txt); row.appendChild(kill);
-    editorEl.appendChild(row);
-  });
+  colors.forEach((hex)=> addRow(hex));
   syncEditorToTextarea(true);
 }
+function addRow(hex='#FF0000'){
+  const row = document.createElement('div');
+  row.className = 'swatch-row';
+  row.innerHTML = `
+    <input type="color" value="${to6(hex)}">
+    <input type="text" value="${to6(hex).toUpperCase()}">
+    <button class="kill">×</button>
+  `;
+  const col = row.querySelector('input[type="color"]');
+  const txt = row.querySelector('input[type="text"]');
+  const kill= row.querySelector('.kill');
 
-function getEditorColors(){
-  return Array.from(editorEl.querySelectorAll('.swatch-row input[type="color"]'))
-         .map(inp => inp.value);
+  col.addEventListener('input', ()=>{ txt.value = col.value.toUpperCase(); syncEditorToTextarea(); draw(); });
+  txt.addEventListener('input', ()=>{ const v = sanitizeHex(txt.value); if(v){ col.value=v; txt.value=v.toUpperCase(); } syncEditorToTextarea(); draw(); });
+  kill.addEventListener('click', ()=>{ row.remove(); syncEditorToTextarea(); draw(); });
+
+  editorEl.appendChild(row);
 }
-function syncEditorToTextarea(skipParse=false){
+function getEditorColors(){
+  return Array.from(editorEl.querySelectorAll('.swatch-row input[type="color"]')).map(i=>i.value);
+}
+function syncEditorToTextarea(skip=false){
   internalChange = true;
-  const cols = getEditorColors();
-  paletteBox.value = cols.join(' ');
+  paletteBox.value = getEditorColors().join(' ');
   internalChange = false;
-  if(!skipParse) parsePalette(paletteBox.value); // just to validate
+  if(!skip) parsePalette(paletteBox.value);
 }
 function syncTextareaToEditor(){
   if(internalChange) return;
   const arr = parsePalette(paletteBox.value);
   renderEditor(arr);
 }
-
 function to6(hex){
   const m = String(hex||'').trim();
-  if(/^#([0-9a-f]{3})$/i.test(m)){
-    return '#'+m.slice(1).split('').map(x=>x+x).join('');
-  }
+  if(/^#([0-9a-f]{3})$/i.test(m)) return '#'+m.slice(1).split('').map(x=>x+x).join('');
   if(/^#([0-9a-f]{6})$/i.test(m)) return m;
   return '#000000';
 }
@@ -260,59 +246,26 @@ function sanitizeHex(s){
   if(/^#([0-9A-F]{6})$/.test(s)) return s;
   return '';
 }
-
-presetSel.addEventListener('change', ()=>{
-  renderEditor(PRESETS[presetSel.value] || PRESETS.ocean);
-  draw();
-});
-addBtn.addEventListener('click', ()=>{
-  const row = document.createElement('div');
-  row.className = 'swatch-row';
-  row.innerHTML = `
-    <input type="color" value="#FF0000">
-    <input type="text" value="#FF0000">
-    <button class="kill">×</button>
-  `;
-  row.querySelector('input[type="color"]').addEventListener('input', (e)=>{
-    row.querySelector('input[type="text"]').value = e.target.value.toUpperCase();
-    syncEditorToTextarea(); draw();
-  });
-  row.querySelector('input[type="text"]').addEventListener('input', (e)=>{
-    const v = sanitizeHex(e.target.value);
-    if(v){ row.querySelector('input[type="color"]').value = v; e.target.value = v.toUpperCase(); }
-    syncEditorToTextarea(); draw();
-  });
-  row.querySelector('.kill').addEventListener('click', ()=>{ row.remove(); syncEditorToTextarea(); draw(); });
-  editorEl.appendChild(row);
-  syncEditorToTextarea(); draw();
-});
-removeBtn.addEventListener('click', ()=>{
-  const rows = editorEl.querySelectorAll('.swatch-row');
-  if(rows.length){ rows[rows.length-1].remove(); syncEditorToTextarea(); draw(); }
-});
-
+presetSel.addEventListener('change', ()=>{ renderEditor(PRESETS[presetSel.value] || PRESETS.ocean); draw(); });
+addBtn.addEventListener('click', ()=>{ addRow('#FF0000'); syncEditorToTextarea(); draw(); });
+removeBtn.addEventListener('click', ()=>{ const rows = editorEl.querySelectorAll('.swatch-row'); if(rows.length){ rows[rows.length-1].remove(); syncEditorToTextarea(); draw(); }});
 importBtn.addEventListener('click', ()=>{ syncTextareaToEditor(); draw(); });
-exportBtn.addEventListener('click', async ()=>{
-  try{ await navigator.clipboard.writeText(paletteBox.value.trim()); exportBtn.textContent='✅ Copied'; setTimeout(()=>exportBtn.textContent='⬇️ Copy as text',900); }
-  catch{ /* ignore */ }
-});
+exportBtn.addEventListener('click', async ()=>{ try{ await navigator.clipboard.writeText(paletteBox.value.trim()); exportBtn.textContent='✅ Copied'; setTimeout(()=>exportBtn.textContent='⬇️ Copy as text',900);}catch{} });
 paletteBox.addEventListener('input', ()=> syncTextareaToEditor());
-
-// initial editor
+// init
 renderEditor(PRESETS.ocean);
 
-/* ---------- SIZE PRESETS ---------- */
+/* ---------- SIZE & STYLE ---------- */
 const wEl = document.getElementById('w');
 const hEl = document.getElementById('h');
+const styleSel = document.getElementById('styleSel');
 const sizePresetEl = document.getElementById('sizePreset');
 sizePresetEl.addEventListener('change', ()=>{
-  const v = sizePresetEl.value;
-  if(!v) return;
+  const v = sizePresetEl.value; if(!v) return;
   const [ww,hh] = v.split('x').map(n=>parseInt(n,10));
-  if(Number.isFinite(ww) && Number.isFinite(hh)){
-    wEl.value = ww; hEl.value = hh; draw();
-  }
+  if(Number.isFinite(ww) && Number.isFinite(hh)){ wEl.value=ww; hEl.value=hh; draw(); }
 });
+styleSel.addEventListener('change', draw);
 
 /* ---------- UTILITIES ---------- */
 function parsePalette(str){
@@ -331,13 +284,41 @@ function shade(hex, pct){
   b = Math.round((t - b)*p + b);
   return `rgb(${r},${g},${b})`;
 }
+function hexToRgb(hex){
+  hex = to6(hex).slice(1);
+  const v = parseInt(hex,16);
+  return { r:(v>>16)&255, g:(v>>8)&255, b:v&255 };
+}
+function rgba(hex, a){
+  const {r,g,b} = hexToRgb(hex);
+  return `rgba(${r},${g},${b},${a})`;
+}
 function mulberry32(a){ return function(){ let t=a+=0x6D2B79F5; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; } }
 function clampInt(v, min, max){ v = parseInt(v,10); if(!Number.isFinite(v)) v=min; return Math.max(min, Math.min(max, v)); }
 
-/* ---------- DRAW (solid waves, no shadows/highlights) ---------- */
+/* ---------- CANVAS SETUP (HiDPI) ---------- */
 const c = document.getElementById('c');
 const ctx = c.getContext('2d');
+const baseDPR = Math.max(1, window.devicePixelRatio || 1);
 
+function resizeCanvas(W, H, quality = 2) {
+  const dpr = baseDPR * quality;
+
+  // hi-res backing buffer
+  c.width  = Math.round(W * dpr);
+  c.height = Math.round(H * dpr);
+
+  // responsive preview sizing
+  c.style.width = '100%';
+  c.style.aspectRatio = `${W} / ${H}`;
+
+  // draw in logical pixels
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+}
+
+/* ---------- WAVES RENDERER ---------- */
 function makeWaveFn(rand){
   const a = 0.8 + rand()*0.6,  p1 = rand()*Math.PI*2;
   const b = 1.4 + rand()*0.8,  p2 = rand()*Math.PI*2;
@@ -346,12 +327,10 @@ function makeWaveFn(rand){
             + Math.sin(2*Math.PI*b*x + p2)*0.25
             + Math.sin(2*Math.PI*d*x + p3)*0.15;
 }
-
 function drawBand(ctx, W, base, amp, thick, color, rand){
   const fn = makeWaveFn(rand);
   const bleed = 40;
   const steps = Math.max(320, Math.floor(W/5));
-
   ctx.fillStyle = color;
   ctx.beginPath();
   ctx.moveTo(-bleed, base + amp*fn(0) - thick/2);
@@ -368,33 +347,12 @@ function drawBand(ctx, W, base, amp, thick, color, rand){
   ctx.closePath();
   ctx.fill();
 }
-
-function draw(){
-  const W = clampInt(wEl.value, 256, 8192);
-  const H = clampInt(hEl.value, 256, 8192);
-
-  const seedInput = document.getElementById('seed');
-  let seed = parseInt(seedInput.value, 10);
-  if(!Number.isFinite(seed) || seed === 0){ seed = Date.now() % 2147483647; seedInput.value = seed; }
-  const rand = mulberry32(seed);
-
-  const pal = parsePalette(paletteBox.value);
+function drawWaves(W,H,pal,rand){
   const bg = ctx.createLinearGradient(0,0,0,H);
   bg.addColorStop(0, shade(pal[0], +0.12));
   bg.addColorStop(1, shade(pal[pal.length-1], -0.25));
-
-  // backing buffer with DPR for crisp export
-  const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-  c.width = Math.floor(W*dpr);
-  c.height = Math.floor(H*dpr);
-  c.style.width = '100%';
-  c.style.aspectRatio = `${W} / ${H}`;
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-
-  ctx.clearRect(0,0,W,H);
   ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
 
-  // layout
   const layers = Math.max(6, pal.length);
   const topPad = H*0.06, botPad = H*0.06;
   const usable = H - topPad - botPad;
@@ -409,6 +367,84 @@ function draw(){
   }
 }
 
+/* ---------- RINGS RENDERER (single big orb) ---------- */
+function drawRings(W,H,pal,rand){
+  ctx.fillStyle = '#0A0E12';
+  ctx.fillRect(0,0,W,H);
+
+  const main = pal[Math.floor(rand()*pal.length)];
+
+  const maxD = Math.max(W,H);
+  const R = maxD * (1.05 + 0.45*rand());
+  const side = rand();
+  let cx = W*0.5, cy = H*0.5;
+  if (side < 0.25){ cx = -R*0.25;         cy = H*(0.25 + 0.5*rand()); }
+  else if (side < 0.50){ cx = W + R*0.25; cy = H*(0.25 + 0.5*rand()); }
+  else if (side < 0.75){ cx = W*(0.25 + 0.5*rand()); cy = -R*0.25; }
+  else {                 cx = W*(0.25 + 0.5*rand()); cy = H + R*0.25; }
+
+  const rings = 4 + (rand()*3|0);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for(let i=0;i<rings;i++){
+    const r0 = R * (0.72 - i*0.08);
+    const r1 = r0 + R * 0.22;
+
+    const g = ctx.createRadialGradient(cx,cy,r0, cx,cy,r1);
+    g.addColorStop(0.00, rgba(main, 0.00));
+    g.addColorStop(0.55, rgba(main, 0.05));
+    g.addColorStop(0.72, rgba(main, 0.28));
+    g.addColorStop(0.82, rgba(main, 0.80));
+    g.addColorStop(0.90, rgba(main, 0.35));
+    g.addColorStop(1.00, rgba(main, 0.00));
+
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r1, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  const sweep = ctx.createLinearGradient(0,0,0,H);
+  sweep.addColorStop(0.00, 'rgba(0,0,0,0.00)');
+  sweep.addColorStop(1.00, 'rgba(0,0,0,0.30)');
+  ctx.fillStyle = sweep;
+  ctx.fillRect(0,0,W,H);
+
+  const vg = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.6, W/2, H/2, Math.max(W,H)*0.78);
+  vg.addColorStop(0,'rgba(0,0,0,0)');
+  vg.addColorStop(1,'rgba(0,0,0,0.45)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0,0,W,H);
+}
+
+/* ---------- MASTER DRAW ---------- */
+function draw(){
+  const W = clampInt(wEl.value, 256, 8192);
+  const H = clampInt(hEl.value, 256, 8192);
+  const q = +document.getElementById('quality').value || 2;
+
+  // seed
+  const seedInput = document.getElementById('seed');
+  let seed = parseInt(seedInput.value, 10);
+  if(!Number.isFinite(seed) || seed === 0){ seed = Date.now() % 2147483647; seedInput.value = seed; }
+  const rand = mulberry32(seed);
+
+  const pal = parsePalette(paletteBox.value);
+
+  // HiDPI resize (no direct canvas.width/height here)
+  resizeCanvas(W, H, q);
+
+  // clear in logical coords
+  ctx.clearRect(0,0,W,H);
+
+  if(styleSel.value === 'rings'){
+    drawRings(W,H,pal,rand);
+  } else {
+    drawWaves(W,H,pal,rand);
+  }
+}
+
 /* ---------- BUTTONS ---------- */
 document.getElementById('genBtn').addEventListener('click', draw);
 document.getElementById('randBtn').addEventListener('click', ()=>{
@@ -417,7 +453,7 @@ document.getElementById('randBtn').addEventListener('click', ()=>{
 });
 document.getElementById('dlBtn').addEventListener('click', ()=>{
   const link = document.createElement('a');
-  link.download = `waves_${wEl.value}x${hEl.value}.png`;
+  link.download = `wallpaper_${styleSel.value}_${wEl.value}x${hEl.value}.png`;
   link.href = c.toDataURL('image/png');
   link.click();
 });
