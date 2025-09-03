@@ -1,3 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Wave / Rings Wallpaper Generator</title>
+<meta name="color-scheme" content="light dark" />
+<style>
+  :root{
+    --bg:#0b1220; --panel:#111827ee; --ink:#e5e7eb; --muted:#94a3b8; --border:#253046;
+    --accent:#22d3ee; --accent2:#a78bfa;
+    --radius:14px; --shadow:0 10px 28px rgba(0,0,0,.35);
+  }
+  [data-theme="light"]{
+    --bg:#f7fafc; --panel:#ffffffee; --ink:#0f172a; --muted:#475569; --border:#cbd5e1;
+    --shadow:0 10px 24px rgba(15,23,42,.12);
+    --accent:#0ea5e9; --accent2:#d946ef;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,Roboto,Arial;
+    color:var(--ink); background: var(--bg);
+    display:flex; flex-direction:column; gap:16px;
+  }
+
+  header{
+    position:sticky; top:0; z-index:10;
+    background:var(--panel); border-bottom:1px solid var(--border);
+    backdrop-filter: blur(8px) saturate(1.2);
+  }
+  .wrap{ width:min(1100px,92vw); margin:0 auto; padding:12px 0; }
+  h1{ margin:0; font-size:18px; letter-spacing:.2px; }
+  .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .spacer{ flex:1 }
+
+  .card{ width:min(1100px,92vw); margin:0 auto; background:var(--panel); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow); }
+  .card.preview{ width:min(1600px,98vw); }
+  .content{ padding:14px; }
+
+  .controls{ display:grid; gap:10px; grid-template-columns: 1fr; }
+  .controls .line{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+  label{ font-size:12px; color:var(--muted); display:block; }
+  input, select, textarea{
+    background:#0b12202a; color:var(--ink); border:1px solid var(--border);
+    border-radius:10px; padding:8px 10px; outline:none; font-size:14px;
+  }
+  textarea{ width:100%; min-height:74px }
+  .btn{
+    appearance:none; border:none; cursor:pointer; font-weight:700; color:#0b1220;
+    padding:10px 12px; border-radius:12px; background: linear-gradient(135deg, var(--accent), var(--accent2));
+    box-shadow: var(--shadow);
+  }
+  .btn.secondary{ background:transparent; border:1px solid var(--border); color:var(--ink); box-shadow:none; }
+
+  .swatch-list{ display:grid; gap:6px; margin-top:6px; }
+  .swatch-row{ display:flex; gap:8px; align-items:center; }
+  .swatch-row input[type="color"]{ width:40px; height:30px; padding:0; background:transparent; border:none; }
+  .swatch-row input[type="text"]{ width:100px; }
+  .swatch-row .kill{ padding:6px 10px; border-radius:10px; border:1px solid var(--border); background:transparent; color:var(--ink); cursor:pointer; }
+
+  .canvasWrap { display:grid; place-items:center; padding:10px }
+  #c{
+    width:100%;
+    height:auto;                  /* keep aspect ratio */
+    border-radius:14px;
+    box-shadow:0 20px 60px rgba(0,0,0,.35)
+  }
+
+  footer{ color:var(--muted); font-size:12px; text-align:center; padding:10px 0 18px; }
+</style>
+</head>
+<body data-theme="dark">
+<header>
+  <div class="wrap row">
+    <h1>🎨 Wallpaper Generator</h1>
+    <div class="spacer"></div>
+    <button id="themeBtn" class="btn secondary">🌗 Theme</button>
+  </div>
+</header>
+
+<div class="card">
+  <div class="content controls">
+    <div class="line">
+      <!-- Presets + editor -->
+      <div style="flex:2 1 420px;">
+        <label>Preset palette</label>
+        <select id="preset">
+          <option value="ocean">Ocean Blues</option>
+          <option value="sunset">Sunset</option>
+          <option value="forest">Forest</option>
+          <option value="candy">Candy</option>
+          <option value="mono">Monochrome</option>
+        </select>
+
+        <div class="swatch-list" id="editor"></div>
+
+        <label class="hint" for="quality">Quality</label>
+        <select id="quality">
+          <option value="1">1×</option>
+          <option value="2" selected>2× (recommended)</option>
+          <option value="4">4×</option>
+        </select>
+
+        <div class="line" style="margin-top:4px;">
+          <button class="btn secondary" id="addColor">+ Add color</button>
+          <button class="btn secondary" id="removeLast">– Remove last</button>
+        </div>
+      </div>
+
+      <!-- Text import/export (syncs with editor) -->
+      <div style="flex:2 1 420px;">
+        <label>Custom palette (hex — comma/space/newline)</label>
+        <textarea id="paletteBox" placeholder="#56B4F8 #2A86FF #1667DC #0E4FC7 #083B9B #042A73"></textarea>
+        <div class="line" style="margin-top:6px;">
+          <button class="btn secondary" id="importTxt">⬆️ Import from text</button>
+          <button class="btn secondary" id="exportTxt">⬇️ Copy as text</button>
+        </div>
+      </div>
+
+      <!-- Size + style + seed -->
+      <div style="flex:0 0 190px;">
+        <label>Resolution</label>
+        <div class="line" style="align-items:center;">
+          <input id="w" type="number" min="256" value="1920" style="width:86px">×
+          <input id="h" type="number" min="256" value="1080" style="width:86px">
+        </div>
+
+        <label style="margin-top:6px;">Style</label>
+        <select id="styleSel" style="width:100%;">
+          <option value="waves">Waves</option>
+          <option value="rings">Rings (WORK IN PROGRESS)</option>
+        </select>
+
+        <label style="margin-top:6px;">Wallpaper tone</label>
+<select id="toneSel" style="width:100%;">
+  <option value="dark" selected>Dark</option>
+  <option value="light">Light</option>
+</select>
+
+
+        <label style="margin-top:6px;">Seed</label>
+        <input id="seed" type="number" value="0" />
+
+        <label style="margin-top:6px;">Preset size</label>
+        <select id="sizePreset" style="width:100%;">
+          <option value="">— Custom —</option>
+          <option value="1920x1080">1080p (1920×1080)</option>
+          <option value="2560x1440">1440p (2560×1440)</option>
+          <option value="3840x2160">4K UHD (3840×2160)</option>
+          <option value="2160x3840">4K Vertical (2160×3840)</option>
+          <option value="5120x2880">5K (5120×2880)</option>
+          <option value="7680x4320">8K (7680×4320)</option>
+          <option value="1080x1920">Full HD Vertical (1080×1920)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="line">
+      <button id="genBtn" class="btn">Generate</button>
+      <button id="randBtn" class="btn secondary">🎲 Randomize</button>
+      <button id="dlBtn" class="btn secondary">⬇️ Download PNG</button>
+    </div>
+  </div>
+</div>
+
+<div class="card preview">
+  <div class="content canvasWrap">
+    <canvas id="c" width="1920" height="1080" aria-label="wallpaper preview"></canvas>
+  </div>
+</div>
+
+<footer>Built with ♥ — no frameworks • single file, works offline</footer>
+
+<script>
+/* ---------- THEME ---------- */
+const THEME_KEY='wp.theme';
+const savedTheme = localStorage.getItem(THEME_KEY);
+if(savedTheme) document.body.setAttribute('data-theme', savedTheme);
+document.getElementById('themeBtn').addEventListener('click', ()=>{
+  const cur = document.body.getAttribute('data-theme') || 'dark';
+  const next = cur==='dark' ? 'light':'dark';
+  document.body.setAttribute('data-theme', next);
+  localStorage.setItem(THEME_KEY, next);
+});
+
+/* ---------- PRESETS ---------- */
+const PRESETS = {
+  ocean: ['#74B8FF','#2F8CFF','#1E6FE0','#1558C8','#0B429F','#08357F','#072A66','#071F4F'],
+  sunset:['#FFB36B','#FF8A5B','#FF6B6B','#F25D94','#C855F5','#845EF7','#3D5AF1'],
+  forest:['#BEE9C4','#7ED196','#39B86F','#1E9A5B','#147D4A','#0F5F3A','#083E28'],
+  candy: ['#FFE6F0','#FDC2E2','#F7A3E2','#D1B3FF','#B7C0FF','#A9E9FF'],
+  mono:  ['#E5E7EB','#CBD5E1','#94A3B8','#64748B','#475569','#334155','#1F2937','#0F172A']
+};
+
+/* ---------- PALETTE EDITOR ---------- */
+const editorEl   = document.getElementById('editor');
+const paletteBox = document.getElementById('paletteBox');
+const presetSel  = document.getElementById('preset');
+const addBtn     = document.getElementById('addColor');
+const removeBtn  = document.getElementById('removeLast');
+const importBtn  = document.getElementById('importTxt');
+const exportBtn  = document.getElementById('exportTxt');
+
+let internalChange = false;
+
+function renderEditor(colors){
+  editorEl.innerHTML = '';
+  colors.forEach((hex)=> addRow(hex));
+  syncEditorToTextarea(true);
+}
+function addRow(hex='#FF0000'){
+  const row = document.createElement('div');
+  row.className = 'swatch-row';
+  row.innerHTML = `
+    <input type="color" value="${to6(hex)}">
+    <input type="text" value="${to6(hex).toUpperCase()}">
+    <button class="kill">×</button>
+  `;
+  const col = row.querySelector('input[type="color"]');
+  const txt = row.querySelector('input[type="text"]');
+  const kill= row.querySelector('.kill');
+
+  col.addEventListener('input', ()=>{ txt.value = col.value.toUpperCase(); syncEditorToTextarea(); draw(); });
+  txt.addEventListener('input', ()=>{ const v = sanitizeHex(txt.value); if(v){ col.value=v; txt.value=v.toUpperCase(); } syncEditorToTextarea(); draw(); });
+  kill.addEventListener('click', ()=>{ row.remove(); syncEditorToTextarea(); draw(); });
+
+  editorEl.appendChild(row);
+}
+function getEditorColors(){
+  return Array.from(editorEl.querySelectorAll('.swatch-row input[type="color"]')).map(i=>i.value);
+}
+function syncEditorToTextarea(skip=false){
+  internalChange = true;
+  paletteBox.value = getEditorColors().join(' ');
+  internalChange = false;
+  if(!skip) parsePalette(paletteBox.value);
+}
+function syncTextareaToEditor(){
+  if(internalChange) return;
+  const arr = parsePalette(paletteBox.value);
+  renderEditor(arr);
+}
+function to6(hex){
+  const m = String(hex||'').trim();
+  if(/^#([0-9a-f]{3})$/i.test(m)) return '#'+m.slice(1).split('').map(x=>x+x).join('');
+  if(/^#([0-9a-f]{6})$/i.test(m)) return m;
+  return '#000000';
+}
+function sanitizeHex(s){
+  s = s.trim().toUpperCase().replace(/[^#0-9A-F]/g,'');
+  if(/^#([0-9A-F]{3})$/.test(s)) return to6(s);
+  if(/^#([0-9A-F]{6})$/.test(s)) return s;
+  return '';
+}
+presetSel.addEventListener('change', ()=>{ renderEditor(PRESETS[presetSel.value] || PRESETS.ocean); draw(); });
+addBtn.addEventListener('click', ()=>{ addRow('#FF0000'); syncEditorToTextarea(); draw(); });
+removeBtn.addEventListener('click', ()=>{ const rows = editorEl.querySelectorAll('.swatch-row'); if(rows.length){ rows[rows.length-1].remove(); syncEditorToTextarea(); draw(); }});
+importBtn.addEventListener('click', ()=>{ syncTextareaToEditor(); draw(); });
+exportBtn.addEventListener('click', async ()=>{ try{ await navigator.clipboard.writeText(paletteBox.value.trim()); exportBtn.textContent='✅ Copied'; setTimeout(()=>exportBtn.textContent='⬇️ Copy as text',900);}catch{} });
+paletteBox.addEventListener('input', ()=> syncTextareaToEditor());
+// init
+renderEditor(PRESETS.ocean);
+
+/* ---------- SIZE & STYLE ---------- */
+const wEl = document.getElementById('w');
+const hEl = document.getElementById('h');
+const styleSel = document.getElementById('styleSel');
+const sizePresetEl = document.getElementById('sizePreset');
+sizePresetEl.addEventListener('change', ()=>{
+  const v = sizePresetEl.value; if(!v) return;
+  const [ww,hh] = v.split('x').map(n=>parseInt(n,10));
+  if(Number.isFinite(ww) && Number.isFinite(hh)){ wEl.value=ww; hEl.value=hh; draw(); }
+});
+const toneSel = document.getElementById('toneSel');
+toneSel.addEventListener('change', draw);
+styleSel.addEventListener('change', draw);
+
+/* ---------- UTILITIES ---------- */
+function parsePalette(str){
+  const parts = (str || '').trim().split(/[\s,]+/).filter(Boolean);
+  const hex = parts.filter(v => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)).map(to6);
+  return hex.length ? hex : PRESETS[presetSel.value] || PRESETS.ocean;
+}
+function shade(hex, pct){
+  const m = hex.replace('#','');
+  const n = m.length===3 ? m.split('').map(x=>x+x).join('') : m;
+  const val = parseInt(n,16);
+  let r=(val>>16)&255,g=(val>>8)&255,b=val&255;
+  const t = pct < 0 ? 0 : 255, p = Math.abs(pct);
+  r = Math.round((t - r)*p + r);
+  g = Math.round((t - g)*p + g);
+  b = Math.round((t - b)*p + b);
+  return `rgb(${r},${g},${b})`;
+}
+function hexToRgb(hex){
+  hex = to6(hex).slice(1);
+  const v = parseInt(hex,16);
+  return { r:(v>>16)&255, g:(v>>8)&255, b:v&255 };
+}
+function rgba(hex, a){
+  const {r,g,b} = hexToRgb(hex);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function mulberry32(a){ return function(){ let t=a+=0x6D2B79F5; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; } }
+function clampInt(v, min, max){ v = parseInt(v,10); if(!Number.isFinite(v)) v=min; return Math.max(min, Math.min(max, v)); }
+
+/* ---------- CANVAS SETUP (HiDPI) ---------- */
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+const baseDPR = Math.max(1, window.devicePixelRatio || 1);
+
+function resizeCanvas(W, H, quality = 2) {
+  const dpr = baseDPR * quality;
+
+  // hi-res backing buffer
+  c.width  = Math.round(W * dpr);
+  c.height = Math.round(H * dpr);
+
+  // responsive preview sizing
+  c.style.width = '100%';
+  c.style.aspectRatio = `${W} / ${H}`;
+
+  // draw in logical pixels
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+}
+
+/* ---------- WAVES RENDERER ---------- */
+function makeWaveFn(rand){
+  const a = 0.8 + rand()*0.6,  p1 = rand()*Math.PI*2;
+  const b = 1.4 + rand()*0.8,  p2 = rand()*Math.PI*2;
+  const d = 2.4 + rand()*0.8,  p3 = rand()*Math.PI*2;
+  return x => Math.sin(2*Math.PI*a*x + p1)*0.70
+            + Math.sin(2*Math.PI*b*x + p2)*0.25
+            + Math.sin(2*Math.PI*d*x + p3)*0.15;
+}
+function drawBand(ctx, W, base, amp, thick, color, rand, alpha = 1){
+  const fn = makeWaveFn(rand);
+  const bleed = 40;
+  const steps = Math.max(320, Math.floor(W/5));
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(-bleed, base + amp*fn(0) - thick/2);
+  for (let s=1; s<=steps; s++){
+    const t = s/steps, x = t*W;
+    ctx.lineTo(x, base + amp*fn(t) - thick/2);
+  }
+  ctx.lineTo(W+bleed, base + amp*fn(1) - thick/2);
+  for (let s=steps; s>=0; s--){
+    const t = s/steps, x = t*W;
+    ctx.lineTo(x, base + amp*fn(t) + thick/2);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawWaves(W, H, pal, rand, tone = 'dark'){
+  // Background
+  if (tone === 'light'){
+    // soft, pale gradient for light wallpapers
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, shade(pal[0],  +0.55));   // closer to white
+    bg.addColorStop(1, shade(pal[pal.length-1], +0.25));
+    ctx.fillStyle = bg; 
+    ctx.fillRect(0,0,W,H);
+  } else {
+    // deep gradient for dark wallpapers (original look)
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, shade(pal[0],           +0.12));
+    bg.addColorStop(1, shade(pal[pal.length-1], -0.25));
+    ctx.fillStyle = bg; 
+    ctx.fillRect(0,0,W,H);
+  }
+
+  const layers   = Math.max(6, pal.length);
+  const topPad   = H * 0.06, botPad = H * 0.06;
+  const usable   = H - topPad - botPad;
+  const spacing  = usable / (layers - 1);
+  const thickness= Math.max(32, spacing * 1.15);
+
+  // In light tone we draw waves in multiply so overlaps get richer (not brighter)
+  ctx.save();
+  if (tone === 'light') ctx.globalCompositeOperation = 'multiply';
+
+  for (let i=0;i<layers;i++){
+    const base  = topPad + i*spacing;
+    const col0  = pal[Math.min(i, pal.length-1)];
+    const color = (tone === 'light') ? shade(col0, -0.10) : col0;  // nudge darker in light mode
+    const amp   = spacing * (0.55 + 0.15*rand());
+    drawBand(ctx, W, base, amp, thickness, color, rand);
+  }
+  ctx.restore();
+}
+
 function drawWavesStratified(W, H, pal, rand, tone = 'dark'){
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
@@ -46,3 +445,135 @@ function drawWavesStratified(W, H, pal, rand, tone = 'dark'){
 
   ctx.restore();
 }
+
+
+
+/* ---------- RINGS RENDERER (single big orb) ---------- */
+function drawRings(W, H, pal, rand, tone){
+  // background
+  if (tone === 'light'){
+    ctx.fillStyle = '#F4F7FB';
+  } else {
+    ctx.fillStyle = '#0A0E12';
+  }
+  ctx.fillRect(0,0,W,H);
+
+  // pick palette color
+  const main = pal[Math.floor(rand()*pal.length)];
+
+  // position (slightly off an edge)
+  const maxD = Math.max(W,H);
+  const R = maxD * (1.05 + 0.45*rand());
+  const side = rand();
+  let cx = W*0.5, cy = H*0.5;
+  if (side < 0.25){ cx = -R*0.25;               cy = H*(0.25 + 0.5*rand()); }
+  else if (side < 0.50){ cx = W + R*0.25;       cy = H*(0.25 + 0.5*rand()); }
+  else if (side < 0.75){ cx = W*(0.25 + 0.5*rand()); cy = -R*0.25; }
+  else {                 cx = W*(0.25 + 0.5*rand()); cy = H + R*0.25; }
+
+  // 4–6 concentric rings
+  const rings = 4 + (rand()*3|0);
+  ctx.save();
+  ctx.globalCompositeOperation = (tone === 'light') ? 'source-over' : 'lighter';
+
+  for(let i=0;i<rings;i++){
+    const r0 = R * (0.72 - i*0.08);
+    const r1 = r0 + R * 0.22;
+
+    const g = ctx.createRadialGradient(cx,cy,r0, cx,cy,r1);
+    if (tone === 'light'){
+      // more conservative alphas on light bg
+      g.addColorStop(0.00, rgba(main, 0.00));
+      g.addColorStop(0.55, rgba(main, 0.06));
+      g.addColorStop(0.72, rgba(main, 0.20));
+      g.addColorStop(0.82, rgba(main, 0.55));
+      g.addColorStop(0.90, rgba(main, 0.22));
+      g.addColorStop(1.00, rgba(main, 0.00));
+    } else {
+      g.addColorStop(0.00, rgba(main, 0.00));
+      g.addColorStop(0.55, rgba(main, 0.05));
+      g.addColorStop(0.72, rgba(main, 0.28));
+      g.addColorStop(0.82, rgba(main, 0.80));
+      g.addColorStop(0.90, rgba(main, 0.35));
+      g.addColorStop(1.00, rgba(main, 0.00));
+    }
+
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r1, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // gentle sweep/vignette tuned per tone
+  if (tone === 'light'){
+    // soft radial vignette (light UI friendly)
+    const vg = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.6, W/2, H/2, Math.max(W,H)*0.85);
+    vg.addColorStop(0,'rgba(0,0,0,0)');
+    vg.addColorStop(1,'rgba(0,0,0,0.10)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0,0,W,H);
+  } else {
+    const sweep = ctx.createLinearGradient(0,0,0,H);
+    sweep.addColorStop(0.00, 'rgba(0,0,0,0.00)');
+    sweep.addColorStop(1.00, 'rgba(0,0,0,0.30)');
+    ctx.fillStyle = sweep;
+    ctx.fillRect(0,0,W,H);
+
+    const vg = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.6, W/2, H/2, Math.max(W,H)*0.78);
+    vg.addColorStop(0,'rgba(0,0,0,0)');
+    vg.addColorStop(1,'rgba(0,0,0,0.45)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0,0,W,H);
+  }
+}
+
+
+/* ---------- MASTER DRAW ---------- */
+function draw(){
+  const W = clampInt(wEl.value, 256, 8192);
+  const H = clampInt(hEl.value, 256, 8192);
+  const q = +document.getElementById('quality').value || 2;
+
+  // seed
+  const seedInput = document.getElementById('seed');
+  let seed = parseInt(seedInput.value, 10);
+  if(!Number.isFinite(seed) || seed === 0){ seed = Date.now() % 2147483647; seedInput.value = seed; }
+  const rand = mulberry32(seed);
+
+  const pal = parsePalette(paletteBox.value);
+
+  // HiDPI resize (no direct canvas.width/height here)
+  resizeCanvas(W, H, q);
+
+  // clear in logical coords
+  ctx.clearRect(0,0,W,H);
+
+  const tone = (toneSel?.value || 'dark');   // read the dropdown you added
+
+if (styleSel.value === 'rings') {
+  drawRings(W, H, pal, rand, tone);
+} else {
+  drawWavesStratified(W,H,pal,rand,tone);
+}
+
+}
+
+/* ---------- BUTTONS ---------- */
+document.getElementById('genBtn').addEventListener('click', draw);
+document.getElementById('randBtn').addEventListener('click', ()=>{
+  document.getElementById('seed').value = Math.floor(Math.random()*2147483647);
+  draw();
+});
+document.getElementById('dlBtn').addEventListener('click', ()=>{
+  const link = document.createElement('a');
+  link.download = `wallpaper_${styleSel.value}_${wEl.value}x${hEl.value}.png`;
+  link.href = c.toDataURL('image/png');
+  link.click();
+});
+
+/* first render */
+draw();
+</script>
+</body>
+</html>
