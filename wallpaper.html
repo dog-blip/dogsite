@@ -108,7 +108,7 @@
         </div>
       </div>
 
-      <!-- Text import/export (syncs with editor) -->
+      <!-- Text import/export -->
       <div style="flex:2 1 420px;">
         <label>Custom palette (hex — comma/space/newline)</label>
         <textarea id="paletteBox" placeholder="#56B4F8 #2A86FF #1667DC #0E4FC7 #083B9B #042A73"></textarea>
@@ -133,11 +133,10 @@
         </select>
 
         <label style="margin-top:6px;">Wallpaper tone</label>
-<select id="toneSel" style="width:100%;">
-  <option value="dark" selected>Dark</option>
-  <option value="light">Light</option>
-</select>
-
+        <select id="toneSel" style="width:100%;">
+          <option value="dark" selected>Dark</option>
+          <option value="light">Light</option>
+        </select>
 
         <label style="margin-top:6px;">Seed</label>
         <input id="seed" type="number" value="0" />
@@ -206,7 +205,7 @@ let internalChange = false;
 
 function renderEditor(colors){
   editorEl.innerHTML = '';
-  colors.forEach((hex)=> addRow(hex));
+  colors.forEach(hex => addRow(hex));
   syncEditorToTextarea(true);
 }
 function addRow(hex='#FF0000'){
@@ -257,7 +256,13 @@ presetSel.addEventListener('change', ()=>{ renderEditor(PRESETS[presetSel.value]
 addBtn.addEventListener('click', ()=>{ addRow('#FF0000'); syncEditorToTextarea(); draw(); });
 removeBtn.addEventListener('click', ()=>{ const rows = editorEl.querySelectorAll('.swatch-row'); if(rows.length){ rows[rows.length-1].remove(); syncEditorToTextarea(); draw(); }});
 importBtn.addEventListener('click', ()=>{ syncTextareaToEditor(); draw(); });
-exportBtn.addEventListener('click', async ()=>{ try{ await navigator.clipboard.writeText(paletteBox.value.trim()); exportBtn.textContent='✅ Copied'; setTimeout(()=>exportBtn.textContent='⬇️ Copy as text',900);}catch{} });
+exportBtn.addEventListener('click', async ()=>{
+  try{
+    await navigator.clipboard.writeText(paletteBox.value.trim());
+    exportBtn.textContent='✅ Copied';
+    setTimeout(()=>exportBtn.textContent='⬇️ Copy as text',900);
+  }catch{}
+});
 paletteBox.addEventListener('input', ()=> syncTextareaToEditor());
 // init
 renderEditor(PRESETS.ocean);
@@ -312,156 +317,153 @@ const baseDPR = Math.max(1, window.devicePixelRatio || 1);
 
 function resizeCanvas(W, H, quality = 2) {
   const dpr = baseDPR * quality;
-
-  // hi-res backing buffer
   c.width  = Math.round(W * dpr);
   c.height = Math.round(H * dpr);
-
-  // responsive preview sizing
   c.style.width = '100%';
   c.style.aspectRatio = `${W} / ${H}`;
-
-  // draw in logical pixels
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 }
 
-/* ---------- WAVES RENDERER ---------- */
+/* ---------- ORGANIC WAVES (less repetitive) ---------- */
+function makeNoiseFn(rand){
+  const TAU = Math.PI * 2;
+  const f1 = 0.35 + rand()*0.60,  p1 = rand()*TAU;
+  const f2 = 0.80 + rand()*1.40,  p2 = rand()*TAU;
+  const f3 = 1.60 + rand()*2.40,  p3 = rand()*TAU;
+  const a1 = 0.70, a2 = 0.45, a3 = 0.30;
+  return t => a1*Math.sin(TAU*f1*t + p1)
+            + a2*Math.sin(TAU*f2*t + p2)
+            + a3*Math.sin(TAU*f3*t + p3);
+}
 function makeWaveFn(rand){
-  const a = 0.8 + rand()*0.6,  p1 = rand()*Math.PI*2;
-  const b = 1.4 + rand()*0.8,  p2 = rand()*Math.PI*2;
-  const d = 2.4 + rand()*0.8,  p3 = rand()*Math.PI*2;
-  return x => Math.sin(2*Math.PI*a*x + p1)*0.70
-            + Math.sin(2*Math.PI*b*x + p2)*0.25
-            + Math.sin(2*Math.PI*d*x + p3)*0.15;
+  const baseA = makeNoiseFn(rand);
+  const baseB = makeNoiseFn(rand);
+  const warp1 = makeNoiseFn(rand);
+  const warp2 = makeNoiseFn(rand);
+  return t => {
+    const tw = t + 0.10*warp1(t*0.9) + 0.05*warp2(t*1.8);
+    return 0.75*baseA(tw) + 0.35*baseB(tw);
+  };
 }
 function drawBand(ctx, W, base, amp, thick, color, rand, alpha = 1){
-  const fn = makeWaveFn(rand);
-  const bleed = 40;
-  const steps = Math.max(320, Math.floor(W/5));
+  const fn      = makeWaveFn(rand);
+  const shape   = makeNoiseFn(rand);
+  const tilt    = (rand() - 0.5) * (amp * 0.35);
+  const steps   = Math.max(480, Math.floor(W/3));
+  const half    = thick / 2;
+
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.moveTo(-bleed, base + amp*fn(0) - thick/2);
-  for (let s=1; s<=steps; s++){
+
+  for (let s=0; s<=steps; s++){
     const t = s/steps, x = t*W;
-    ctx.lineTo(x, base + amp*fn(t) - thick/2);
+    const mod = 1 + 0.20*shape(t);
+    const y = base + amp*mod*fn(t) + tilt*(t - 0.5);
+    if (s===0) ctx.moveTo(x, y - half); else ctx.lineTo(x, y - half);
   }
-  ctx.lineTo(W+bleed, base + amp*fn(1) - thick/2);
   for (let s=steps; s>=0; s--){
     const t = s/steps, x = t*W;
-    ctx.lineTo(x, base + amp*fn(t) + thick/2);
+    const mod = 1 + 0.20*shape(t);
+    const y = base + amp*mod*fn(t) + tilt*(t - 0.5);
+    ctx.lineTo(x, y + half);
   }
   ctx.closePath();
   ctx.fill();
   ctx.restore();
 }
-
-function drawWaves(W, H, pal, rand, tone = 'dark'){
+// --- replace your whole drawWavesStratified with this version ---
+function drawWavesStratified(W, H, pal, rand, tone = 'dark'){
   // Background
-  if (tone === 'light'){
-    // soft, pale gradient for light wallpapers
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, shade(pal[0],  +0.55));   // closer to white
-    bg.addColorStop(1, shade(pal[pal.length-1], +0.25));
-    ctx.fillStyle = bg; 
-    ctx.fillRect(0,0,W,H);
-  } else {
-    // deep gradient for dark wallpapers (original look)
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, shade(pal[0],           +0.12));
-    bg.addColorStop(1, shade(pal[pal.length-1], -0.25));
-    ctx.fillStyle = bg; 
-    ctx.fillRect(0,0,W,H);
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, shade(pal[0],            tone === 'light' ? +0.18 : +0.06));
+  bg.addColorStop(1, shade(pal[pal.length-1], tone === 'light' ? -0.08 : -0.28));
+  ctx.fillStyle = bg;
+  ctx.fillRect(0,0,W,H);
+
+  // Settings
+  const layers = Math.max(7, pal.length + 2);       // visible bands
+  const topPad = H * 0.06;
+  const botPad = H * 0.06;
+  const usable = H - topPad - botPad;
+  const baseSpacing = usable / (layers - 1);
+
+  const leftX  = -80;               // bleed off-canvas to avoid edge seams
+  const rightX = W + 80;
+  const steps  = Math.max(600, Math.floor(W / 2));  // curve resolution
+
+  // Helpers to make nicely-warped curves
+  const makeCurve = (baseY)=>{
+    const fn    = makeWaveFn(rand);
+    const shape = makeNoiseFn(rand);
+    const amp   = baseSpacing * (0.55 + 0.30*rand());
+    const tilt  = (rand() - 0.5) * (amp * 0.35);
+
+    const pts = new Array(steps + 1);
+    for(let s=0; s<=steps; s++){
+      const t  = s / steps;                             // 0..1 along rail
+      const x  = leftX + t * (rightX - leftX);
+      const mod= 1 + 0.20*shape(t);                     // thickness variance
+      const y  = baseY + amp*mod*fn(t) + tilt*(t - 0.5);
+      pts[s]   = {x, y};
+    }
+    return pts;
+  };
+
+  // Build rails top→bottom
+  const rails = [];
+  let yBase = topPad;
+  for(let i=0;i<layers;i++){
+    // jitter spacing a bit so rows don't look uniform
+    const spacing = baseSpacing * (0.92 + 0.25*rand());
+    rails.push(makeCurve(yBase));
+    yBase += spacing;
   }
+  // final bottom rail to ensure coverage well past the canvas
+  rails.push(Array.from({length: steps+1}, (_,s)=>{
+    const x = leftX + (s/steps)*(rightX - leftX);
+    return {x, y: H + botPad + 120};                    // deep past bottom
+  }));
 
-  const layers   = Math.max(6, pal.length);
-  const topPad   = H * 0.06, botPad = H * 0.06;
-  const usable   = H - topPad - botPad;
-  const spacing  = usable / (layers - 1);
-  const thickness= Math.max(32, spacing * 1.15);
-
-  // In light tone we draw waves in multiply so overlaps get richer (not brighter)
+  // Light tone: darken overlaps instead of brightening
   ctx.save();
   if (tone === 'light') ctx.globalCompositeOperation = 'multiply';
 
-  for (let i=0;i<layers;i++){
-    const base  = topPad + i*spacing;
-    const col0  = pal[Math.min(i, pal.length-1)];
-    const color = (tone === 'light') ? shade(col0, -0.10) : col0;  // nudge darker in light mode
-    const amp   = spacing * (0.55 + 0.15*rand());
-    drawBand(ctx, W, base, amp, thickness, color, rand);
-  }
-  ctx.restore();
-}
-
-function drawWavesStratified(W, H, pal, rand, tone = 'dark'){
-  ctx.save();
-  ctx.globalCompositeOperation = 'source-over';
-
-  // Background gradient
-  const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, shade(pal[0], tone === 'light' ? +0.18 : +0.06));
-  bg.addColorStop(1, shade(pal[pal.length - 1], tone === 'light' ? -0.08 : -0.28));
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
-
-  const fn = makeWaveFn(rand);
-  const layers = Math.max(6, pal.length + 2);
-  const topPad = H * 0.05;
-  const spacing = (H - topPad) / layers;
-  const margin = 60;                 // bleed left/right
-  const bottomBleed = Math.max(80, H * 0.12);
-  const steps = Math.max(320, Math.floor(W / 6));
-
-  let y = topPad;
-  for (let i = 0; i < layers; i++){
-    const color = pal[Math.min(i, pal.length - 1)];
-    const amp = spacing * (0.45 + 0.25 * rand());
+  // Fill between consecutive rails (seamless tiling)
+  for(let i=0;i<layers;i++){
+    const color = pal[Math.min(i, pal.length-1)];
+    const fillColor = (tone === 'light') ? shade(color, -0.08) : color;
 
     ctx.beginPath();
-    ctx.moveTo(-margin, y + amp * fn(0));
-    for (let s = 1; s <= steps; s++){
-      const t = s / steps, x = t * W;
-      ctx.lineTo(x, y + amp * fn(t));
+    // top rail left→right
+    for(let s=0; s<=steps; s++){
+      const p = rails[i][s];
+      if(s===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
     }
-
-    // Important: send polygon down past the bottom before closing
-    ctx.lineTo(W + margin, H + bottomBleed);
-    ctx.lineTo(-margin, H + bottomBleed);
+    // bottom rail right→left
+    for(let s=steps; s>=0; s--){
+      const p = rails[i+1][s];
+      ctx.lineTo(p.x, p.y);
+    }
     ctx.closePath();
-
-    ctx.fillStyle = color;
+    ctx.fillStyle = fillColor;
     ctx.fill();
-
-    y += spacing;
   }
-
-  // Safety footer fill to ensure no background sliver shows
-  ctx.fillStyle = shade(pal[pal.length - 1], tone === 'light' ? -0.05 : -0.35);
-  ctx.fillRect(0, H - bottomBleed, W, bottomBleed);
 
   ctx.restore();
 }
 
 
-
-/* ---------- RINGS RENDERER (single big orb) ---------- */
+/* ---------- RINGS (single orb) ---------- */
 function drawRings(W, H, pal, rand, tone){
-  // background
-  if (tone === 'light'){
-    ctx.fillStyle = '#F4F7FB';
-  } else {
-    ctx.fillStyle = '#0A0E12';
-  }
+  if (tone === 'light'){ ctx.fillStyle = '#F4F7FB'; }
+  else { ctx.fillStyle = '#0A0E12'; }
   ctx.fillRect(0,0,W,H);
 
-  // pick palette color
   const main = pal[Math.floor(rand()*pal.length)];
-
-  // position (slightly off an edge)
   const maxD = Math.max(W,H);
   const R = maxD * (1.05 + 0.45*rand());
   const side = rand();
@@ -471,18 +473,14 @@ function drawRings(W, H, pal, rand, tone){
   else if (side < 0.75){ cx = W*(0.25 + 0.5*rand()); cy = -R*0.25; }
   else {                 cx = W*(0.25 + 0.5*rand()); cy = H + R*0.25; }
 
-  // 4–6 concentric rings
   const rings = 4 + (rand()*3|0);
   ctx.save();
   ctx.globalCompositeOperation = (tone === 'light') ? 'source-over' : 'lighter';
-
   for(let i=0;i<rings;i++){
     const r0 = R * (0.72 - i*0.08);
     const r1 = r0 + R * 0.22;
-
     const g = ctx.createRadialGradient(cx,cy,r0, cx,cy,r1);
     if (tone === 'light'){
-      // more conservative alphas on light bg
       g.addColorStop(0.00, rgba(main, 0.00));
       g.addColorStop(0.55, rgba(main, 0.06));
       g.addColorStop(0.72, rgba(main, 0.20));
@@ -497,7 +495,6 @@ function drawRings(W, H, pal, rand, tone){
       g.addColorStop(0.90, rgba(main, 0.35));
       g.addColorStop(1.00, rgba(main, 0.00));
     }
-
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.arc(cx, cy, r1, 0, Math.PI*2);
@@ -505,9 +502,7 @@ function drawRings(W, H, pal, rand, tone){
   }
   ctx.restore();
 
-  // gentle sweep/vignette tuned per tone
   if (tone === 'light'){
-    // soft radial vignette (light UI friendly)
     const vg = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.6, W/2, H/2, Math.max(W,H)*0.85);
     vg.addColorStop(0,'rgba(0,0,0,0)');
     vg.addColorStop(1,'rgba(0,0,0,0.10)');
@@ -528,7 +523,6 @@ function drawRings(W, H, pal, rand, tone){
   }
 }
 
-
 /* ---------- MASTER DRAW ---------- */
 function draw(){
   const W = clampInt(wEl.value, 256, 8192);
@@ -543,20 +537,18 @@ function draw(){
 
   const pal = parsePalette(paletteBox.value);
 
-  // HiDPI resize (no direct canvas.width/height here)
+  // HiDPI resize
   resizeCanvas(W, H, q);
 
-  // clear in logical coords
   ctx.clearRect(0,0,W,H);
 
-  const tone = (toneSel?.value || 'dark');   // read the dropdown you added
+  const tone = (toneSel?.value || 'dark');
 
-if (styleSel.value === 'rings') {
-  drawRings(W, H, pal, rand, tone);
-} else {
-  drawWavesStratified(W,H,pal,rand,tone);
-}
-
+  if (styleSel.value === 'rings') {
+    drawRings(W, H, pal, rand, tone);
+  } else {
+    drawWavesStratified(W, H, pal, rand, tone);
+  }
 }
 
 /* ---------- BUTTONS ---------- */
