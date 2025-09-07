@@ -34,6 +34,14 @@
       --muted:#475569; --border:#cbd5e1; --card:#ffffff; --ring:#0ea5e9;
       --shadow: 0 10px 24px rgba(15,23,42,.10);
     }
+
+    /* stop double-tap-to-zoom on the button */
+#click {
+  touch-action: manipulation;        /* disables double-tap zoom, keeps scroll/pinch */
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
     
     /* Stick footer to the bottom */
 html, body{ height:auto; min-height:100%; }
