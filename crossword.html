@@ -27,6 +27,14 @@
       --panel-tint: #0b12201a;/* light wash on panels/cards */
       --field: #0b12202a;     /* inputs / secondary buttons */
     }
+
+    /* stop double-tap-to-zoom on the button */
+#click {
+  touch-action: manipulation;        /* disables double-tap zoom, keeps scroll/pinch */
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
   
     [data-theme="light"]{
       --bg: #f8fafc;          /* slate-50 */
@@ -734,3 +742,4 @@ document.addEventListener('keydown', (e)=>{
   </script>
 </body>
 </html>
+
