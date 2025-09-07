@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Untitled</title>
+<style>
+  :root{ --ink:#0f172a; --muted:#64748b; --border:#9b9b9b; --soft:#efefef; --tileBg:#fff; --red:#dc2626; --accent:#111; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;color:var(--ink);background:#fff}
+
+  /* Dark mode */
+  body.dark{ --ink:#e5e7eb; --muted:#94a3b8; --border:#475569; --soft:#1f2937; --tileBg:#0f172a; --accent:#111; background:#0b1220; }
+
+  .wrap{max-width:820px;margin:0 auto;padding:28px 16px}
+  .center{min-height:calc(100vh - 260px);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+
+  /* Main button */
+  #click{appearance:none;cursor:pointer;padding:6px 14px;font-weight:700;
+         font-size:clamp(14px,1.8vw,20px);background:var(--soft);border:2px solid var(--border);
+         color:var(--ink);border-radius:4px;transition:transform .12s ease}
+  #click:active{filter:brightness(.98)}
+  body.dark #click{background:#e5e7eb;color:#111;border-color:#9ca3af}
+  #click.pro{background:linear-gradient(#f4f4f4,#eaeaea);border:1px solid #9b9b9b;border-radius:10px;
+             padding:8px 18px;box-shadow:0 1px 0 #fff inset,0 2px 5px rgba(0,0,0,.12);font-size:clamp(14px,1.9vw,20px);color:#111}
+  #click.bump{animation:bump 120ms ease}
+  @keyframes bump{0%{transform:translateY(0) scale(1)}50%{transform:translateY(1px) scale(.98)}100%{transform:translateY(0) scale(1)}}
+
+  .count{font-size:18px;margin-top:10px}
+  .sps{font-size:12px;color:var(--ink);margin-top:4px;display:none}
+
+  /* Tiles */
+  .tiles{display:flex;gap:14px;margin-top:24px;flex-wrap:wrap;justify-content:center}
+  .tile{position:relative;width:72px;height:72px;border:1.5px solid var(--accent);border-radius:16px;background:var(--tileBg);
+        display:grid;place-items:center;cursor:pointer;padding:0}
+  .tile:hover{filter:brightness(.98)}
+  .tile:disabled,.tile.is-disabled{opacity:.5;pointer-events:none;filter:grayscale(1);cursor:not-allowed}
+  .badge{position:absolute;top:-6px;left:-6px;background:#ef4444;color:#fff;font-weight:800;font-size:11px;padding:1px 6px;border-radius:999px;border:2px solid #fff}
+
+  /* Tooltip */
+  .tip{position:absolute;left:50%;top:100%;transform:translate(-50%,8px);background:var(--tileBg);border:1px solid var(--border);
+       border-radius:10px;padding:10px 12px;box-shadow:0 10px 24px rgba(15,23,42,.12);width:max-content;max-width:260px;
+       pointer-events:none;opacity:0;transition:opacity .15s ease,transform .15s ease;z-index:5;color:var(--ink)}
+  .tile:hover .tip{opacity:1;transform:translate(-50%,6px)}
+  .tip h4{margin:0 0 4px;font-size:14px}
+  .tip p{margin:0;font-size:12px;color:var(--muted)}
+  .tip .cost{margin-top:6px;color:var(--red);font-weight:800;font-size:12px}
+
+  /* Icons */
+  .icon-mini-btn{width:44px;height:22px;border:2px solid var(--border);border-radius:4px;background:var(--soft)}
+  .icon-mini-btn.pro{border:1px solid #9b9b9b;border-radius:10px;background:linear-gradient(#f4f4f4,#eaeaea);box-shadow:0 1px 0 #fff inset}
+  .icon-dvd{font-weight:900;font-size:28px;color:#777;text-shadow:0 1px 0 #ccc}
+  .icon-dvd-sound{font-weight:900;font-size:22px;color:#777}
+  .icon-counter{width:44px;height:22px;display:grid;place-items:center;font-size:14px;font-weight:800;color:#666}
+  .icon-tab{width:44px;height:28px;border:1.5px solid var(--accent);border-radius:6px;position:relative}
+  .icon-tab::before{content:"";position:absolute;left:8px;right:8px;top:6px;height:3px;background:#bbb;border-radius:2px}
+  .icon-gauge{width:44px;height:28px;border:1.5px solid var(--accent);border-radius:12px;position:relative}
+  .icon-gauge::before{content:"";position:absolute;left:8px;right:8px;bottom:6px;height:3px;background:#bbb;border-radius:2px}
+  .icon-gauge::after{content:"";position:absolute;left:50%;bottom:6px;width:2px;height:12px;background:#e11d48;transform-origin:bottom center;transform:rotate(-25deg)}
+  .icon-crit{width:44px;height:28px;display:grid;place-items:center;font-weight:900;font-size:20px}
+  .icon-theme{width:44px;height:28px;display:grid;place-items:center;font-size:18px}
+  .icon-auto{width:44px;height:28px;display:grid;place-items:center;font-weight:900;font-size:18px}
+
+  /* Slide-in for queued powerups */
+  .slide-in{animation:slideIn .35s cubic-bezier(.2,.8,.2,1) both}
+  @keyframes slideIn{from{opacity:0;transform:translateX(40px) scale(.98)}to{opacity:1;transform:translateX(0) scale(1)}}
+
+  /* Floating gains */
+  .fx{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+  .gain{position:fixed;color:var(--ink);font-weight:800;font-size:16px;pointer-events:none;will-change:transform,opacity;transform:translate(-50%,-50%);opacity:1}
+  .gain.crit{font-size:22px;color:#ef4444}
+
+  /* DVD */
+  .dvd{position:fixed;left:0;top:0;transform:translate(0,0) scale(1);font-weight:900;font-size:48px;color:var(--ink);
+       text-shadow:0 1px 2px rgba(0,0,0,.25);pointer-events:none;user-select:none;z-index:100;will-change:transform}
+
+  /* Theme toggle */
+  .themeBtn{position:fixed;right:16px;top:16px;padding:6px 10px;border:1px solid var(--border);background:var(--soft);
+            color:var(--ink);border-radius:12px;cursor:pointer;font-weight:700}
+</style>
+</head>
+<body>
+<button id="themeToggle" class="themeBtn" style="display:none">🌙 Dark</button>
+
+<div class="wrap">
+  <div class="center">
+    <button id="click">Click me</button>
+    <div class="count"><span id="count">0</span> stimulation</div>
+    <div id="sps" class="sps">0 sps</div>
+
+    <div class="tiles">
+      <!-- Tab Name -->
+      <button class="tile" id="tileTab">
+        <div class="icon-tab"></div>
+        <div class="tip"><h4>Tab Name</h4><p>Sets the browser tab name and icon.</p><div class="cost">Cost: 5</div></div>
+      </button>
+
+      <!-- Button Skin -->
+      <button class="tile" id="tileStyle">
+        <div class="icon-mini-btn"></div>
+        <div class="tip"><h4>Button Skin: Rounded Gradient</h4><p>Transforms the button; adds press sound + animation.</p><div class="cost">Cost: 25</div></div>
+      </button>
+
+      <!-- Press Counter -->
+      <button class="tile" id="tileCounter">
+        <div class="icon-counter">+#</div>
+        <div class="tip"><h4>Press Counter</h4><p>Shows floating “+X”.</p><div class="cost">Cost: 12</div></div>
+      </button>
+
+      <!-- SPS -->
+      <button class="tile" id="tileSps">
+        <div class="icon-gauge"></div>
+        <div class="tip"><h4>SPS Counter</h4><p>Shows stimulation per second.</p><div class="cost">Cost: 25</div></div>
+      </button>
+
+      <!-- Critical Hits -->
+      <button class="tile" id="tileCrit">
+        <div class="icon-crit">✚</div>
+        <div class="tip"><h4>Critical Hits</h4><p>5% chance, 2×–30× per press.</p><div class="cost">Cost: 200</div></div>
+      </button>
+
+      <!-- Theme Toggle -->
+      <button class="tile" id="tileTheme">
+        <div class="icon-theme">🌓</div>
+        <div class="tip"><h4>Theme Toggle</h4><p>Adds Light/Dark switch.</p><div class="cost">Cost: 300</div></div>
+      </button>
+
+      <!-- DVD Bounce Sound -->
+      <button class="tile" id="tileDvdSound">
+        <div class="icon-dvd-sound">DVD 🔊</div>
+        <div class="tip"><h4>DVD Bounce Sound</h4><p>Sound on each wall hit.</p><div class="cost">Cost: 75</div></div>
+      </button>
+
+      <!-- Auto Clicker -->
+      <button class="tile" id="tileAuto" aria-label="Auto Clicker">
+        <span class="badge" id="badgeAuto" style="display:none">0</span>
+        <div class="icon-auto">⚡</div>
+        <div class="tip">
+          <h4>Auto Clicker</h4>
+          <p>Clicks automatically. Current: <span id="tipAutoCps">0</span> cps. Level <span id="tipAutoLvl">0</span>.</p>
+          <div class="cost">Next cost: <span id="tipAutoNext">100</span></div>
+        </div>
+      </button>
+
+      <!-- DVD spawner (always visible) -->
+      <button class="tile" id="tileDvd">
+        <span class="badge" id="badgeDvd" style="display:none">0</span>
+        <div class="icon-dvd">DVD</div>
+        <div class="tip"><h4>DVD Bouncing</h4><p>Spawn a bouncing DVD. Each wall hit +5. Price ×3 each time.</p><div class="cost">Next Cost: <span id="tipCostDvd">3</span></div></div>
+      </button>
+    </div>
+  </div>
+  <p style="text-align:center;color:var(--muted);font-size:8px">Hover a tile to see details. Click a tile to buy.</p>
+</div>
+
+<div id="fx" class="fx"></div>
+
+<script>
+(()=>{
+  // Start title + remove any favicon
+  document.title = 'Untitled';
+  document.querySelectorAll("link[rel='icon'], link[rel='shortcut icon']").forEach(n=>n.remove());
+
+  // --- State ---
+  let stim = 0;
+  const perClick = 1;
+
+  // One-time upgrades
+  const costTab = 5;   let hasTab = false;
+  const costStyle = 25;let hasStyle = false;
+  const costCounter = 12; let hasCounter = false;
+  const costSps = 25;  let hasSps = false;
+  const costCrit = 200; let hasCrit = false;
+  const costTheme = 300; let hasTheme = false;
+  const costDvdSound = 75; let hasDvdSound = false;
+
+  // Auto clicker (progressive CPS)
+  const autoBaseCost = 100; // cost = 100 * (level+1)
+  let autoLvl = 0; let autoRAF = null; let autoAcc = 0; let autoLast = 0;
+
+  // DVD
+  const dvdBaseCost = 3; let dvdCount = 0; const perBounce = 5;
+
+  // Crits
+  const critChance = 0.05, critMax = 30;
+
+  // DOM
+  const $ = s => document.querySelector(s);
+  const elClick = $('#click');
+  const elCount = $('#count');
+  const elSps = $('#sps');
+  const FX = $('#fx');
+  const themeBtn = $('#themeToggle');
+
+  // Tiles
+  let tileTab = $('#tileTab');
+  let tileStyle = $('#tileStyle');
+  let tileCounter = $('#tileCounter');
+  let tileSps = $('#tileSps');
+  let tileCrit = $('#tileCrit');
+  let tileTheme = $('#tileTheme');
+  let tileDvdSound = $('#tileDvdSound');
+  let tileAuto = $('#tileAuto'); const badgeAuto = $('#badgeAuto');
+  const tileDvd = $('#tileDvd'); const badgeDvd = $('#badgeDvd'); const tipCostDvd = $('#tipCostDvd');
+
+  // Queue management (max 4 powerups at once; DVD stays visible)
+  const powerupIds = ['tileTab','tileStyle','tileCounter','tileSps','tileCrit','tileTheme','tileDvdSound','tileAuto'];
+  const tilesWrap = document.querySelector('.tiles');
+  function getTileById(id){
+    switch(id){
+      case 'tileTab': return tileTab;
+      case 'tileStyle': return tileStyle;
+      case 'tileCounter': return tileCounter;
+      case 'tileSps': return tileSps;
+      case 'tileCrit': return tileCrit;
+      case 'tileTheme': return tileTheme;
+      case 'tileDvdSound': return tileDvdSound;
+      case 'tileAuto': return tileAuto;
+      default: return null;
+    }
+  }
+  let lastVisiblePowerups = [];
+  function layoutPowerups(){
+    const queue = powerupIds.map(getTileById).filter(Boolean);
+    const nextVisible = queue.slice(0,4).map(el=>el.id);
+    if(nextVisible.join(',') === lastVisiblePowerups.join(',')) return;
+
+    // remove powerups currently mounted (keep DVD)
+    powerupIds.forEach(id=>{
+      const el = getTileById(id);
+      if(el && el.parentNode === tilesWrap) tilesWrap.removeChild(el);
+    });
+    // append 4, animate newcomers
+    nextVisible.forEach(id=>{
+      const el = getTileById(id); if(!el) return;
+      if(!lastVisiblePowerups.includes(id)){
+        el.classList.add('slide-in'); setTimeout(()=>el.classList.remove('slide-in'), 450);
+      }
+      tilesWrap.insertBefore(el, tileDvd);
+    });
+    lastVisiblePowerups = nextVisible;
+  }
+
+  // Helpers
+  function setDisabled(el, yes){
+    if(!el) return;
+    const v = !!yes;
+    el.toggleAttribute('disabled', v);
+    el.classList.toggle('is-disabled', v);
+    el.setAttribute('aria-disabled', v ? 'true' : 'false');
+  }
+  const dvdPrice = () => dvdBaseCost * Math.pow(3, dvdCount);
+
+  function autoCpsForLevel(level){
+    if(level <= 5) return level;           // 0..5 in whole steps
+    return +(5 + (level - 5) * 0.5).toFixed(1); // then +0.5 each
+  }
+  function autoCost(level){ return autoBaseCost * (level + 1); }
+
+  function updateUI(){
+    elCount.textContent = Math.floor(stim);
+
+    // One-time tiles
+    if(hasTab){ if(tileTab){ tileTab.remove(); tileTab=null; } } else { setDisabled(tileTab, stim < costTab); }
+    if(hasStyle){ elClick.classList.add('pro'); if(tileStyle){ tileStyle.remove(); tileStyle=null; } } else { setDisabled(tileStyle, stim < costStyle); }
+    if(hasCounter){ if(tileCounter){ tileCounter.remove(); tileCounter=null; } } else { setDisabled(tileCounter, stim < costCounter); }
+    if(hasSps){ elSps.style.display='block'; if(tileSps){ tileSps.remove(); tileSps=null; } } else { setDisabled(tileSps, stim < costSps); }
+    if(hasCrit){ if(tileCrit){ tileCrit.remove(); tileCrit=null; } } else { setDisabled(tileCrit, stim < costCrit); }
+    if(hasTheme){ themeBtn.style.display='inline-flex'; if(tileTheme){ tileTheme.remove(); tileTheme=null; } } else { setDisabled(tileTheme, stim < costTheme); }
+
+    if(hasDvdSound){ if(tileDvdSound){ tileDvdSound.remove(); tileDvdSound=null; } }
+    else { setDisabled(tileDvdSound, stim < costDvdSound); }
+
+    // Auto Clicker tile (multi-buy)
+    if(tileAuto){
+      const cps = autoCpsForLevel(autoLvl);
+      const nextCost = autoCost(autoLvl);
+      badgeAuto.textContent = autoLvl;
+      badgeAuto.style.display = autoLvl > 0 ? 'inline-block' : 'none';
+      setDisabled(tileAuto, stim < nextCost);
+      const tipAutoCps = document.getElementById('tipAutoCps');
+      const tipAutoLvl = document.getElementById('tipAutoLvl');
+      const tipAutoNext = document.getElementById('tipAutoNext');
+      if(tipAutoCps) tipAutoCps.textContent = (cps % 1 ? cps.toFixed(1) : String(cps));
+      if(tipAutoLvl) tipAutoLvl.textContent = autoLvl;
+      if(tipAutoNext) tipAutoNext.textContent = nextCost;
+    }
+
+    // DVD tile
+    const price = dvdPrice();
+    tipCostDvd.textContent = price;
+    badgeDvd.textContent = dvdCount;
+    badgeDvd.style.display = dvdCount > 0 ? 'inline-block' : 'none';
+    setDisabled(tileDvd, stim < price);
+
+    // Keep only 4 powerups mounted
+    layoutPowerups();
+  }
+
+  // Clicker
+  elClick.addEventListener('click', () => {
+    if(hasStyle){ bumpButton(); clickSound(false); }
+    let gain = perClick, crit = false, mult = 1;
+    if(hasCrit && Math.random() < critChance){ crit = true; mult = 2 + Math.floor(Math.random()*(critMax-1)); }
+    gain *= mult;
+    if(hasStyle && crit) clickSound(true);
+    stim += gain;
+    if(hasCounter) spawnGain(gain, crit);
+    updateUI();
+  });
+
+  // Purchases
+  tileTab?.addEventListener('click',()=>{ if(stim < costTab || hasTab) return; stim -= costTab; hasTab=true; applyTabBranding(); updateUI(); });
+  tileStyle?.addEventListener('click',()=>{ if(stim < costStyle || hasStyle) return; stim -= costStyle; hasStyle=true; updateUI(); });
+  tileCounter?.addEventListener('click',()=>{ if(stim < costCounter || hasCounter) return; stim -= costCounter; hasCounter=true; updateUI(); });
+  tileSps?.addEventListener('click',()=>{ if(stim < costSps || hasSps) return; stim -= costSps; hasSps=true; startSps(); updateUI(); });
+  tileCrit?.addEventListener('click',()=>{ if(stim < costCrit || hasCrit) return; stim -= costCrit; hasCrit=true; updateUI(); });
+  tileTheme?.addEventListener('click',()=>{ if(stim < costTheme || hasTheme) return; stim -= costTheme; hasTheme=true; enableThemeToggle(); updateUI(); });
+  tileDvdSound?.addEventListener('click',()=>{ if(stim < costDvdSound || hasDvdSound) return; stim -= costDvdSound; hasDvdSound=true; updateUI(); });
+
+  tileAuto?.addEventListener('click',()=>{
+    const nextCost = autoCost(autoLvl);
+    if(stim < nextCost) return;
+    stim -= nextCost;
+    autoLvl += 1;
+    ensureAutoLoop();
+    updateUI();
+  });
+
+  tileDvd.addEventListener('click',()=>{
+    const price = dvdPrice(); if(stim < price) return;
+    stim -= price; dvdCount++; startDVD(); updateUI();
+  });
+
+  // Floating gain with random motion
+  function spawnGain(amount, isCrit=false){
+    const r = elClick.getBoundingClientRect();
+    let x = r.left + r.width/2, y = r.top + r.height/2 - 6;
+    const d = document.createElement('div');
+    d.className = 'gain' + (isCrit ? ' crit' : '');
+    d.textContent = '+' + amount;
+    d.style.left = x + 'px'; d.style.top = y + 'px';
+    FX.appendChild(d);
+
+    const angle = (-Math.PI/2) + (Math.random()*0.9 - 0.45);
+    let speed = 120 + Math.random()*120, vx = Math.cos(angle)*speed, vy = Math.sin(angle)*speed;
+    const gravity = 50, damping = 0.85, life = 900; let last = performance.now(); const start = last;
+    function step(t){
+      const dt = (t - last)/1000; last = t;
+      vx *= Math.pow(damping, dt); vy += gravity*dt; x += vx*dt; y += vy*dt;
+      const p = Math.min(1, (t - start)/life);
+      d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.opacity = (1 - p).toString();
+      if(p < 1) requestAnimationFrame(step); else d.remove();
+    }
+    requestAnimationFrame(step);
+  }
+
+  // Button bump
+  function bumpButton(){ elClick.classList.remove('bump'); void elClick.offsetWidth; elClick.classList.add('bump'); }
+
+  // Audio
+  let AC = null;
+  window.addEventListener('pointerdown',()=>{ if(AC && AC.state==='suspended') AC.resume(); },{once:true});
+  function ensureAC(){ AC = AC || new (window.AudioContext || window.webkitAudioContext)(); return AC; }
+  function clickSound(crit=false){
+    try{
+      const ac = ensureAC(), osc = ac.createOscillator(), g = ac.createGain();
+      const dur = crit ? 0.12 : 0.08, f0 = crit ? 330 : 220, f1 = crit ? 660 : 300;
+      osc.type='square'; osc.frequency.setValueAtTime(f0, ac.currentTime);
+      osc.frequency.linearRampToValueAtTime(f1, ac.currentTime + dur);
+      g.gain.setValueAtTime(0.001, ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.08, ac.currentTime + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
+      osc.connect(g).connect(ac.destination); osc.start(); osc.stop(ac.currentTime + dur);
+    }catch(e){}
+  }
+  function bounceSound(){
+    try{
+      const ac = ensureAC(), o = ac.createOscillator(), g = ac.createGain();
+      o.type='sine'; const base = 220 + Math.random()*160;
+      o.frequency.setValueAtTime(base, ac.currentTime);
+      o.frequency.exponentialRampToValueAtTime(base*0.6, ac.currentTime + 0.08);
+      g.gain.setValueAtTime(0.0001, ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.06, ac.currentTime + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.1);
+      o.connect(g).connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.11);
+    }catch(e){}
+  }
+
+  // Tab branding
+  function applyTabBranding(){
+    document.title = 'Stimulation Clicker';
+    document.querySelectorAll("link[rel='icon'], link[rel='shortcut icon']").forEach(n=>n.remove());
+    const link = document.createElement('link'); link.rel='icon'; link.type='image/svg+xml';
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect rx='12' width='64' height='64' fill='#fff'/><circle cx='32' cy='32' r='22' fill='#000'/></svg>`;
+    link.href = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    document.head.appendChild(link);
+  }
+
+  // SPS (smoothed, integer, non-negative)
+  let spsTimer=null,lastStim=0,ema=0;
+  function startSps(){
+    if(spsTimer) return;
+    lastStim = stim; ema=0; elSps.textContent='0 sps';
+    spsTimer = setInterval(()=>{
+      const now = stim, dt = 0.5;
+      const inst = Math.max(0,(now - lastStim)/dt);
+      ema = ema*0.7 + inst*0.3; lastStim = now;
+      elSps.textContent = Math.round(ema) + ' sps';
+    },500);
+  }
+
+  // Theme toggle
+  function enableThemeToggle(){ themeBtn.style.display='inline-flex'; updateThemeBtn(); }
+  function updateThemeBtn(){ themeBtn.textContent = document.body.classList.contains('dark') ? '🌞 Light' : '🌙 Dark'; }
+  themeBtn.addEventListener('click',()=>{ document.body.classList.toggle('dark'); updateThemeBtn(); });
+
+  // Auto clicker loop (fractional cps)
+  function ensureAutoLoop(){
+    if(autoRAF) return;
+    autoLast = performance.now();
+    function loop(t){
+      const dt = (t - autoLast)/1000; autoLast = t;
+      const cps = autoCpsForLevel(autoLvl);
+      if(cps > 0){
+        autoAcc += cps * dt;
+        while(autoAcc >= 1){
+          stim += perClick; autoAcc -= 1;
+          if(hasCounter && Math.random() < 0.25) spawnGain(perClick,false);
+        }
+        updateUI();
+        autoRAF = requestAnimationFrame(loop);
+      }else{
+        autoRAF = null;
+      }
+    }
+    autoRAF = requestAnimationFrame(loop);
+  }
+
+  // DVD (clamped dt so no teleports)
+  function startDVD(){
+    const dvd = document.createElement('div');
+    dvd.className='dvd'; dvd.textContent='DVD';
+    document.body.appendChild(dvd);
+
+    let x = Math.max(0, Math.random()*(window.innerWidth - dvd.offsetWidth));
+    let y = Math.max(0, Math.random()*(window.innerHeight - dvd.offsetHeight));
+    let vx = (Math.random()>0.5?1:-1) * (140 + Math.random()*70);
+    let vy = (Math.random()>0.5?1:-1) * (110 + Math.random()*60);
+    const vmax = 280;
+    let scale = 1, last = performance.now();
+
+    function reflect(min,max,pos,vel){
+      let b=0;
+      if(pos < min){ pos = min + (min - pos); vel = Math.abs(vel); b++; }
+      else if(pos > max){ pos = max - (pos - max); vel = -Math.abs(vel); b++; }
+      return [pos,vel,b];
+    }
+    function frame(t){
+      let dt = (t - last)/1000; last = t;
+      dt = Math.min(dt, 0.03);
+      vx = Math.max(-vmax, Math.min(vmax, vx));
+      vy = Math.max(-vmax, Math.min(vmax, vy));
+
+      const w = dvd.offsetWidth, h = dvd.offsetHeight;
+      x += vx*dt; y += vy*dt;
+
+      let bounces = 0, tmp;
+      [x,vx,tmp] = reflect(0, window.innerWidth - w, x, vx); bounces += tmp;
+      [y,vy,tmp] = reflect(0, window.innerHeight - h, y, vy); bounces += tmp;
+
+      if(bounces > 0){ stim += perBounce*bounces; elCount.textContent=Math.floor(stim); scale=1.08; if(hasDvdSound) bounceSound(); }
+      scale += (1 - scale)*0.18;
+      dvd.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // init
+  layoutPowerups();
+  updateUI();
+})();
+</script>
+</body>
+</html>
