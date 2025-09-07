@@ -9,6 +9,9 @@
   <meta property="og:title" content="dog — Projects" />
   <meta property="og:description" content="A tiny portfolio of playful web projects. Click a card to explore!" />
   <meta property="og:type" content="website" />
+  <meta name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
   <!-- Emoji favicon (no external files) -->
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='80'%3E🐶%3C/text%3E%3C/svg%3E">
   <style>
@@ -34,15 +37,6 @@
       --muted:#475569; --border:#cbd5e1; --card:#ffffff; --ring:#0ea5e9;
       --shadow: 0 10px 24px rgba(15,23,42,.10);
     }
-
-    /* stop double-tap-to-zoom on the button */
-#click {
-  touch-action: manipulation;        /* disables double-tap zoom, keeps scroll/pinch */
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
-}
-
-    
     /* Stick footer to the bottom */
 html, body{ height:auto; min-height:100%; }
 body{ min-height:100svh; display:flex; flex-direction:column; }
