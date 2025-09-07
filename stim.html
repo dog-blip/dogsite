@@ -13,6 +13,14 @@
   body{margin:0;font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;color:var(--ink);background:#fff}
 
   * {user-select: none;}
+
+  /* stop double-tap-to-zoom on the button */
+#click {
+  touch-action: manipulation;        /* disables double-tap zoom, keeps scroll/pinch */
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
   
   /* Dark mode */
   body.dark{ --ink:#e5e7eb; --muted:#94a3b8; --border:#475569; --soft:#1f2937; --tileBg:#0f172a; --accent:#111; background:#0b1220; }
@@ -489,5 +497,6 @@
 </script>
 </body>
 </html>
+
 
 
