@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Live Cursors Demo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#0f172a; --ink:#e5e7eb; --muted:#94a3b8; --panel:#0b1220; --border:#223049;
+    --accent:#22d3ee;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background: radial-gradient(1200px 900px at 10% -10%, #16223d 0%, var(--bg) 55%);
+    color:var(--ink); font:16px/1.4 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+  }
+  header{
+    position:sticky; top:0; z-index:1; backdrop-filter: blur(8px) saturate(1.1);
+    background: color-mix(in oklab, #0b1220ee 82%, transparent);
+    border-bottom:1px solid var(--border);
+  }
+  .wrap{ max-width:900px; margin:0 auto; padding:14px 16px; }
+  .row{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .title{ font-weight:800; letter-spacing:.25px }
+  .muted{ color:var(--muted) }
+  main{ max-width:900px; margin:24px auto; padding:0 16px 24px }
+  .panel{
+    border:1px solid var(--border); border-radius:16px; padding:16px;
+    background: color-mix(in oklab, var(--panel) 90%, transparent); min-height:60vh;
+    position:relative; overflow:hidden;
+  }
+  .help{ margin-top:10px; color:var(--muted); font-size:14px }
+
+  /* --- other players' cursors --- */
+  .mcursor{
+    position:fixed; left:0; top:0;
+    transform:translate(-9999px,-9999px);
+    pointer-events:none; z-index:99999;
+    transition:transform 40ms linear;
+    will-change:transform;
+  }
+  .mcursor .dot{
+    width:12px; height:12px; border-radius:50%;
+    background:var(--c,#22d3ee);
+    box-shadow:0 0 0 2px rgba(0,0,0,.25);
+    transform:translate(-50%,-50%);
+  }
+  .mcursor .tag{
+    margin-left:10px; margin-top:-4px;
+    padding:2px 6px; border-radius:999px;
+    font:12px/1.2 ui-sans-serif,system-ui;
+    color:#fff; background:rgba(0,0,0,.5);
+    transform:translateY(-50%);
+    white-space:nowrap;
+  }
+  .mcursor.down .dot{ transform:translate(-50%,-50%) scale(.85); }
+
+  .pill{
+    border:1px solid var(--border); background:#0b1220; color:var(--ink);
+    padding:6px 10px; border-radius:999px; font-weight:600;
+  }
+  .status{ display:flex; align-items:center; gap:8px }
+  .dotstat{ width:10px; height:10px; border-radius:50%; background:#ef4444 }
+  .dotstat.ok{ background:#10b981 }
+  .name{
+    border:1px solid var(--border); background:#0b1220; color:var(--ink);
+    padding:6px 10px; border-radius:10px; width:160px;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap row">
+      <div>
+        <div class="title">Live Cursors</div>
+        <div class="muted" style="font-size:13px">Open this page in two tabs/devices to see each other’s cursors.</div>
+      </div>
+      <div class="row" style="gap:10px">
+        <input id="nick" class="name" placeholder="nickname (optional)">
+        <div class="status"><span class="dotstat" id="dot"></span><span id="stat" class="muted">connecting…</span></div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="panel">
+      <p class="muted">Move your mouse or tap/drag. Other people on this page will see your colored cursor with your nickname.</p>
+      <p class="help">Room is based on the page path: <code id="roomName"></code></p>
+    </div>
+  </main>
+
+  <!-- Supabase client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+  (() => {
+    // === Your Supabase project ===
+    const SUPABASE_URL  = 'https://duwdxzrdyqlzrjqcnnuk.supabase.co';
+    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1d2R4enJkeXFsenJqcWNubnVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MDUyNDgsImV4cCI6MjA3Mjk4MTI0OH0.SXRIwgyCSsS7yd9DS-5-cNCKdqRMwwYQ2GtAguOUYgk';
+
+    // === Basic UI hooks ===
+    const dot  = document.getElementById('dot');
+    const stat = document.getElementById('stat');
+    const nick = document.getElementById('nick');
+    const roomLabel = document.getElementById('roomName');
+
+    // One room per page path (so /cursors.html is its own room)
+    const roomName = 'cursors:' + location.pathname;
+    roomLabel.textContent = roomName;
+
+    // Identity
+    const myId    = (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2));
+    const myHue   = Math.floor(Math.random()*360);
+    const myColor = `hsl(${myHue} 85% 60%)`;
+    const LSkey   = 'cursor_name';
+    nick.value = localStorage.getItem(LSkey) || '';
+    function myName(){ return (nick.value.trim() || localStorage.getItem(LSkey) || `guest-${myId.slice(0,4)}`); }
+    nick.addEventListener('change', () => localStorage.setItem(LSkey, nick.value.trim()));
+
+    // Supabase Realtime
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, { realtime:{ params:{ eventsPerSecond: 20 } } });
+    const ch = sb.channel(roomName, { config:{ presence:{ key: myId } } });
+
+    // Peer cursors
+    const peers = new Map(); // id -> { el }
+    function makeCursor(id, color, name){
+      const el = document.createElement('div');
+      el.className = 'mcursor';
+      el.style.setProperty('--c', color || '#22d3ee');
+      el.innerHTML = `<div class="dot"></div><div class="tag">${name || 'guest'}</div>`;
+      document.body.appendChild(el);
+      peers.set(id, { el });
+      return el;
+    }
+    function removeCursor(id){ const p = peers.get(id); if(p){ p.el.remove(); peers.delete(id); } }
+
+    // Presence (join/leave)
+    ch.on('presence', { event:'sync' }, () => {
+      const state = ch.presenceState(); // { [id]: [{ user:{...} }] }
+      for (const [id, metas] of Object.entries(state)){
+        if (id === myId) continue;
+        const u = metas[0]?.user || {};
+        if (!peers.has(id)) makeCursor(id, u.color, u.name);
+      }
+      for (const id of peers.keys()) if (!state[id]) removeCursor(id);
+    });
+
+    // Receive positions
+    ch.on('broadcast', { event:'cursor' }, ({ payload }) => {
+      const { id, x, y, clicking, color, name } = payload;
+      if (id === myId) return;
+      const entry = peers.get(id) || makeCursor(id, color, name);
+      entry.el.style.transform = `translate(${x*innerWidth}px, ${y*innerHeight}px)`;
+      entry.el.classList.toggle('down', !!clicking);
+    });
+
+    // Connect
+    ch.subscribe((status) => {
+      stat.textContent = status.toLowerCase();
+      dot.classList.toggle('ok', status === 'SUBSCRIBED');
+      if (status === 'SUBSCRIBED') {
+        ch.track({ user:{ id:myId, name:myName(), color:myColor } });
+      }
+    });
+
+    // Send my cursor (normalized coords so any screen size works)
+    let nx=0, ny=0, last=0;
+    function send(click=false){
+      ch.send({ type:'broadcast', event:'cursor',
+        payload:{ id:myId, x:nx, y:ny, clicking:click, name:myName(), color:myColor } });
+    }
+
+    addEventListener('mousemove', e => {
+      nx = e.clientX / innerWidth;
+      ny = e.clientY / innerHeight;
+      const now = performance.now();
+      if (now - last > 30){ last = now; send(false); } // ~33fps throttle
+    }, { passive:true });
+
+    addEventListener('touchmove', e => {
+      const t = e.touches[0]; if(!t) return;
+      nx = t.clientX / innerWidth; ny = t.clientY / innerHeight;
+      const now = performance.now();
+      if (now - last > 30){ last = now; send(false); }
+    }, { passive:true });
+
+    addEventListener('mousedown', () => send(true),  { passive:true });
+    addEventListener('mouseup',   () => send(false), { passive:true });
+
+    document.addEventListener('visibilitychange', () => { if (document.hidden) send(false); });
+    addEventListener('resize', () => { /* positions are normalized; no action needed */ });
+  })();
+  </script>
+</body>
+</html>
