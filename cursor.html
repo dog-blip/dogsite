@@ -32,12 +32,13 @@
     overflow:hidden;
   }
 
-  /* ---- Toolbar ----- */
+  /* ---- Toolbar (outside board) ----- */
   .tools{
-    position:absolute; right:12px; top:12px; z-index:3;
+    position:sticky; top:12px; z-index:5;
     display:flex; gap:8px; align-items:center; flex-wrap:wrap;
     background: rgba(11,18,32,.75); border:1px solid var(--border); padding:8px; border-radius:12px;
     backdrop-filter: blur(6px);
+    margin-bottom:12px;
   }
   .group{ display:flex; gap:8px; align-items:center; }
   .btn{ border:1px solid var(--border); background:#11192a; color:var(--ink);
@@ -87,7 +88,6 @@
     will-change:transform;
     display:flex; align-items:center;
   }
-  /* default: round dot */
   .mcursor .dot{
     position:relative;
     width:12px; height:12px; border-radius:50%;
@@ -109,7 +109,7 @@
   body.pointy .mcursor .dot{ display:none }
   body.pointy .mcursor .arrow{
     display:block; width:18px; height:18px;
-    transform: translate(-35%,-35%); /* align tip under pointer */
+    transform: translate(-35%,-35%); /* tip under pointer */
   }
 
   @media (max-width: 820px){
@@ -120,9 +120,7 @@
 <body>
   <header>
     <div class="wrap row">
-      <div>
-        <div class="title">Live cursors + whiteboard</div>
-      </div>
+      <div class="title">Live cursors + whiteboard</div>
       <div class="row" style="gap:10px">
         <input id="nick" class="name" placeholder="nickname (optional)">
         <div class="status"><span class="dotstat" id="dot"></span><span id="stat" class="muted">connecting…</span></div>
@@ -130,78 +128,73 @@
     </div>
   </header>
 
-  <main>
+  <main class="wrap">
+    <!-- TOOLBAR (no timer) -->
+    <div class="tools">
+      <div class="group">
+        <button id="modePointer" class="btn on">Pointer</button>
+        <button id="modeDraw"    class="btn">Draw</button>
+        <button id="modeText"    class="btn">Text</button>
+      </div>
+      <div class="group">
+        <input id="color" type="color" value="#22d3ee" title="color">
+        <input id="size" class="slider" type="range" min="2" max="60" value="10" title="size">
+        <button id="clear" class="btn">Clear</button>
+        <button id="importBtn" class="btn">Import</button>
+      </div>
+      <div class="group" style="border-left:1px solid var(--border); padding-left:8px">
+        <label class="toggle"><input type="checkbox" id="showMine"> show my cursor</label>
+        <label class="toggle"><input type="checkbox" id="pointy"> pointy cursors</label>
+      </div>
+    </div>
+
     <div class="board" id="board">
-      <!-- online users -->
       <aside class="roster" id="roster">
         <h4>Online</h4>
         <div id="rosterList"></div>
       </aside>
-
-      <!-- toolbar -->
-      <div class="tools">
-        <div class="group">
-          <button id="modePointer" class="btn on">Pointer</button>
-          <button id="modeDraw"    class="btn">Draw</button>
-          <button id="modeText"    class="btn">Text</button>
-        </div>
-        <div class="group">
-          <input id="color" type="color" value="#22d3ee" title="color">
-          <input id="size" class="slider" type="range" min="2" max="24" value="6" title="size">
-          <button id="clear" class="btn">Clear</button>
-        </div>
-        <div class="group" style="border-left:1px solid var(--border); padding-left:8px">
-          <label class="toggle"><input type="checkbox" id="showMine"> show my cursor</label>
-          <label class="toggle"><input type="checkbox" id="pointy"> pointy cursors</label>
-        </div>
-      </div>
-
       <canvas id="pad"></canvas>
     </div>
   </main>
 
-  <!-- Supabase client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
   (() => {
-    // === Supabase project ===
     const SUPABASE_URL  = 'https://duwdxzrdyqlzrjqcnnuk.supabase.co';
     const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1d2R4enJkeXFsenJqcWNubnVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MDUyNDgsImV4cCI6MjA3Mjk4MTI0OH0.SXRIwgyCSsS7yd9DS-5-cNCKdqRMwwYQ2GtAguOUYgk';
 
-    // --- UI refs
     const board = document.getElementById('board');
     const canvas = document.getElementById('pad');
     const ctx = canvas.getContext('2d');
+
     const colorEl = document.getElementById('color');
-    const sizeEl = document.getElementById('size');
+    const sizeEl  = document.getElementById('size');
     const btnPointer = document.getElementById('modePointer');
-    const btnDraw = document.getElementById('modeDraw');
-    const btnText = document.getElementById('modeText');
-    const btnClear = document.getElementById('clear');
-    const dot = document.getElementById('dot');
+    const btnDraw    = document.getElementById('modeDraw');
+    const btnText    = document.getElementById('modeText');
+    const btnClear   = document.getElementById('clear');
+    const btnImport  = document.getElementById('importBtn');
+
+    const dot  = document.getElementById('dot');
     const stat = document.getElementById('stat');
     const nick = document.getElementById('nick');
     const rosterList = document.getElementById('rosterList');
+
     const showMineEl = document.getElementById('showMine');
     const pointyEl   = document.getElementById('pointy');
 
-    // One room per page path
     const roomName = 'cursors:' + location.pathname;
 
     // Identity
     const myId    = (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2));
     const myHue   = Math.floor(Math.random()*360);
     const myColor = `hsl(${myHue} 85% 60%)`;
-    const LS = {
-      name : 'cursor_name',
-      show : 'cursor_showMine',
-      style: 'cursor_pointy'
-    };
+    const LS = { name:'cursor_name', show:'cursor_showMine', style:'cursor_pointy' };
     nick.value = localStorage.getItem(LS.name) || '';
     const myName = () => (nick.value.trim() || localStorage.getItem(LS.name) || `guest-${myId.slice(0,4)}`);
     nick.addEventListener('change', () => { localStorage.setItem(LS.name, nick.value.trim()); updatePresence(); });
 
-    // Canvas sizing (HiDPI)
+    // Canvas sizing
     function resizeCanvas(){
       const r = board.getBoundingClientRect();
       const dpr = Math.max(1, devicePixelRatio || 1);
@@ -229,7 +222,7 @@
     btnDraw.onclick    = () => setMode('draw');
     btnText.onclick    = () => setMode('text');
 
-    // Drawing helpers
+    // Coords helpers
     function boardRect(){ return board.getBoundingClientRect(); }
     function normFromEvent(e){
       const r = boardRect();
@@ -240,16 +233,18 @@
     function pxFromNorm(nx, ny){
       const r = boardRect(); return { x: nx * r.width, y: ny * r.height };
     }
+
     function lineTo(px, py, color, size){ ctx.strokeStyle=color; ctx.lineWidth=size; ctx.lineTo(px, py); ctx.stroke(); }
     function beginPath(px, py, color, size){ ctx.beginPath(); ctx.moveTo(px, py); ctx.strokeStyle=color; ctx.lineWidth=size; }
 
     // Text overlay
     function showTextbox(nx, ny, color, size){
       const {x,y} = pxFromNorm(nx, ny);
+      const px = Math.max(12, size * 3.2);
       const box = document.createElement('textarea');
       box.className = 'textbox';
       box.style.left = (x|0)+'px'; box.style.top = (y|0)+'px';
-      box.style.color = color; box.style.font = `bold ${Math.max(12, size*3)}px/1.2 ui-sans-serif,system-ui`;
+      box.style.color = color; box.style.font = `bold ${px}px/1.2 ui-sans-serif,system-ui`;
       board.appendChild(box); box.focus();
       const commit = () => {
         const text = box.value.trim();
@@ -261,18 +256,19 @@
     }
     function drawText(nx, ny, text, color, size){
       const {x,y} = pxFromNorm(nx, ny);
-      ctx.save(); ctx.fillStyle = color; ctx.font = `bold ${Math.max(12, size*3)}px ui-sans-serif,system-ui`; ctx.textBaseline='top';
-      text.split(/\n/).forEach((ln,i)=> ctx.fillText(ln, x, y + i*(size*3+4)));
+      const px = Math.max(12, size * 3.2);
+      ctx.save(); ctx.fillStyle = color; ctx.font = `bold ${px}px ui-sans-serif,system-ui`; ctx.textBaseline='top';
+      text.split(/\n/).forEach((ln,i)=> ctx.fillText(ln, x, y + i*(px+4)));
       ctx.restore();
     }
     function clearCanvas(){ ctx.clearRect(0,0,canvas.width,canvas.height); }
     btnClear.onclick = () => { clearCanvas(); sendClear(); };
 
-    // ===== Realtime =====
+    // Supabase Realtime
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, { realtime:{ params:{ eventsPerSecond: 30 } } });
     const ch = sb.channel(roomName, { config:{ presence:{ key: myId } } });
 
-    // Roster rendering
+    // Roster
     function renderRoster(state){
       const rows = [];
       for (const [id, metas] of Object.entries(state)){
@@ -288,8 +284,8 @@
       rosterList.innerHTML = rows.join('') || '<div class="muted">No one here yet.</div>';
     }
 
-    // Multiplayer cursors
-    const peers = new Map(); // id -> { el }
+    // Remote cursors
+    const peers = new Map();
     function mkCursor(id, color, name){
       const el = document.createElement('div');
       el.className = 'mcursor';
@@ -317,7 +313,24 @@
       for (const id of peers.keys()) if (!state[id]) rmCursor(id);
     });
 
-    // Receive cursors
+    // Separate drawing paths per remote user
+    const remotePaths = new Map();
+    function remoteBegin(id, x, y, color, size){
+      beginPath(x,y,color,size);
+      remotePaths.set(id, { open:true, last:{x,y}, color, size });
+    }
+    function remoteLine(id, x, y, color, size){
+      const st = remotePaths.get(id);
+      if (!st || !st.open){ remoteBegin(id, x, y, color, size); return; }
+      lineTo(x,y,color,size);
+      st.last = {x,y};
+    }
+    function remoteEnd(id){
+      const st = remotePaths.get(id);
+      if (st && st.open) ctx.closePath();
+      remotePaths.delete(id);
+    }
+
     ch.on('broadcast', {event:'cursor'}, ({ payload }) => {
       const { id, x, y, clicking, color, name } = payload;
       if (id === myId) return;
@@ -326,37 +339,26 @@
       entry.el.classList.toggle('down', !!clicking);
     });
 
-    // Receive draw/text/clear
     ch.on('broadcast', {event:'draw'}, ({ payload }) => {
-      const { kind, nx, ny, color, size } = payload;
+      const { from, kind, nx, ny, color, size } = payload;
       const {x,y} = pxFromNorm(nx, ny);
-      if (kind==='begin') beginPath(x,y,color,size);
-      else if (kind==='line') lineTo(x,y,color,size);
-      else if (kind==='end') ctx.closePath();
+      if (kind==='begin') remoteBegin(from, x,y,color,size);
+      else if (kind==='line') remoteLine(from, x,y,color,size);
+      else if (kind==='end')  remoteEnd(from);
     });
     ch.on('broadcast', {event:'text'}, ({ payload }) => {
       const { nx, ny, text, color, size } = payload; drawText(nx,ny,text,color,size);
     });
     ch.on('broadcast', {event:'clear'}, () => clearCanvas());
 
-    // Connect + update presence
-    function updatePresence(){
-      ch.track({ user:{ id:myId, name:myName(), color:myColor } });
-    }
+    function updatePresence(){ ch.track({ user:{ id:myId, name:myName(), color:myColor } }); }
     ch.subscribe((status) => {
       stat.textContent = status.toLowerCase();
       dot.classList.toggle('ok', status === 'SUBSCRIBED');
       if (status === 'SUBSCRIBED') updatePresence();
     });
 
-    // Send my cursor (normalized)
-    let cx=0, cy=0, last=0;
-    function sendCursor(click=false){
-      ch.send({ type:'broadcast', event:'cursor',
-        payload:{ id:myId, x:cx, y:cy, clicking:click, name:myName(), color:myColor } });
-    }
-
-    // Optional: show my own cursor locally
+    // Show my cursor option
     let myCursorEl = null;
     function ensureMyCursor(){
       if (!myCursorEl){
@@ -392,7 +394,12 @@
       document.body.classList.toggle('pointy', pointyEl.checked);
     });
 
-    // Global pointer → send + move my own bubble if enabled
+    // Broadcast my cursor
+    let cx=0, cy=0, last=0;
+    function sendCursor(click=false){
+      ch.send({ type:'broadcast', event:'cursor',
+        payload:{ id:myId, x:cx, y:cy, clicking:click, name:myName(), color:myColor } });
+    }
     addEventListener('mousemove', e => {
       cx = e.clientX / innerWidth; cy = e.clientY / innerHeight;
       const now = performance.now(); if (now-last>30){ last=now; sendCursor(false); }
@@ -408,27 +415,26 @@
     addEventListener('mouseup',   e => { sendCursor(false); moveMyCursor(e.clientX, e.clientY, false); }, {passive:true});
     document.addEventListener('visibilitychange', () => { if (document.hidden) sendCursor(false); });
 
-    // Drawing events on board
-    function sendDraw(kind, nx, ny, color, size){ ch.send({ type:'broadcast', event:'draw', payload:{ kind, nx, ny, color, size } }); }
-    function sendText(nx, ny, text, color, size){ ch.send({ type:'broadcast', event:'text', payload:{ nx, ny, text, color, size } }); }
-    function sendClear(){ ch.send({ type:'broadcast', event:'clear', payload:{} }); }
-
+    // Local drawing (canvas only, so toolbar is clickable)
     let drawing=false, lastSentMove=0;
     function pointerDown(e){
-      if (mode==='pointer') return;
+      if (e.target !== canvas) return;
+      if (e.button !== undefined && e.button !== 0) return;
       const {nx,ny} = normFromEvent(e);
       if (mode==='draw'){
         drawing = true;
         const p = pxFromNorm(nx,ny);
         beginPath(p.x,p.y,brushColor,brushSize);
         sendDraw('begin', nx, ny, brushColor, brushSize);
+        e.preventDefault();
       } else if (mode==='text'){
         showTextbox(nx, ny, brushColor, brushSize);
+        e.preventDefault();
       }
-      e.preventDefault();
     }
     function pointerMove(e){
       if (!drawing || mode!=='draw') return;
+      if (e.target !== canvas && e.type !== 'touchmove') return;
       const {nx,ny} = normFromEvent(e);
       const p = pxFromNorm(nx,ny);
       lineTo(p.x,p.y,brushColor,brushSize);
@@ -444,12 +450,49 @@
       }
       drawing=false; e.preventDefault();
     }
-    board.addEventListener('mousedown', pointerDown);
-    board.addEventListener('mousemove', pointerMove);
-    addEventListener('mouseup', pointerUp);
-    board.addEventListener('touchstart', pointerDown, {passive:false});
-    board.addEventListener('touchmove',  pointerMove, {passive:false});
-    addEventListener('touchend',  pointerUp, {passive:false});
+    canvas.addEventListener('mousedown',  pointerDown);
+    canvas.addEventListener('mousemove',  pointerMove);
+    addEventListener('mouseup',           pointerUp);
+    canvas.addEventListener('touchstart', pointerDown, { passive:false });
+    canvas.addEventListener('touchmove',  pointerMove, { passive:false });
+    addEventListener('touchend',          pointerUp,   { passive:false });
+
+    // Import from peers
+    btnImport.onclick = () => {
+      const rid = Math.random().toString(36).slice(2);
+      ch.send({ type:'broadcast', event:'request_state', payload:{ rid } });
+      let handled = false;
+      ch.on('broadcast', {event:'state_png'}, ({ payload }) => {
+        if (handled || payload.rid !== rid) return;
+        handled = true;
+        const img = new Image();
+        img.onload = () => {
+          const r = board.getBoundingClientRect();
+          ctx.drawImage(img, 0, 0, r.width, r.height);
+        };
+        img.src = payload.png;
+      });
+    };
+    ch.on('broadcast', {event:'request_state'}, ({ payload }) => {
+      const r = board.getBoundingClientRect();
+      const tmp = document.createElement('canvas');
+      tmp.width = r.width; tmp.height = r.height;
+      const tctx = tmp.getContext('2d');
+      tctx.drawImage(canvas, 0, 0, r.width, r.height);
+      const png = tmp.toDataURL('image/png');
+      ch.send({ type:'broadcast', event:'state_png', payload:{ rid: payload.rid, png } });
+    });
+
+    // Send ops
+    function sendDraw(kind, nx, ny, color, size){
+      ch.send({ type:'broadcast', event:'draw', payload:{ from: myId, kind, nx, ny, color, size } });
+    }
+    function sendText(nx, ny, text, color, size){
+      ch.send({ type:'broadcast', event:'text', payload:{ nx, ny, text, color, size } });
+    }
+    function sendClear(){
+      ch.send({ type:'broadcast', event:'clear', payload:{} });
+    }
   })();
   </script>
 </body>
