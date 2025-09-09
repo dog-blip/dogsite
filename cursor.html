@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Live cursors + drawing</title>
+<title>Live cursors + drawing (rooms)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root{
@@ -21,9 +21,24 @@
     border-bottom:1px solid var(--border);
   }
   .wrap{ max-width:1200px; margin:0 auto; padding:14px 16px; }
-  .row{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .row{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap }
   .title{ font-weight:800; letter-spacing:.25px }
   .muted{ color:var(--muted) }
+
+  .roombox{
+    display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+    background: rgba(11,18,32,.75); border:1px solid var(--border); padding:8px; border-radius:12px;
+    backdrop-filter: blur(6px);
+  }
+  .roombox input[type="text"]{
+    width:160px; padding:8px 10px; border-radius:10px; border:1px solid var(--border);
+    background:#0b1220; color:var(--ink); text-transform:lowercase;
+  }
+  .btn{ border:1px solid var(--border); background:#11192a; color:var(--ink);
+        padding:6px 10px; border-radius:10px; cursor:pointer; font-weight:700 }
+  .pill{ padding:6px 10px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
+  .dotstat{ width:10px; height:10px; border-radius:50%; background:var(--bad); display:inline-block; vertical-align:middle }
+  .dotstat.ok{ background:var(--ok) }
 
   main{ max-width:1200px; margin:18px auto; padding:0 16px 24px }
   .board{
@@ -38,17 +53,13 @@
     display:flex; gap:8px; align-items:center; flex-wrap:wrap;
     background: rgba(11,18,32,.75); border:1px solid var(--border); padding:8px; border-radius:12px;
     backdrop-filter: blur(6px);
-    margin-bottom:12px;
+    margin:12px 0;
   }
   .group{ display:flex; gap:8px; align-items:center; }
-  .btn{ border:1px solid var(--border); background:#11192a; color:var(--ink);
-        padding:6px 10px; border-radius:10px; cursor:pointer; font-weight:700 }
   .btn.on{ outline:2px solid var(--accent); }
   .name{ border:1px solid var(--border); background:#0b1220; color:var(--ink);
          padding:6px 10px; border-radius:10px; width:160px; }
   .status{ display:flex; align-items:center; gap:6px }
-  .dotstat{ width:10px; height:10px; border-radius:50%; background:var(--bad) }
-  .dotstat.ok{ background:var(--ok) }
   .slider{ accent-color: var(--accent) }
   label.toggle{ display:flex; gap:6px; align-items:center; font-size:13px; color:var(--muted) }
   label.toggle input{ accent-color: var(--accent) }
@@ -123,13 +134,24 @@
       <div class="title">Live cursors + whiteboard</div>
       <div class="row" style="gap:10px">
         <input id="nick" class="name" placeholder="nickname (optional)">
-        <div class="status"><span class="dotstat" id="dot"></span><span id="stat" class="muted">connecting…</span></div>
+        <span class="pill">Room: <b id="roomLabel">—</b></span>
+        <span class="pill"><span class="dotstat" id="hdrDot"></span> <span id="hdrStat" class="muted">disconnected</span></span>
+      </div>
+    </div>
+    <div class="wrap">
+      <div class="roombox" id="roomBox">
+        <input id="roomInput" type="text" placeholder="room code (e.g. kiwi-4m3)" autocomplete="off">
+        <button id="btnJoin"   class="btn">Create / Join</button>
+        <button id="btnRandom" class="btn">Random</button>
+        <button id="btnCopy"   class="btn">Copy link</button>
+        <button id="btnLeave"  class="btn">Leave</button>
+        <span class="muted" id="shareHint">Share the link to invite others.</span>
       </div>
     </div>
   </header>
 
   <main class="wrap">
-    <!-- TOOLBAR (no timer) -->
+    <!-- TOOLBAR -->
     <div class="tools">
       <div class="group">
         <button id="modePointer" class="btn on">Pointer</button>
@@ -160,9 +182,11 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
   (() => {
+    /* ----------------- CONFIG ------------------ */
     const SUPABASE_URL  = 'https://duwdxzrdyqlzrjqcnnuk.supabase.co';
     const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1d2R4enJkeXFsenJqcWNubnVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MDUyNDgsImV4cCI6MjA3Mjk4MTI0OH0.SXRIwgyCSsS7yd9DS-5-cNCKdqRMwwYQ2GtAguOUYgk';
 
+    /* -------------- DOM references -------------- */
     const board = document.getElementById('board');
     const canvas = document.getElementById('pad');
     const ctx = canvas.getContext('2d');
@@ -175,26 +199,47 @@
     const btnClear   = document.getElementById('clear');
     const btnImport  = document.getElementById('importBtn');
 
-    const dot  = document.getElementById('dot');
-    const stat = document.getElementById('stat');
+    const roomInput = document.getElementById('roomInput');
+    const roomLabel = document.getElementById('roomLabel');
+    const btnJoin   = document.getElementById('btnJoin');
+    const btnRandom = document.getElementById('btnRandom');
+    const btnCopy   = document.getElementById('btnCopy');
+    const btnLeave  = document.getElementById('btnLeave');
+    const hdrDot    = document.getElementById('hdrDot');
+    const hdrStat   = document.getElementById('hdrStat');
+
     const nick = document.getElementById('nick');
     const rosterList = document.getElementById('rosterList');
-
     const showMineEl = document.getElementById('showMine');
     const pointyEl   = document.getElementById('pointy');
 
-    const roomName = 'cursors:' + location.pathname;
-
-    // Identity
+    /* ----------------- Helpers ------------------ */
     const myId    = (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2));
     const myHue   = Math.floor(Math.random()*360);
     const myColor = `hsl(${myHue} 85% 60%)`;
-    const LS = { name:'cursor_name', show:'cursor_showMine', style:'cursor_pointy' };
+    const LS = { name:'cursor_name', show:'cursor_showMine', style:'cursor_pointy', room:'cursor_room' };
     nick.value = localStorage.getItem(LS.name) || '';
     const myName = () => (nick.value.trim() || localStorage.getItem(LS.name) || `guest-${myId.slice(0,4)}`);
     nick.addEventListener('change', () => { localStorage.setItem(LS.name, nick.value.trim()); updatePresence(); });
 
-    // Canvas sizing
+    function clampRoom(str){
+      // allow a-z 0-9 - _ ; make lower; trim; cap length
+      str = (str||'').toLowerCase().replace(/[^a-z0-9-_]/g,'').slice(0,32);
+      return str || 'public';
+    }
+    function randomRoom(){
+      const animals = ['kiwi','otter','panda','lynx','tiger','koala','mole','squid','lemur','yak','zebra','orca','ibis'];
+      const a = animals[Math.floor(Math.random()*animals.length)];
+      const b = Math.random().toString(36).slice(2,5);
+      return `${a}-${b}`;
+    }
+    function setURLRoom(code){
+      const url = new URL(location.href);
+      url.searchParams.set('room', code);
+      history.replaceState({}, '', url);
+    }
+
+    /* --------------- Canvas sizing -------------- */
     function resizeCanvas(){
       const r = board.getBoundingClientRect();
       const dpr = Math.max(1, devicePixelRatio || 1);
@@ -207,7 +252,7 @@
     }
     addEventListener('resize', resizeCanvas, {passive:true}); resizeCanvas();
 
-    // Tools
+    /* ----------------- Tools -------------------- */
     let mode = 'pointer';
     let brushColor = colorEl.value;
     let brushSize  = +sizeEl.value;
@@ -222,7 +267,6 @@
     btnDraw.onclick    = () => setMode('draw');
     btnText.onclick    = () => setMode('text');
 
-    // Coords helpers
     function boardRect(){ return board.getBoundingClientRect(); }
     function normFromEvent(e){
       const r = boardRect();
@@ -233,11 +277,9 @@
     function pxFromNorm(nx, ny){
       const r = boardRect(); return { x: nx * r.width, y: ny * r.height };
     }
-
     function lineTo(px, py, color, size){ ctx.strokeStyle=color; ctx.lineWidth=size; ctx.lineTo(px, py); ctx.stroke(); }
     function beginPath(px, py, color, size){ ctx.beginPath(); ctx.moveTo(px, py); ctx.strokeStyle=color; ctx.lineWidth=size; }
 
-    // Text overlay
     function showTextbox(nx, ny, color, size){
       const {x,y} = pxFromNorm(nx, ny);
       const px = Math.max(12, size * 3.2);
@@ -264,28 +306,24 @@
     function clearCanvas(){ ctx.clearRect(0,0,canvas.width,canvas.height); }
     btnClear.onclick = () => { clearCanvas(); sendClear(); };
 
-    // Supabase Realtime
+    /* ------------- Supabase client ------------- */
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, { realtime:{ params:{ eventsPerSecond: 30 } } });
-    const ch = sb.channel(roomName, { config:{ presence:{ key: myId } } });
 
-    // Roster
-    function renderRoster(state){
-      const rows = [];
-      for (const [id, metas] of Object.entries(state)){
-        const u = metas[0]?.user || {};
-        const name = u.name || 'guest'; const color = u.color || '#22d3ee';
-        const you = (id === myId) ? ' you' : '';
-        rows.push(`<div class="u${you?' you':''}">
-          <span class="udot" style="background:${color}"></span>
-          <span class="uname">${name}${you?' (you)':''}</span>
-          <span class="ucolor">${color}</span>
-        </div>`);
-      }
-      rosterList.innerHTML = rows.join('') || '<div class="muted">No one here yet.</div>';
+    // dynamic channel per room
+    let ch = null;
+    let roomCode = 'public';
+
+    // remote peers & paths
+    const peers = new Map();         // id -> { el }
+    const remotePaths = new Map();   // id -> drawing state
+
+    function resetPeers(){
+      for (const p of peers.values()) p.el.remove();
+      peers.clear();
+      remotePaths.clear();
+      rosterList.innerHTML = '';
     }
 
-    // Remote cursors
-    const peers = new Map();
     function mkCursor(id, color, name){
       const el = document.createElement('div');
       el.className = 'mcursor';
@@ -302,19 +340,21 @@
     }
     function rmCursor(id){ const p=peers.get(id); if(p){ p.el.remove(); peers.delete(id); } }
 
-    ch.on('presence', {event:'sync'}, () => {
-      const state = ch.presenceState();
-      renderRoster(state);
+    function renderRoster(state){
+      const rows = [];
       for (const [id, metas] of Object.entries(state)){
-        if (id === myId) continue;
         const u = metas[0]?.user || {};
-        if (!peers.has(id)) mkCursor(id, u.color, u.name);
+        const name = u.name || 'guest'; const color = u.color || '#22d3ee';
+        const you = (id === myId) ? ' you' : '';
+        rows.push(`<div class="u${you?' you':''}">
+          <span class="udot" style="background:${color}"></span>
+          <span class="uname">${name}${you?' (you)':''}</span>
+          <span class="ucolor">${color}</span>
+        </div>`);
       }
-      for (const id of peers.keys()) if (!state[id]) rmCursor(id);
-    });
+      rosterList.innerHTML = rows.join('') || '<div class="muted">No one here yet.</div>';
+    }
 
-    // Separate drawing paths per remote user
-    const remotePaths = new Map();
     function remoteBegin(id, x, y, color, size){
       beginPath(x,y,color,size);
       remotePaths.set(id, { open:true, last:{x,y}, color, size });
@@ -331,34 +371,105 @@
       remotePaths.delete(id);
     }
 
-    ch.on('broadcast', {event:'cursor'}, ({ payload }) => {
-      const { id, x, y, clicking, color, name } = payload;
-      if (id === myId) return;
-      const entry = peers.get(id) || mkCursor(id, color, name);
-      entry.el.style.transform = `translate(${x*innerWidth}px, ${y*innerHeight}px)`;
-      entry.el.classList.toggle('down', !!clicking);
-    });
+    function attachChannelHandlers(){
+      ch.on('presence', {event:'sync'}, () => {
+        const state = ch.presenceState();
+        renderRoster(state);
+        for (const [id, metas] of Object.entries(state)){
+          if (id === myId) continue;
+          const u = metas[0]?.user || {};
+          if (!peers.has(id)) mkCursor(id, u.color, u.name);
+        }
+        for (const id of peers.keys()) if (!state[id]) rmCursor(id);
+      });
 
-    ch.on('broadcast', {event:'draw'}, ({ payload }) => {
-      const { from, kind, nx, ny, color, size } = payload;
-      const {x,y} = pxFromNorm(nx, ny);
-      if (kind==='begin') remoteBegin(from, x,y,color,size);
-      else if (kind==='line') remoteLine(from, x,y,color,size);
-      else if (kind==='end')  remoteEnd(from);
-    });
-    ch.on('broadcast', {event:'text'}, ({ payload }) => {
-      const { nx, ny, text, color, size } = payload; drawText(nx,ny,text,color,size);
-    });
-    ch.on('broadcast', {event:'clear'}, () => clearCanvas());
+      ch.on('broadcast', {event:'cursor'}, ({ payload }) => {
+        const { id, x, y, clicking, color, name } = payload;
+        if (id === myId) return;
+        const entry = peers.get(id) || mkCursor(id, color, name);
+        entry.el.style.transform = `translate(${x*innerWidth}px, ${y*innerHeight}px)`;
+        entry.el.classList.toggle('down', !!clicking);
+      });
 
-    function updatePresence(){ ch.track({ user:{ id:myId, name:myName(), color:myColor } }); }
-    ch.subscribe((status) => {
-      stat.textContent = status.toLowerCase();
-      dot.classList.toggle('ok', status === 'SUBSCRIBED');
-      if (status === 'SUBSCRIBED') updatePresence();
-    });
+      ch.on('broadcast', {event:'draw'}, ({ payload }) => {
+        const { from, kind, nx, ny, color, size } = payload;
+        const {x,y} = pxFromNorm(nx, ny);
+        if (kind==='begin') remoteBegin(from, x,y,color,size);
+        else if (kind==='line') remoteLine(from, x,y,color,size);
+        else if (kind==='end')  remoteEnd(from);
+      });
 
-    // Show my cursor option
+      ch.on('broadcast', {event:'text'}, ({ payload }) => {
+        const { nx, ny, text, color, size } = payload; drawText(nx,ny,text,color,size);
+      });
+
+      ch.on('broadcast', {event:'clear'}, () => clearCanvas());
+
+      ch.on('broadcast', {event:'request_state'}, ({ payload }) => {
+        const r = board.getBoundingClientRect();
+        const tmp = document.createElement('canvas');
+        tmp.width = r.width; tmp.height = r.height;
+        const tctx = tmp.getContext('2d');
+        tctx.drawImage(canvas, 0, 0, r.width, r.height);
+        const png = tmp.toDataURL('image/png');
+        ch.send({ type:'broadcast', event:'state_png', payload:{ rid: payload.rid, png } });
+      });
+    }
+
+    function setHeaderStatus(txt, ok){
+      hdrStat.textContent = txt.toLowerCase();
+      hdrDot.classList.toggle('ok', ok);
+    }
+
+    async function joinRoom(code){
+      const next = clampRoom(code);
+      if (!next) return;
+
+      // leave previous
+      if (ch){
+        try { await ch.unsubscribe(); } catch(e){}
+        try { sb.removeChannel(ch); } catch(e){}
+        ch = null;
+      }
+
+      // clear local/peers
+      resetPeers();
+      clearCanvas();
+
+      // make new channel
+      roomCode = next;
+      roomLabel.textContent = roomCode;
+      roomInput.value = roomCode;
+      setURLRoom(roomCode);
+      localStorage.setItem(LS.room, roomCode);
+
+      ch = sb.channel('wb:'+roomCode, { config:{ presence:{ key: myId } } });
+      attachChannelHandlers();
+
+      ch.subscribe((status) => {
+        setHeaderStatus(status, status==='SUBSCRIBED');
+        if (status === 'SUBSCRIBED') updatePresence();
+      });
+    }
+
+    function updatePresence(){ ch?.track({ user:{ id:myId, name:myName(), color:myColor } }); }
+
+    // Room UI
+    btnRandom.onclick = () => { roomInput.value = randomRoom(); };
+    btnJoin.onclick   = () => joinRoom(roomInput.value);
+    btnLeave.onclick  = () => joinRoom('public');
+    btnCopy.onclick   = async () => {
+      const url = new URL(location.href); url.searchParams.set('room', roomInput.value || 'public');
+      try{ await navigator.clipboard.writeText(url.href); btnCopy.textContent='Copied!'; setTimeout(()=>btnCopy.textContent='Copy link',900); }catch(e){ alert(url.href); }
+    };
+
+    // initial room from URL or last
+    const urlRoom = new URLSearchParams(location.search).get('room');
+    const startRoom = clampRoom(urlRoom || localStorage.getItem(LS.room) || 'public');
+    roomInput.value = startRoom;
+    roomLabel.textContent = startRoom;
+
+    /* ---------- My cursor broadcast & options ---------- */
     let myCursorEl = null;
     function ensureMyCursor(){
       if (!myCursorEl){
@@ -383,7 +494,6 @@
     pointyEl.checked   = localStorage.getItem(LS.style) === '1';
     document.body.classList.toggle('pointy', pointyEl.checked);
     if (showMineEl.checked) ensureMyCursor();
-
     showMineEl.addEventListener('change', () => {
       localStorage.setItem(LS.show, showMineEl.checked ? '1' : '0');
       if (showMineEl.checked) ensureMyCursor();
@@ -394,10 +504,10 @@
       document.body.classList.toggle('pointy', pointyEl.checked);
     });
 
-    // Broadcast my cursor
+    // cursor broadcasting
     let cx=0, cy=0, last=0;
     function sendCursor(click=false){
-      ch.send({ type:'broadcast', event:'cursor',
+      ch?.send({ type:'broadcast', event:'cursor',
         payload:{ id:myId, x:cx, y:cy, clicking:click, name:myName(), color:myColor } });
     }
     addEventListener('mousemove', e => {
@@ -415,7 +525,7 @@
     addEventListener('mouseup',   e => { sendCursor(false); moveMyCursor(e.clientX, e.clientY, false); }, {passive:true});
     document.addEventListener('visibilitychange', () => { if (document.hidden) sendCursor(false); });
 
-    // Local drawing (canvas only, so toolbar is clickable)
+    /* ----------------- Drawing ------------------ */
     let drawing=false, lastSentMove=0;
     function pointerDown(e){
       if (e.target !== canvas) return;
@@ -457,12 +567,20 @@
     canvas.addEventListener('touchmove',  pointerMove, { passive:false });
     addEventListener('touchend',          pointerUp,   { passive:false });
 
-    // Import from peers
+    function sendDraw(kind, nx, ny, color, size){
+      ch?.send({ type:'broadcast', event:'draw', payload:{ from: myId, kind, nx, ny, color, size } });
+    }
+    function sendText(nx, ny, text, color, size){
+      ch?.send({ type:'broadcast', event:'text', payload:{ nx, ny, text, color, size } });
+    }
+    function sendClear(){ ch?.send({ type:'broadcast', event:'clear', payload:{} }); }
+
+    // Import from peers in the room
     btnImport.onclick = () => {
       const rid = Math.random().toString(36).slice(2);
-      ch.send({ type:'broadcast', event:'request_state', payload:{ rid } });
+      ch?.send({ type:'broadcast', event:'request_state', payload:{ rid } });
       let handled = false;
-      ch.on('broadcast', {event:'state_png'}, ({ payload }) => {
+      ch?.on('broadcast', {event:'state_png'}, ({ payload }) => {
         if (handled || payload.rid !== rid) return;
         handled = true;
         const img = new Image();
@@ -473,26 +591,9 @@
         img.src = payload.png;
       });
     };
-    ch.on('broadcast', {event:'request_state'}, ({ payload }) => {
-      const r = board.getBoundingClientRect();
-      const tmp = document.createElement('canvas');
-      tmp.width = r.width; tmp.height = r.height;
-      const tctx = tmp.getContext('2d');
-      tctx.drawImage(canvas, 0, 0, r.width, r.height);
-      const png = tmp.toDataURL('image/png');
-      ch.send({ type:'broadcast', event:'state_png', payload:{ rid: payload.rid, png } });
-    });
 
-    // Send ops
-    function sendDraw(kind, nx, ny, color, size){
-      ch.send({ type:'broadcast', event:'draw', payload:{ from: myId, kind, nx, ny, color, size } });
-    }
-    function sendText(nx, ny, text, color, size){
-      ch.send({ type:'broadcast', event:'text', payload:{ nx, ny, text, color, size } });
-    }
-    function sendClear(){
-      ch.send({ type:'broadcast', event:'clear', payload:{} });
-    }
+    // Join initial room
+    joinRoom(startRoom);
   })();
   </script>
 </body>
