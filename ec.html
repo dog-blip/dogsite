@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Emoji Charades — Single‑file HTML</title>
+  <style>
+    :root{
+      --bg:#F1F5F9; --panel:#ffffff; --ink:#0f172a; --muted:#64748b; --border:#e2e8f0;
+      --brand:#facc15; --brand-ink:#0b0f19; --brand-border:#f59e0b;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    .wrap{max-width:960px;margin:0 auto;padding:28px}
+    .center{display:flex;align-items:center;justify-content:center}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:24px;box-shadow:0 8px 20px rgba(2,8,23,.04)}
+
+    /* buttons */
+    .btn{appearance:none;border:none;border-radius:14px;padding:14px 22px;font-weight:700;cursor:pointer;transition:transform .02s ease, background .2s ease, box-shadow .2s ease}
+    .btn:active{transform:translateY(1px)}
+    .btn.brand{background:var(--brand);color:var(--brand-ink);border:1px solid var(--brand-border)}
+    .btn.brand:hover{filter:brightness(1.02)}
+    .btn.ghost{background:#f8fafc;color:#0f172a;border:1px solid var(--border)}
+    .btn.ghost:hover{background:#eef2f7}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+
+    /* layout */
+    .stack{display:flex;flex-direction:column;gap:24px}
+    .row{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+    .grow{flex:1}
+
+    /* start screen */
+    .big-emoji{font-size:56px;margin-bottom:18px}
+    h1{font-size:56px;line-height:1.05;margin:0 0 18px}
+    p.lead{font-size:22px;color:var(--muted);margin:0 0 28px}
+
+    /* header stats */
+    .stats{display:flex;gap:28px;align-items:center;flex-wrap:wrap}
+    .stat{min-width:120px}
+    .stat .num{font-size:28px;font-weight:800}
+    .stat .lbl{font-size:14px;color:var(--muted)}
+    .combo{background:var(--brand);border:1px solid var(--brand-border);color:var(--brand-ink);padding:10px 14px;border-radius:10px;text-align:center}
+
+    /* card */
+    .card{padding:28px;border:1px solid var(--border);border-radius:16px;background:#ffffff}
+    .emoji-box{font-size:72px;padding:28px;text-align:center;background:#f8fafc;border:1px solid var(--border);border-radius:14px}
+    .hint{margin-top:12px;color:#475569;font-size:16px}
+
+    /* inputs */
+    .input{width:100%;padding:16px;border:1px solid var(--border);border-radius:12px;font-size:18px;outline:none}
+    .input:focus{border-color:#eab308;box-shadow:0 0 0 3px rgba(234,179,8,.18)}
+
+    /* loading */
+    .spin{display:inline-block;width:40px;height:40px;border-radius:50%;border:4px solid #cbd5e1;border-top-color:#94a3b8;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* answer */
+    .answer{background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center}
+    .answer .saying{font-size:22px;font-weight:700}
+
+    /* footer */
+    .foot{color:#64748b;font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- START SCREEN -->
+    <section id="start" class="center" style="min-height:80vh">
+      <div class="panel" style="max-width:720px;text-align:center">
+        <div class="big-emoji">🤔💭</div>
+        <h1 id="title">Emoji charades</h1>
+        <p id="subtitle" class="lead">Decode emoji clues to reveal hidden sayings</p>
+        <button id="playBtn" class="btn brand" style="font-size:22px;padding:18px 28px">
+          ▶️ <span style="margin-left:10px">Play</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- GAME SCREEN -->
+    <section id="game" class="stack" style="display:none">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div class="stats">
+            <div class="stat"><div id="statScore" class="num">0</div><div class="lbl" id="lblCorrect">Correct</div></div>
+            <div class="stat"><div id="statTotal" class="num">0</div><div class="lbl" id="lblQuestions">Questions</div></div>
+            <div class="stat" id="accWrap" style="display:none"><div id="statAcc" class="num">0%</div><div class="lbl" id="lblAccuracy">Accuracy</div></div>
+            <div id="comboWrap" class="combo" style="display:none"><div id="comboNum" class="num" style="font-size:20px">×2</div><div class="lbl" id="lblCombo" style="color:#1f2937">Combo</div></div>
+          </div>
+          <button id="resetBtn" class="btn ghost">Reset</button>
+        </div>
+      </div>
+
+      <div class="card" id="playArea">
+        <div id="loading" class="center" style="padding:48px;display:none;flex-direction:column;gap:16px">
+          <div class="spin" aria-label="Loading"></div>
+          <div id="loadingMsg" style="color:#475569;font-size:18px">Loading next question...</div>
+        </div>
+
+        <div id="question" style="display:none">
+          <div style="text-align:center;margin-bottom:24px">
+            <h2 id="qPrompt" style="margin:0 0 16px 0;color:#1f2937;font-size:22px">What saying do these emojis represent?</h2>
+            <div id="emojiBox" class="emoji-box">🍰👌</div>
+            <div id="hint" class="hint" style="display:none">💡 hint here</div>
+          </div>
+
+          <div id="answerForm" class="stack">
+            <input id="guess" class="input" type="text" placeholder="Enter your answer..." />
+            <div class="row">
+              <button id="submitBtn" class="btn brand grow">Submit</button>
+              <button id="hintBtn" class="btn ghost" style="display:none">Hint</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="reveal" style="display:none;text-align:center" class="stack">
+          <div class="answer"><div class="saying" id="revealSaying">"Time flies"</div>
+            <div id="yourAns" style="margin-top:6px;color:#475569">Your answer: "time fly"</div>
+          </div>
+          <div id="feedback" style="font-size:18px;color:#1f2937">Perfect! +1 points</div>
+          <div><button id="nextBtn" class="btn brand" style="padding:14px 22px">Next question</button></div>
+        </div>
+      </div>
+
+      <div class="foot">Tip: press <strong>Enter</strong> to submit your answer.</div>
+    </section>
+  </div>
+
+  <script>
+    // ===== i18n =====
+    const TRANSLATIONS = {
+      "en-US": {
+        "gameTitle": "Emoji charades",
+        "gameSubtitle": "Decode emoji clues to reveal hidden sayings",
+        "playButton": "Play",
+        "correctLabel": "Correct",
+        "questionsLabel": "Questions",
+        "accuracyLabel": "Accuracy",
+        "comboLabel": "Combo",
+        "resetButton": "Reset",
+        "loadingMessage": "Loading next question...",
+        "questionPrompt": "What saying do these emojis represent?",
+        "hintPrefix": "💡",
+        "answerPlaceholder": "Enter your answer...",
+        "submitButton": "Submit",
+        "hintButton": "Hint",
+        "yourAnswerLabel": "Your answer:",
+        "nextQuestionButton": "Next question",
+        "perfectFeedback": "Perfect!",
+        "correctFeedback": "Correct!",
+        "tryAgainFeedback": "Try again next time!",
+        "pointsSuffix": "points",
+        "claudePrompt": "Please respond in"
+      },
+      "es-ES": {
+        "gameTitle": "Charadas de emojis",
+        "gameSubtitle": "Decodifica pistas de emojis para revelar dichos ocultos",
+        "playButton": "Jugar",
+        "correctLabel": "Correctas",
+        "questionsLabel": "Preguntas",
+        "accuracyLabel": "Precisión",
+        "comboLabel": "Combo",
+        "resetButton": "Reiniciar",
+        "loadingMessage": "Cargando siguiente pregunta...",
+        "questionPrompt": "¿Qué dicho representan estos emojis?",
+        "hintPrefix": "💡",
+        "answerPlaceholder": "Ingresa tu respuesta...",
+        "submitButton": "Enviar",
+        "hintButton": "Pista",
+        "yourAnswerLabel": "Tu respuesta:",
+        "nextQuestionButton": "Siguiente pregunta",
+        "perfectFeedback": "¡Perfecto!",
+        "correctFeedback": "¡Correcto!",
+        "tryAgainFeedback": "¡Inténtalo de nuevo la próxima vez!",
+        "pointsSuffix": "puntos",
+        "claudePrompt": "Por favor responde en idioma"
+      }
+    };
+
+    // Support URL ?locale=xx override
+    const urlLocale = new URLSearchParams(location.search).get('locale');
+    const browserLocale = navigator.languages?.[0] || navigator.language || 'en-US';
+    const findMatchingLocale = (locale) => {
+      if (TRANSLATIONS[locale]) return locale;
+      const lang = (locale||'').split('-')[0];
+      const match = Object.keys(TRANSLATIONS).find(k => k.startsWith(lang + '-'));
+      return match || 'en-US';
+    };
+    const locale = findMatchingLocale(urlLocale || browserLocale);
+    const t = (key) => TRANSLATIONS[locale]?.[key] || TRANSLATIONS['en-US'][key] || key;
+
+    // apply static i18n text on start screen
+    document.getElementById('title').textContent = t('gameTitle');
+    document.getElementById('subtitle').textContent = t('gameSubtitle');
+    document.getElementById('playBtn').lastElementChild.textContent = t('playButton');
+
+    // header labels
+    document.getElementById('lblCorrect').textContent = t('correctLabel');
+    document.getElementById('lblQuestions').textContent = t('questionsLabel');
+    document.getElementById('lblAccuracy').textContent = t('accuracyLabel');
+    document.getElementById('lblCombo').textContent = t('comboLabel');
+    document.getElementById('resetBtn').textContent = t('resetButton');
+
+    // in-game text
+    document.getElementById('loadingMsg').textContent = t('loadingMessage');
+    document.getElementById('qPrompt').textContent = t('questionPrompt');
+    document.getElementById('guess').placeholder = t('answerPlaceholder');
+    document.getElementById('submitBtn').textContent = t('submitButton');
+    document.getElementById('hintBtn').textContent = t('hintButton');
+    document.getElementById('nextBtn').textContent = t('nextQuestionButton');
+
+    // ===== Game state =====
+    let currentQuestion = null;
+    let userGuess = '';
+    let showAnswer = false;
+    let score = 0;
+    let totalQuestions = 0;
+    let isLoading = false;
+    let usedSayings = new Set();
+    let feedback = '';
+    let showHint = false;
+    let streak = 0;
+    let bestStreak = 0;
+    let comboMultiplier = 1;
+
+    const el = {
+      start: document.getElementById('start'),
+      game: document.getElementById('game'),
+      loading: document.getElementById('loading'),
+      question: document.getElementById('question'),
+      reveal: document.getElementById('reveal'),
+      emojiBox: document.getElementById('emojiBox'),
+      hint: document.getElementById('hint'),
+      hintBtn: document.getElementById('hintBtn'),
+      guess: document.getElementById('guess'),
+      submitBtn: document.getElementById('submitBtn'),
+      nextBtn: document.getElementById('nextBtn'),
+      resetBtn: document.getElementById('resetBtn'),
+      playBtn: document.getElementById('playBtn'),
+      revealSaying: document.getElementById('revealSaying'),
+      yourAns: document.getElementById('yourAns'),
+      feedback: document.getElementById('feedback'),
+      statScore: document.getElementById('statScore'),
+      statTotal: document.getElementById('statTotal'),
+      statAcc: document.getElementById('statAcc'),
+      accWrap: document.getElementById('accWrap'),
+      comboWrap: document.getElementById('comboWrap'),
+      comboNum: document.getElementById('comboNum'),
+      playArea: document.getElementById('playArea')
+    };
+
+    function showScreen(which){
+      el.start.style.display = which==='start'?'flex':'none';
+      el.game.style.display = which==='game'?'flex':'none';
+      if(which==='game') el.game.style.flexDirection='column';
+    }
+
+    function renderHeader(){
+      el.statScore.textContent = String(score);
+      el.statTotal.textContent = String(totalQuestions);
+      if(totalQuestions>0){
+        const acc = Math.round((score/totalQuestions)*100) + '%';
+        el.statAcc.textContent = acc;
+        el.accWrap.style.display = '';
+      } else { el.accWrap.style.display = 'none'; }
+      if(comboMultiplier>1){
+        el.comboWrap.style.display='inline-block';
+        el.comboNum.textContent = '×' + comboMultiplier;
+      } else { el.comboWrap.style.display='none'; }
+    }
+
+    function setLoading(state){
+      isLoading = state;
+      el.loading.style.display = state? 'flex' : 'none';
+      el.question.style.display = (!state && !showAnswer)? '' : 'none';
+      el.reveal.style.display = (!state && showAnswer)? '' : 'none';
+    }
+
+    function normalizeAnswer(text){
+      return (text||'')
+        .toLowerCase()
+        .replace(/[^\w\s]/g,'')
+        .replace(/\b(a|an|the|is|are|was|were)\b/g,'')
+        .replace(/\s+/g,' ')
+        .trim();
+    }
+
+    async function generateNewQuestion(){
+      setLoading(true);
+      showAnswer=false; feedback=''; showHint=false; el.hint.style.display='none';
+      el.guess.value=''; el.guess.focus();
+
+      // --- Try optional Claude runtime if present ---
+      const usedArray = Array.from(usedSayings);
+      const excludeList = usedArray.length ? `\n\nDO NOT use any of these previously used sayings: ${usedArray.join(', ')}` : '';
+
+      const categories = ['animals and nature','time and patience','wisdom and advice','work and success','relationships and friendship','food and cooking','weather and seasons','money and value','actions and consequences','appearance vs reality'];
+      const styles = ['classic proverbs','modern idioms','folk sayings','common expressions','traditional wisdom'];
+      const randomCategory = categories[Math.floor(Math.random()*categories.length)];
+      const randomStyle = styles[Math.floor(Math.random()*styles.length)];
+      const randomSeed = Math.floor(Math.random()*10000);
+
+      const prompt = `Generate a fun quiz question that converts a common saying, idiom, or proverb into emojis.\n\nFocus on: ${randomCategory} themes from ${randomStyle}\nRandom seed: ${randomSeed}\n\nRequirements:\n- Choose a well-known saying/idiom/proverb in English\n- Convert it creatively into 3-6 emojis that represent the meaning\n- Make it challenging but solvable\n- Avoid overly obscure sayings\n- Be creative and vary your approach from typical examples${excludeList}\n\nRespond with a JSON object in this exact format:\n{\n  "saying": "the actual saying/idiom/proverb",\n  "emojis": "the emoji representation",\n  "hint": "a brief helpful hint if needed"\n}\n\nYour entire response MUST be a single, valid JSON object. DO NOT include any other text.\n\n${t('claudePrompt')} ${locale} language`;
+
+      let questionData = null;
+      try{
+        if(window.claude && typeof window.claude.complete === 'function'){
+          const resp = await window.claude.complete(prompt);
+          questionData = JSON.parse(resp);
+        }
+      }catch(err){ /* ignore and fallback */ }
+
+      if(!questionData){
+        // Fallback local pool
+        questionData = getLocalQuestion();
+      }
+
+      currentQuestion = questionData;
+      usedSayings.add(questionData.saying);
+      el.emojiBox.textContent = questionData.emojis;
+      el.hint.textContent = (t('hintPrefix') + ' ' + (questionData.hint||''));
+      el.hintBtn.style.display = questionData.hint? '' : 'none';
+      setLoading(false);
+    }
+
+    function getLocalQuestion(){
+      const pool = [
+        { s: "Time flies", e: "⏰🪰", h: "How quickly it passes" },
+        { s: "Break the ice", e: "🔨🧊", h: "Start a conversation" },
+        { s: "Spill the beans", e: "🫘💦", h: "Reveal a secret" },
+        { s: "It's raining cats and dogs", e: "🌧️🐱🐶", h: "Heavy rain" },
+        { s: "Piece of cake", e: "🍰👌", h: "Very easy" },
+        { s: "Hit the nail on the head", e: "🔨📌🎯", h: "Exactly right" },
+        { s: "When pigs fly", e: "🐷🪽🚫", h: "Never" },
+        { s: "Kill two birds with one stone", e: "🐦🐦🪨", h: "Two goals, one action" },
+        { s: "Burn the midnight oil", e: "🌙🛢️🔥", h: "Stay up working" },
+        { s: "A blessing in disguise", e: "🎁🎭✨", h: "Good outcome hidden" },
+        { s: "The early bird catches the worm", e: "🐦🌅🪱", h: "Be early" },
+        { s: "Don't judge a book by its cover", e: "📚🚫👀", h: "Appearances mislead" },
+        { s: "Bite off more than you can chew", e: "😬🍔📈", h: "Too much to handle" },
+        { s: "Let the cat out of the bag", e: "🐱👜➡️", h: "Secret revealed" },
+        { s: "Under the weather", e: "☁️🤒", h: "Feeling sick" },
+        { s: "Barking up the wrong tree", e: "🐶🌳↩️", h: "Wrong direction" },
+        { s: "Actions speak louder than words", e: "🏃📢🆚🗣️", h: "Deeds > talk" },
+        { s: "A picture is worth a thousand words", e: "🖼️=📝×1000", h: "Images convey a lot" },
+        { s: "Cost an arm and a leg", e: "💰🦴🦵", h: "Very expensive" },
+        { s: "Once in a blue moon", e: "🌕🔵🔁", h: "Very rarely" },
+        { s: "Add fuel to the fire", e: "🛢️➕🔥", h: "Make it worse" },
+        { s: "Beat around the bush", e: "🥁🌳🔄", h: "Avoid the point" },
+        { s: "Cry over spilled milk", e: "😢🥛🫗", h: "Can't undo" },
+        { s: "Hit the sack", e: "🛏️😴", h: "Go to sleep" },
+        { s: "On cloud nine", e: "☁️9😊", h: "Very happy" },
+        { s: "Rome wasn't built in a day", e: "🏛️⏳📆", h: "Great things take time" },
+        { s: "Keep your chin up", e: "🙂⬆️", h: "Stay positive" },
+        { s: "Curiosity killed the cat", e: "🤔🐱❌", h: "Be careful snooping" },
+        { s: "Don't put all your eggs in one basket", e: "🥚🥚🥚➡️🧺❌", h: "Diversify" },
+        { s: "The ball is in your court", e: "🎾➡️🫵", h: "Your move" },
+        { s: "The straw that broke the camel's back", e: "🐫🌾📦💥", h: "Final small burden" },
+        { s: "No pain, no gain", e: "❌😖❌➡️📈", h: "Work for rewards" }
+      ];
+      // prefer not-used
+      const unused = pool.filter(p=>!usedSayings.has(p.s));
+      const pick = (arr)=> arr[Math.floor(Math.random()*arr.length)];
+      const q = (unused.length? pick(unused) : pick(pool));
+      return { saying:q.s, emojis:q.e, hint:q.h };
+    }
+
+    function checkAnswer(){
+      if(!currentQuestion) return;
+      const user = el.guess.value.trim();
+      if(!user) return;
+      const normUser = normalizeAnswer(user);
+      const normCorrect = normalizeAnswer(currentQuestion.saying);
+      const isExact = user.toLowerCase().trim() === currentQuestion.saying.toLowerCase();
+      const wordsU = normUser.split(' ').filter(Boolean);
+      const wordsC = normCorrect.split(' ').filter(Boolean);
+      const overlap = wordsU.filter(w => wordsC.includes(w) && w.length>2).length;
+      const isClose = normUser===normCorrect || normCorrect.includes(normUser) || normUser.includes(normCorrect) || overlap >= Math.ceil(wordsC.length*0.6);
+
+      showAnswer = true; totalQuestions += 1;
+      if(isExact || isClose){
+        streak += 1; bestStreak = Math.max(bestStreak, streak);
+        if(streak>=5) comboMultiplier = 3; else if(streak>=3) comboMultiplier=2; else comboMultiplier=1;
+        score += comboMultiplier;
+        feedback = (isExact? t('perfectFeedback') : t('correctFeedback')) + ` +${comboMultiplier} ${t('pointsSuffix')}`;
+      } else {
+        streak = 0; comboMultiplier = 1; feedback = t('tryAgainFeedback');
+      }
+
+      // render reveal
+      el.revealSaying.textContent = '"' + currentQuestion.saying + '"';
+      el.yourAns.textContent = `${t('yourAnswerLabel')} "${user}"`;
+      el.feedback.textContent = feedback;
+      renderHeader(); setLoading(false);
+      el.guess.blur();
+    }
+
+    function startGame(){
+      score=0; totalQuestions=0; usedSayings=new Set(); feedback=''; showHint=false; streak=0; bestStreak=0; comboMultiplier=1; showAnswer=false; currentQuestion=null;
+      renderHeader();
+      showScreen('game');
+      setLoading(true);
+      generateNewQuestion();
+    }
+
+    function resetGame(){
+      score=0; totalQuestions=0; usedSayings=new Set(); feedback=''; showHint=false; streak=0; bestStreak=0; comboMultiplier=1; showAnswer=false; currentQuestion=null;
+      renderHeader();
+      showScreen('start');
+    }
+
+    // ===== Events =====
+    el.playBtn.addEventListener('click', startGame);
+    el.resetBtn.addEventListener('click', resetGame);
+    el.submitBtn.addEventListener('click', ()=>{ if(!showAnswer) checkAnswer(); });
+    el.hintBtn.addEventListener('click', ()=>{ showHint=true; el.hint.style.display='block'; });
+    el.nextBtn.addEventListener('click', ()=>{ showAnswer=false; generateNewQuestion(); });
+    el.guess.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !showAnswer && el.guess.value.trim()){ checkAnswer(); } });
+
+    // expose small API for debugging
+    window.emojiCharades = { startGame, resetGame };
+  </script>
+</body>
+</html>
