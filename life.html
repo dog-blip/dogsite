@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Life in weeks — single‑file</title>
+  <style>
+    :root{
+      --bg:#f8fafc; --ink:#0f172a; --muted:#475569; --card:#ffffff; --line:#e2e8f0;
+      --accent:#0f172a; --accent-2:#3b82f6; --past:#111827; --present:#3b82f6; --future:#e5e7eb;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    .wrap{max-width:960px;margin:0 auto;padding:28px}
+    h1{font-weight:600;margin:0 0 6px 0}
+    p.lead{color:var(--muted);margin:0 0 24px 0}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+    .stack{display:flex;flex-direction:column;gap:16px}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .btn{appearance:none;border:none;border-radius:10px;padding:12px 16px;font-weight:600;cursor:pointer}
+    .btn.primary{background:var(--accent);color:#fff}
+    .btn.primary:hover{filter:brightness(1.05)}
+    .btn.muted{background:#e5e7eb;color:#111827}
+    .btn.muted:hover{filter:brightness(0.98)}
+    .input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:16px}
+
+    /* grid */
+    .weeks{display:flex;flex-direction:column;gap:2px}
+    .week-row{display:flex;gap:2px}
+    .w{width:10px;height:10px;border-radius:2px;background:var(--future)}
+    .w.p{background:var(--past)}
+    .w.c{background:var(--present);animation:pulse 1.4s ease-in-out infinite}
+    @keyframes pulse{0%{opacity:1}50%{opacity:.4}100%{opacity:1}}
+
+    .legend{display:flex;gap:18px;align-items:center}
+    .legend .box{width:12px;height:12px;border-radius:2px;margin-right:6px;border:1px solid var(--line)}
+
+    .section-title{font-weight:600;color:#0f172a;margin:0 0 10px 0}
+    .muted{color:#64748b}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1 id="pageTitle">Life in weeks</h1>
+      <p class="lead" id="pageSubtitle">A simple visualization to reflect on the passage of time</p>
+    </header>
+
+    <!-- Step 1 -->
+    <section id="step1" class="card stack">
+      <div>
+        <h2 class="section-title" id="birthDateQuestion">Enter a birthdate</h2>
+        <input id="birthInput" type="date" class="input" />
+      </div>
+      <div>
+        <button id="visualizeBtn" class="btn primary" disabled>Visualize your time</button>
+      </div>
+    </section>
+
+    <!-- Step 2 -->
+    <section id="step2" style="display:none" class="stack">
+      <div class="card">
+        <h2 class="section-title" id="lifeInWeeksTitle">Your life in weeks</h2>
+        <div id="weeksWrap" class="weeks" aria-label="Life in weeks grid"></div>
+        <div id="hoverInfo" class="muted" style="margin-top:10px;display:none"></div>
+        <div class="legend" style="margin-top:12px">
+          <div class="row"><div class="box" style="background:var(--past)"></div><span id="legendPast">Past</span></div>
+          <div class="row"><div class="box" style="background:var(--present)"></div><span id="legendPresent">Present</span></div>
+          <div class="row"><div class="box" style="background:var(--future)"></div><span id="legendFuture">Future</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title" id="lifeHighlightsTitle">Life highlights</h2>
+        <div class="stack" id="lifeHighlights"></div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title" id="societalContextTitle">Societal context</h2>
+        <div class="stack" id="societal"></div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title" id="cosmicPerspectiveTitle">Cosmic perspective</h2>
+        <div class="stack" id="cosmic"></div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title" id="naturalWorldTitle">Natural world</h2>
+        <div class="stack" id="natural"></div>
+      </div>
+
+      <div>
+        <button id="startOverBtn" class="btn muted">Start over</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // ===== Translations =====
+    const TRANSLATIONS = {
+      "en-US": {
+        "pageTitle": "Life in weeks",
+        "pageSubtitle": "A simple visualization to reflect on the passage of time",
+        "birthDateQuestion": "Enter a birthdate",
+        "visualizeButton": "Visualize your time",
+        "startOverButton": "Start over",
+        "lifeInWeeksTitle": "Your life in weeks",
+        "weekHoverPast": " A week from your past",
+        "weekHoverCurrent": " Your current week",
+        "weekHoverFuture": " A week in your potential future",
+        "legendPast": "Past",
+        "legendPresent": "Present",
+        "legendFuture": "Future",
+        "lifeHighlightsTitle": "Life highlights",
+        "lifeHighlightsWeeks": "You've lived",
+        "lifeHighlightsWeeksEnd": "weeks, which is",
+        "lifeHighlightsPercent": "of a full life.",
+        "lifeHighlightsDays": "That's",
+        "lifeHighlightsDaysEnd": "days of experience and approximately",
+        "lifeHighlightsSeasonsEnd": "seasons observed.",
+        "lifeHighlightsHeartbeats": "Your heart has beaten approximately",
+        "lifeHighlightsHeartbeatsEnd": "times.",
+        "lifeHighlightsBreaths": "You've taken around",
+        "lifeHighlightsBreathsMiddle": "breaths and slept about",
+        "lifeHighlightsBreathsEnd": "hours.",
+        "societalContextTitle": "Societal context",
+        "societalPopulation": "During your lifetime, humanity's population has grown from",
+        "societalPopulationEnd": "to over",
+        "societalPopulationFinal": "billion people.",
+        "societalMeetings": "The average person will meet around",
+        "societalMeetingsMiddle": "people in their lifetime. You've likely already met approximately",
+        "societalMeetingsEnd": "individuals.",
+        "societalBirthsDeaths": "Since your birth, humanity has collectively experienced approximately",
+        "societalBirthsMiddle": "births and",
+        "societalDeathsEnd": "deaths.",
+        "cosmicPerspectiveTitle": "Cosmic perspective",
+        "cosmicEarthTravel": "Since your birth, Earth has traveled approximately",
+        "cosmicEarthTravelEnd": "kilometers through space around the Sun.",
+        "cosmicUniverse": "The observable universe is about",
+        "cosmicUniverseMiddle": "billion light-years across, meaning light takes",
+        "cosmicUniverseMiddle2": "billion years to cross it. Your entire lifespan is just",
+        "cosmicUniverseEnd": "of the universe's age.",
+        "cosmicSolarSystem": "During your lifetime, our solar system has moved about",
+        "cosmicSolarSystemEnd": "kilometers through the Milky Way galaxy.",
+        "naturalWorldTitle": "Natural world",
+        "naturalLunarCycles": "You've experienced approximately",
+        "naturalLunarMiddle": "lunar cycles and",
+        "naturalLunarEnd": "trips around the Sun.",
+        "naturalSequoia": "A giant sequoia tree can live over 3,000 years. Your current age is",
+        "naturalSequoiaEnd": "of its potential lifespan.",
+        "naturalCells": "During your lifetime, your body has replaced most of its cells several times. You are not made of the same atoms you were born with."
+      },
+      "es-ES": {
+        "pageTitle": "La vida en semanas",
+        "pageSubtitle": "Una visualización simple para reflexionar sobre el paso del tiempo",
+        "birthDateQuestion": "Ingresa una fecha de nacimiento",
+        "visualizeButton": "Visualizar tu tiempo",
+        "startOverButton": "Empezar de nuevo",
+        "lifeInWeeksTitle": "Tu vida en semanas",
+        "weekHoverPast": " Una semana de tu pasado",
+        "weekHoverCurrent": " Tu semana actual",
+        "weekHoverFuture": " Una semana en tu futuro potencial",
+        "legendPast": "Pasado",
+        "legendPresent": "Presente",
+        "legendFuture": "Futuro",
+        "lifeHighlightsTitle": "Aspectos destacados de la vida",
+        "lifeHighlightsWeeks": "Has vivido",
+        "lifeHighlightsWeeksEnd": "semanas, que es el",
+        "lifeHighlightsPercent": "de una vida completa.",
+        "lifeHighlightsDays": "Eso son",
+        "lifeHighlightsDaysEnd": "días de experiencia y aproximadamente",
+        "lifeHighlightsSeasonsEnd": "estaciones observadas.",
+        "lifeHighlightsHeartbeats": "Tu corazón ha latido aproximadamente",
+        "lifeHighlightsHeartbeatsEnd": "veces.",
+        "lifeHighlightsBreaths": "Has tomado alrededor de",
+        "lifeHighlightsBreathsMiddle": "respiraciones y has dormido aproximadamente",
+        "lifeHighlightsBreathsEnd": "horas.",
+        "societalContextTitle": "Contexto social",
+        "societalPopulation": "Durante tu vida, la población de la humanidad ha crecido de",
+        "societalPopulationEnd": "a más de",
+        "societalPopulationFinal": "mil millones de personas.",
+        "societalMeetings": "La persona promedio conocerá alrededor de",
+        "societalMeetingsMiddle": "personas en su vida. Probablemente ya has conocido aproximadamente",
+        "societalMeetingsEnd": "individuos.",
+        "societalBirthsDeaths": "Desde tu nacimiento, la humanidad ha experimentado colectivamente aproximadamente",
+        "societalBirthsMiddle": "nacimientos y",
+        "societalDeathsEnd": "muertes.",
+        "cosmicPerspectiveTitle": "Perspectiva cósmica",
+        "cosmicEarthTravel": "Desde tu nacimiento, la Tierra ha viajado aproximadamente",
+        "cosmicEarthTravelEnd": "kilómetros a través del espacio alrededor del Sol.",
+        "cosmicUniverse": "El universo observable tiene aproximadamente",
+        "cosmicUniverseMiddle": "mil millones de años luz de diámetro, lo que significa que la luz tarda",
+        "cosmicUniverseMiddle2": "mil millones de años en cruzarlo. Toda tu vida es solo el",
+        "cosmicUniverseEnd": "de la edad del universo.",
+        "cosmicSolarSystem": "Durante tu vida, nuestro sistema solar se ha movido aproximadamente",
+        "cosmicSolarSystemEnd": "kilómetros a través de la galaxia Vía Láctea.",
+        "naturalWorldTitle": "Mundo natural",
+        "naturalLunarCycles": "Has experimentado aproximadamente",
+        "naturalLunarMiddle": "ciclos lunares y",
+        "naturalLunarEnd": "viajes alrededor del Sol.",
+        "naturalSequoia": "Una secuoya gigante puede vivir más de 3,000 años. Tu edad actual es el",
+        "naturalSequoiaEnd": "de su vida potencial.",
+        "naturalCells": "Durante tu vida, tu cuerpo ha reemplazado la mayoría de sus células varias veces. No estás hecho de los mismos átomos con los que naciste."
+      }
+    };
+
+    // Locale detection with ?locale=xx-YY override
+    const urlLocale = new URLSearchParams(location.search).get('locale');
+    const browserLocale = navigator.languages?.[0] || navigator.language || 'en-US';
+    function findMatchingLocale(loc){
+      if(TRANSLATIONS[loc]) return loc;
+      const lang=(loc||'').split('-')[0];
+      const match=Object.keys(TRANSLATIONS).find(k=>k.startsWith(lang+'-'));
+      return match || 'en-US';
+    }
+    const locale = findMatchingLocale(urlLocale || browserLocale);
+    const t = (k)=> TRANSLATIONS[locale]?.[k] || TRANSLATIONS['en-US'][k] || k;
+
+    // Apply static text
+    document.getElementById('pageTitle').textContent = t('pageTitle');
+    document.getElementById('pageSubtitle').textContent = t('pageSubtitle');
+    document.getElementById('birthDateQuestion').textContent = t('birthDateQuestion');
+    document.getElementById('visualizeBtn').textContent = t('visualizeButton');
+    document.getElementById('lifeInWeeksTitle').textContent = t('lifeInWeeksTitle');
+    document.getElementById('legendPast').textContent = t('legendPast');
+    document.getElementById('legendPresent').textContent = t('legendPresent');
+    document.getElementById('legendFuture').textContent = t('legendFuture');
+    document.getElementById('lifeHighlightsTitle').textContent = t('lifeHighlightsTitle');
+    document.getElementById('societalContextTitle').textContent = t('societalContextTitle');
+    document.getElementById('cosmicPerspectiveTitle').textContent = t('cosmicPerspectiveTitle');
+    document.getElementById('naturalWorldTitle').textContent = t('naturalWorldTitle');
+    document.getElementById('startOverBtn').textContent = t('startOverButton');
+
+    // ===== Helpers =====
+    const fmt = new Intl.NumberFormat(locale);
+    function clamp(n, min, max){ return Math.min(Math.max(n, min), max); }
+
+    function calculateStats(dateStr){
+      const birthDate = new Date(dateStr);
+      const today = new Date();
+      if(isNaN(birthDate.getTime())) return null;
+      const msInWeek = 1000*60*60*24*7;
+      const msInDay = 1000*60*60*24;
+      let weeksLived = Math.floor((today - birthDate)/msInWeek);
+      if(weeksLived < 0) weeksLived = 0; // future-proof
+      const totalWeeks = 4160; // ~80 years
+      const weeksRemaining = totalWeeks - weeksLived;
+      const percentageLived = clamp(Math.round((weeksLived/totalWeeks)*100), 0, 100);
+      const daysLived = Math.max(0, Math.floor((today - birthDate)/msInDay));
+      const hoursSlept = Math.floor(daysLived * 8);
+      const heartbeats = Math.floor(daysLived * 24 * 60 * 70);
+      const breaths = Math.floor(daysLived * 24 * 60 * 16);
+      const seasons = Math.floor(daysLived / 91.25);
+      const birthYear = birthDate.getFullYear();
+      return { weeksLived, totalWeeks, weeksRemaining, percentageLived, daysLived, hoursSlept, heartbeats, breaths, seasons, birthYear };
+    }
+
+    function getPopulationAtYear(year){
+      const pop = { 1950:2.5, 1960:3.0, 1970:3.7, 1980:4.4, 1990:5.3, 2000:6.1, 2010:6.9, 2020:7.8, 2025:8.1 };
+      const years = Object.keys(pop).map(Number);
+      const closest = years.reduce((p,c)=> Math.abs(c-year) < Math.abs(p-year) ? c : p, years[0]);
+      return Math.round(pop[closest] * 1_000_000_000);
+    }
+    const getAverageBirthsPerDay = ()=> 385000;
+    const getAverageDeathsPerDay = ()=> 166000;
+
+    // ===== UI state =====
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    const birthInput = document.getElementById('birthInput');
+    const visualizeBtn = document.getElementById('visualizeBtn');
+    const weeksWrap = document.getElementById('weeksWrap');
+    const hoverInfo = document.getElementById('hoverInfo');
+
+    let stats = null;
+
+    birthInput.addEventListener('input', ()=>{
+      visualizeBtn.disabled = !birthInput.value;
+    });
+
+    visualizeBtn.addEventListener('click', ()=>{
+      stats = calculateStats(birthInput.value);
+      if(!stats) return;
+      renderWeeks();
+      renderHighlights();
+      renderSocietal();
+      renderCosmic();
+      renderNatural();
+      step1.style.display='none';
+      step2.style.display='flex';
+      step2.style.flexDirection='column';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    document.getElementById('startOverBtn').addEventListener('click', ()=>{
+      birthInput.value=''; visualizeBtn.disabled=true; stats=null; weeksWrap.innerHTML='';
+      document.getElementById('lifeHighlights').innerHTML='';
+      document.getElementById('societal').innerHTML='';
+      document.getElementById('cosmic').innerHTML='';
+      document.getElementById('natural').innerHTML='';
+      hoverInfo.style.display='none';
+      step2.style.display='none';
+      step1.style.display='block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // ===== Renderers =====
+    function renderWeeks(){
+      weeksWrap.innerHTML='';
+      const weeksPerRow = 52; const totalRows = Math.ceil(stats.totalWeeks / weeksPerRow);
+      const frag = document.createDocumentFragment();
+      for(let r=0; r<totalRows; r++){
+        const row = document.createElement('div'); row.className='week-row';
+        for(let c=0; c<weeksPerRow; c++){
+          const idx = r*weeksPerRow + c; if(idx >= stats.totalWeeks) break;
+          const cell = document.createElement('div'); cell.className='w';
+          if(idx < stats.weeksLived) cell.classList.add('p');
+          else if(idx === stats.weeksLived) cell.classList.add('c');
+          // hover/touch info
+          const updateHover = ()=>{
+            hoverInfo.style.display='block';
+            hoverInfo.textContent = `Week ${idx+1}:` + ( idx < stats.weeksLived ? t('weekHoverPast') : (idx === stats.weeksLived ? t('weekHoverCurrent') : t('weekHoverFuture')) );
+          };
+          cell.addEventListener('mouseenter', updateHover);
+          cell.addEventListener('touchstart', (e)=>{ e.preventDefault(); updateHover(); }, {passive:false});
+          cell.addEventListener('mouseleave', ()=>{ hoverInfo.style.display='none'; });
+          row.appendChild(cell);
+        }
+        frag.appendChild(row);
+      }
+      weeksWrap.appendChild(frag);
+    }
+
+    function P(text){ const p=document.createElement('p'); p.className='muted'; p.innerHTML=text; return p; }
+    function S(val){ return `<span style="color:#0f172a;font-weight:600">${fmt.format(val)}</span>`; }
+
+    function renderHighlights(){
+      const box = document.getElementById('lifeHighlights'); box.innerHTML='';
+      box.appendChild(P(`${t('lifeHighlightsWeeks')} ${S(stats.weeksLived)} ${t('lifeHighlightsWeeksEnd')} ${S(stats.percentageLived)}% ${t('lifeHighlightsPercent')}`));
+      box.appendChild(P(`${t('lifeHighlightsDays')} ${S(stats.daysLived)} ${t('lifeHighlightsDaysEnd')} ${S(stats.seasons)} ${t('lifeHighlightsSeasonsEnd')}`));
+      box.appendChild(P(`${t('lifeHighlightsHeartbeats')} ${S(stats.heartbeats)} ${t('lifeHighlightsHeartbeatsEnd')}`));
+      box.appendChild(P(`${t('lifeHighlightsBreaths')} ${S(stats.breaths)} ${t('lifeHighlightsBreathsMiddle')} ${S(stats.hoursSlept)} ${t('lifeHighlightsBreathsEnd')}`));
+    }
+
+    function renderSocietal(){
+      const box = document.getElementById('societal'); box.innerHTML='';
+      const birthPop = stats.birthYear ? getPopulationAtYear(stats.birthYear) : null;
+      if(birthPop){
+        box.appendChild(P(`${t('societalPopulation')} ${S(birthPop)} ${t('societalPopulationEnd')} ${S(8)} ${t('societalPopulationFinal')}`));
+      }
+      const met = Math.round(80000 * (stats.percentageLived/100));
+      box.appendChild(P(`${t('societalMeetings')} ${S(80000)} ${t('societalMeetingsMiddle')} ${S(met)} ${t('societalMeetingsEnd')}`));
+      const births = Math.round(stats.daysLived * getAverageBirthsPerDay());
+      const deaths = Math.round(stats.daysLived * getAverageDeathsPerDay());
+      box.appendChild(P(`${t('societalBirthsDeaths')} ${S(births)} ${t('societalBirthsMiddle')} ${S(deaths)} ${t('societalDeathsEnd')}`));
+    }
+
+    function renderCosmic(){
+      const box = document.getElementById('cosmic'); box.innerHTML='';
+      const earthKm = Math.round(stats.daysLived * 1.6 * 1_000_000);
+      box.appendChild(P(`${t('cosmicEarthTravel')} ${S(earthKm)} ${t('cosmicEarthTravelEnd')}`));
+      const universePct = (80/13_800_000_000 * 100).toFixed(10);
+      box.appendChild(P(`${t('cosmicUniverse')} ${S(93)} ${t('cosmicUniverseMiddle')} ${S(93)} ${t('cosmicUniverseMiddle2')} ${S(universePct)}% ${t('cosmicUniverseEnd')}`));
+      const solarKm = Math.round(stats.daysLived * 24 * 828_000);
+      box.appendChild(P(`${t('cosmicSolarSystem')} ${S(solarKm)} ${t('cosmicSolarSystemEnd')}`));
+    }
+
+    function renderNatural(){
+      const box = document.getElementById('natural'); box.innerHTML='';
+      const lunar = Math.round(stats.daysLived / 29.53);
+      const years = Math.floor(stats.daysLived / 365.25);
+      box.appendChild(P(`${t('naturalLunarCycles')} ${S(lunar)} ${t('naturalLunarMiddle')} ${S(years)} ${t('naturalLunarEnd')}`));
+      const sequoiaPct = ((years / 3000) * 100).toFixed(2);
+      box.appendChild(P(`${t('naturalSequoia')} ${S(sequoiaPct)}% ${t('naturalSequoiaEnd')}`));
+      box.appendChild(P(`${t('naturalCells')}`));
+    }
+  </script>
+</body>
+</html>
