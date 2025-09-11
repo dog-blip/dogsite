@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Touch Grass</title>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --ink:#0f172a; --muted:#64748b; --card:rgba(255,255,255,.4); --line:rgba(255,255,255,.4);
+      --glass:rgba(255,255,255,.4); --glass-strong:rgba(255,255,255,.5);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;overflow:hidden;font-family:Quicksand,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--ink)}
+    canvas{display:block}
+    .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;transition:opacity .4s ease}
+    .hidden{display:none!important}
+    .glass{background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:24px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+    .panel{padding:28px}
+    .title{font-size:36px;font-weight:500;letter-spacing:.2px;margin:0 0 16px 0}
+    .lead{color:#475569;font-weight:300;margin:0 0 22px 0;font-size:18px;line-height:1.6}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .stack{display:flex;flex-direction:column;gap:16px}
+    .btn{appearance:none;border:none;border-radius:999px;padding:14px 24px;font-weight:600;cursor:pointer;transition:transform .12s ease, box-shadow .2s ease, background .2s ease}
+    .btn:active{transform:translateY(1px)}
+    .btn.primary{background:var(--glass-strong);border:1px solid var(--line);color:#1f2937;box-shadow:0 8px 20px rgba(0,0,0,.15)}
+    .btn.primary:hover{background:rgba(255,255,255,.6)}
+    .btn.block{width:100%}
+    .chip{display:flex;align-items:center;gap:10px;background:var(--glass);border:1px solid var(--line);border-radius:16px;padding:10px 12px}
+    .stats{position:fixed;left:16px;top:16px;max-width:320px}
+    .stat{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+    .circle{background:rgba(255,255,255,.5);border:1px solid var(--line);border-radius:999px;padding:10px}
+    .stat h4{margin:0;font-size:13px;font-weight:400;color:#334155}
+    .stat .num{margin:2px 0 0 0;font-size:22px;font-weight:600;color:#111827}
+
+    .list{max-height:260px;overflow:auto;padding:10px;background:var(--glass);border:1px solid var(--line);border-radius:16px}
+    .badge{font-size:12px;color:#475569}
+
+    /* transitions */
+    .fade-enter{opacity:0}
+    .fade-enter-active{opacity:1}
+
+    /* icons */
+    .icon{width:22px;height:22px;color:#6b7280}
+
+    /* input */
+    .input-wrap{position:relative}
+    .input{width:100%;text-align:center;border-radius:999px;border:1px solid var(--line);padding:12px 44px 12px 18px;background:rgba(255,255,255,.55);color:#1f2937}
+    .shuffle{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:none;background:transparent;cursor:pointer;color:#475569}
+
+    /* rarity backgrounds */
+    .rare{background:rgba(253,230,138,.5)}
+    .uncommon{background:rgba(191,219,254,.5)}
+    .common{background:rgba(187,247,208,.5)}
+    .pill{padding:6px 10px;border-radius:12px;font-size:12px}
+  </style>
+</head>
+<body>
+  <canvas id="field"></canvas>
+
+  <!-- WELCOME -->
+  <div id="screen-welcome" class="overlay">
+    <div class="glass panel" style="max-width:640px;text-align:center">
+      <h1 id="title" class="title">Time to step outside</h1>
+      <p id="intro" class="lead">There's magic waiting in the grass...</p>
+
+      <div class="input-wrap" style="margin:16px 0 22px 0">
+        <input id="placeInput" class="input" type="text" placeholder="where will you explore?" />
+        <button id="shuffleBtn" class="shuffle" title="Shuffle location" aria-label="Shuffle location">
+          <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </button>
+      </div>
+
+      <button id="startBtn" class="btn primary">Go touch some grass</button>
+    </div>
+  </div>
+
+  <!-- EXPLORING HUD -->
+  <div id="hud" class="stats glass panel hidden">
+    <div class="stat">
+      <div class="circle">
+        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      </div>
+      <div>
+        <h4 id="lblTimeOutside">Time outside</h4>
+        <div id="timer" class="num">0:00</div>
+      </div>
+    </div>
+
+    <div class="stat">
+      <div class="circle">
+        <svg id="sunMoon" class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"></svg>
+      </div>
+      <div>
+        <h4 id="lblTimeOfDay">Time of day</h4>
+        <div id="timeOfDayText" class="num">Day</div>
+      </div>
+    </div>
+
+    <div class="stat" id="locRow" style="display:none">
+      <div class="circle">
+        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </div>
+      <div>
+        <h4 id="lblLocation">Location</h4>
+        <div id="locText" class="num">—</div>
+      </div>
+    </div>
+
+    <div class="stat">
+      <div class="circle">
+        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+      </div>
+      <div>
+        <h4 id="lblDiscoveries">Discoveries</h4>
+        <div id="discoveriesCount" class="num">0</div>
+      </div>
+    </div>
+
+    <button id="insideBtn" class="btn primary block" style="margin-top:8px">Go back inside</button>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="screen-results" class="overlay hidden">
+    <div class="glass panel" style="max-width:720px;width:100%">
+      <h2 id="resultsTitle" class="title" style="text-align:center;margin-bottom:18px">Your grass adventure</h2>
+      <div class="row" style="justify-content:space-between;margin-bottom:12px">
+        <div class="chip" style="flex:1;justify-content:center">
+          <div>
+            <div id="resLblTime" style="font-size:12px;color:#475569">Time outside</div>
+            <div id="resTime" style="font-size:22px;font-weight:600">0:00</div>
+          </div>
+        </div>
+        <div class="chip" style="flex:1;justify-content:center">
+          <div>
+            <div id="resLblDisc" style="font-size:12px;color:#475569">Discoveries</div>
+            <div id="resCount" style="font-size:22px;font-weight:600">0</div>
+          </div>
+        </div>
+      </div>
+
+      <h3 id="yourDiscoveriesTitle" style="margin:12px 0 8px 0;font-weight:600;color:#1f2937">Your discoveries</h3>
+      <div id="discoveriesList" class="list"></div>
+
+      <button id="againBtn" class="btn primary block" style="margin-top:16px">Go outside again</button>
+    </div>
+  </div>
+
+  <script>
+  // ===== i18n =====
+  const TRANSLATIONS = {
+    "en-US": {
+      "stepOutsideTitle":"Time to step outside",
+      "nightGrassSecrets":"The night grass holds its secrets...",
+      "dawnBreaksSecrets":"Dawn breaks, revealing hidden treasures...",
+      "eveningSettlesSecrets":"Evening settles, bringing new mysteries...",
+      "twilightTransforms":"Twilight transforms the grass...",
+      "magicWaitingGrass":"There's magic waiting in the grass...",
+      "whereExploreInput":"where will you explore?",
+      "shuffleLocationTitle":"Shuffle location",
+      "goTouchGrassButton":"Go touch some grass",
+      "timeOutsideLabel":"Time outside",
+      "timeOfDayLabel":"Time of day",
+      "locationLabel":"Location",
+      "discoveriesLabel":"Discoveries",
+      "goBackInsideButton":"Go back inside",
+      "grassAdventureTitle":"Your grass adventure",
+      "locationGrassAdventureTitle":"Your {location} grass adventure",
+      "yourDiscoveriesTitle":"Your discoveries",
+      "professionalGrassAvoider":"Achievement unlocked: \nProfessional grass avoider",
+      "rareFinds":"RARE FINDS",
+      "uncommonFinds":"UNCOMMON FINDS",
+      "commonFinds":"COMMON FINDS",
+      "goOutsideAgainButton":"Go outside again",
+      "youFoundText":"You found {item}",
+      "tinyTreasure":"a tiny treasure",
+      "smallWonder":"a small wonder",
+      "somethingSpecial":"something special",
+      "curiousFind":"a curious find",
+      "hiddenGem":"a hidden gem",
+      "dawnTimeOfDay":"Dawn",
+      "morningTimeOfDay":"Morning",
+      "dayTimeOfDay":"Day",
+      "duskTimeOfDay":"Dusk",
+      "eveningTimeOfDay":"Evening",
+      "nightTimeOfDay":"Night"
+    },
+    "es-ES": {
+      "stepOutsideTitle":"Hora de salir afuera",
+      "nightGrassSecrets":"La hierba nocturna guarda sus secretos...",
+      "dawnBreaksSecrets":"El amanecer revela tesoros ocultos...",
+      "eveningSettlesSecrets":"La tarde se asienta, trayendo nuevos misterios...",
+      "twilightTransforms":"El crepúsculo transforma la hierba...",
+      "magicWaitingGrass":"Hay magia esperando en la hierba...",
+      "whereExploreInput":"¿dónde vas a explorar?",
+      "shuffleLocationTitle":"Cambiar ubicación",
+      "goTouchGrassButton":"Ve a tocar hierba",
+      "timeOutsideLabel":"Tiempo afuera",
+      "timeOfDayLabel":"Hora del día",
+      "locationLabel":"Ubicación",
+      "discoveriesLabel":"Descubrimientos",
+      "goBackInsideButton":"Volver adentro",
+      "grassAdventureTitle":"Tu aventura en la hierba",
+      "locationGrassAdventureTitle":"Tu aventura en la hierba de {location}",
+      "yourDiscoveriesTitle":"Tus descubrimientos",
+      "professionalGrassAvoider":"Logro desbloqueado: \nEvitador profesional de hierba",
+      "rareFinds":"HALLAZGOS RAROS",
+      "uncommonFinds":"HALLAZGOS POCO COMUNES",
+      "commonFinds":"HALLAZGOS COMUNES",
+      "goOutsideAgainButton":"Salir afuera otra vez",
+      "youFoundText":"Encontraste {item}",
+      "tinyTreasure":"un pequeño tesoro",
+      "smallWonder":"una pequeña maravilla",
+      "somethingSpecial":"algo especial",
+      "curiousFind":"un hallazgo curioso",
+      "hiddenGem":"una gema oculta",
+      "dawnTimeOfDay":"Amanecer",
+      "morningTimeOfDay":"Mañana",
+      "dayTimeOfDay":"Día",
+      "duskTimeOfDay":"Atardecer",
+      "eveningTimeOfDay":"Tarde",
+      "nightTimeOfDay":"Noche"
+    }
+  };
+  const urlLocale = new URLSearchParams(location.search).get('locale');
+  const browserLocale = navigator.languages?.[0] || navigator.language || 'en-US';
+  function findMatchingLocale(loc){ if(TRANSLATIONS[loc]) return loc; const lang=(loc||'').split('-')[0]; const m=Object.keys(TRANSLATIONS).find(k=>k.startsWith(lang+'-')); return m||'en-US'; }
+  const locale = findMatchingLocale(urlLocale || browserLocale);
+  const t = (k)=> TRANSLATIONS[locale]?.[k] || TRANSLATIONS['en-US'][k] || k;
+
+  // apply static labels
+  document.getElementById('title').textContent = t('stepOutsideTitle');
+  document.getElementById('placeInput').placeholder = t('whereExploreInput');
+  document.getElementById('shuffleBtn').title = t('shuffleLocationTitle');
+  document.getElementById('startBtn').textContent = t('goTouchGrassButton');
+  document.getElementById('lblTimeOutside').textContent = t('timeOutsideLabel');
+  document.getElementById('lblTimeOfDay').textContent = t('timeOfDayLabel');
+  document.getElementById('lblLocation').textContent = t('locationLabel');
+  document.getElementById('lblDiscoveries').textContent = t('discoveriesLabel');
+  document.getElementById('insideBtn').textContent = t('goBackInsideButton');
+  document.getElementById('resultsTitle').textContent = t('grassAdventureTitle');
+  document.getElementById('resLblTime').textContent = t('timeOutsideLabel');
+  document.getElementById('resLblDisc').textContent = t('discoveriesLabel');
+  document.getElementById('yourDiscoveriesTitle').textContent = t('yourDiscoveriesTitle');
+  document.getElementById('againBtn').textContent = t('goOutsideAgainButton');
+
+  // time-of-day intro
+  function setIntroByTime(){
+    const h = new Date().getHours();
+    let key='magicWaitingGrass';
+    if(h>=19||h<5) key='nightGrassSecrets';
+    else if(h>=5&&h<7) key='dawnBreaksSecrets';
+    else if(h>=17&&h<19) key='twilightTransforms';
+    else if(h>=19&&h<22) key='eveningSettlesSecrets';
+    document.getElementById('intro').textContent = t(key);
+  }
+  setIntroByTime();
+
+  // ===== State =====
+  const canvas = document.getElementById('field');
+  const ctx = canvas.getContext('2d');
+  let screenSize = { width: innerWidth, height: innerHeight };
+  canvas.width = screenSize.width; canvas.height = screenSize.height;
+
+  let phase = 'welcome'; // 'welcome' | 'exploring' | 'results'
+  let secondsOutside = 0; let timerInterval = null;
+  let currentTime = 'day'; let hour = new Date().getHours();
+  let grass = []; let stars = null; let hiddenSpots = []; let floatingDiscoveries = [];
+  let explorePlaceName = '';
+  let isCreatingDiscovery = false;
+  let foundItems = []; // {text,color,time,rarity}
+  let itemHistory = {}; let lastFoundItems = [];
+
+  // ===== Audio =====
+  let soundContext = null; let ambientGain = null;
+  (function setupAudio(){
+    try{
+      soundContext = new (window.AudioContext || window.webkitAudioContext)();
+      ambientGain = soundContext.createGain(); ambientGain.gain.value = 0; ambientGain.connect(soundContext.destination);
+      // wind noise
+      const len = 2 * soundContext.sampleRate; const buf = soundContext.createBuffer(1, len, soundContext.sampleRate);
+      const data = buf.getChannelData(0); for(let i=0;i<len;i++){ data[i] = Math.random()*2 - 1; }
+      const src = soundContext.createBufferSource(); src.buffer = buf; src.loop = true;
+      const low = soundContext.createBiquadFilter(); low.type='lowpass'; low.frequency.value=500;
+      const wGain = soundContext.createGain(); wGain.gain.value=.3; src.connect(low); low.connect(wGain); wGain.connect(ambientGain); src.start(0);
+      // birds
+      function bird(){ const osc=soundContext.createOscillator(); const g=soundContext.createGain(); const bp=soundContext.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=2500; bp.Q.value=10; const f=2000+Math.random()*1000; const t=soundContext.currentTime+Math.random()*5; osc.type='sine'; osc.frequency.setValueAtTime(f,t); osc.frequency.linearRampToValueAtTime(f+500,t+.05); osc.frequency.linearRampToValueAtTime(f,t+.1); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.06,t+.01); g.gain.exponentialRampToValueAtTime(.001,t+.1); osc.connect(bp); bp.connect(g); g.connect(ambientGain); osc.start(t); osc.stop(t+.1); }
+      setInterval(()=>{ const h=new Date().getHours(); let p=.3; if(h>=5&&h<9)p=.7; else if(h>=9&&h<17)p=.4; else if(h>=17&&h<19)p=.3; else p=.05; if(Math.random()<p) bird(); },2000);
+      // crickets
+      function cricket(){ const o=soundContext.createOscillator(); const g=soundContext.createGain(); o.type='square'; o.frequency.value=4000; const t=soundContext.currentTime; for(let i=0;i<8;i++){ g.gain.setValueAtTime(0,t+i*.1); g.gain.linearRampToValueAtTime(.02,t+i*.1+.01); g.gain.linearRampToValueAtTime(0,t+i*.1+.05);} o.connect(g); g.connect(ambientGain); o.start(t); o.stop(t+1); }
+      setInterval(()=>{ const h=new Date().getHours(); let p=.2; if(h>=19||h<5)p=.7; else if(h>=17&&h<19)p=.4; else if(h>=5&&h<7)p=.2; else p=.05; if(Math.random()<p) cricket(); },3000);
+    }catch(e){ /* audio unavailable */ }
+  })();
+
+  function playFoundSound(rarity){ if(!soundContext) return; const now=soundContext.currentTime; if(rarity<.7){ const o=soundContext.createOscillator(); const g=soundContext.createGain(); o.type='sine'; o.frequency.value=1500; g.gain.setValueAtTime(0,now); g.gain.linearRampToValueAtTime(.05,now+.01); g.gain.exponentialRampToValueAtTime(.001,now+.15); o.connect(g); g.connect(soundContext.destination); o.start(); o.stop(now+.15); } else if(rarity<.9){ for(let i=0;i<2;i++){ const o=soundContext.createOscillator(); const g=soundContext.createGain(); o.type='sine'; o.frequency.value=2000+i*500; const t=now+i*.05; g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.04,t+.01); g.gain.exponentialRampToValueAtTime(.001,t+.2); o.connect(g); g.connect(soundContext.destination); o.start(t); o.stop(t+.2);} } else { const o1=soundContext.createOscillator(); const o2=soundContext.createOscillator(); const g1=soundContext.createGain(); const g2=soundContext.createGain(); const f=soundContext.createBiquadFilter(); f.type='lowpass'; f.frequency.value=4000; [g1,g2].forEach(g=>{ g.gain.setValueAtTime(0,now); g.gain.linearRampToValueAtTime(.03,now+.05); g.gain.exponentialRampToValueAtTime(.001,now+.8); }); o1.type='sine'; o2.type='sine'; o1.frequency.value=800; o2.frequency.value=1200; o1.connect(g1); o2.connect(g2); g1.connect(f); g2.connect(f); f.connect(soundContext.destination); o1.start(); o2.start(); o1.stop(now+.8); o2.stop(now+.8); } }
+
+  function updateAmbient(){ if(!ambientGain||!soundContext) return; let target=.1; if(currentTime==='night'||currentTime==='evening') target=.15; else if(currentTime==='dawn'||currentTime==='dusk') target=.12; if(phase==='exploring') ambientGain.gain.linearRampToValueAtTime(target, soundContext.currentTime+1); else ambientGain.gain.linearRampToValueAtTime(0, soundContext.currentTime+1); }
+
+  // ===== Places =====
+  const placeOptions = ['backyard','soccer field','golf course','school playground','picnic area','meadow','city park','rooftop garden','abandoned lot','zen garden','dog park','highway rest stop','church grounds','college quad','botanical garden','festival grounds','mini-golf course','baseball diamond','cemetery','neighbor\'s perfect lawn','Singapore botanical gardens','New York Central Park','Tokyo Imperial Gardens','London Hyde Park','Sydney Royal Botanic Garden','Paris Luxembourg Gardens','Barcelona Park Güell','Vancouver Stanley Park','Beijing Temple of Heaven Park','Dubai Zabeel Park'];
+  function pickRandomPlace(){ const input=document.getElementById('placeInput'); const curr=input.value; let idx; do{ idx=Math.floor(Math.random()*placeOptions.length);}while(placeOptions[idx]===curr && placeOptions.length>1); input.value=placeOptions[idx]; explorePlaceName=input.value; document.getElementById('locRow').style.display = explorePlaceName? '' : 'none'; document.getElementById('locText').textContent = explorePlaceName; renderResultsTitle(); }
+
+  // ===== Time of day =====
+  function updateTimeOfDay(){ const h=new Date().getHours(); hour=h; let tkey='dayTimeOfDay'; let phaseName='day'; if(h>=5&&h<7){ phaseName='dawn'; tkey='dawnTimeOfDay'; } else if(h>=7&&h<10){ phaseName='morning'; tkey='morningTimeOfDay'; } else if(h>=10&&h<17){ phaseName='day'; tkey='dayTimeOfDay'; } else if(h>=17&&h<19){ phaseName='dusk'; tkey='duskTimeOfDay'; } else if(h>=19&&h<21){ phaseName='evening'; tkey='eveningTimeOfDay'; } else { phaseName='night'; tkey='nightTimeOfDay'; }
+    currentTime = phaseName; document.getElementById('timeOfDayText').textContent = t(tkey); drawSunMoonIcon(); generateGrass(); updateAmbient(); }
+  setInterval(updateTimeOfDay, 60_000); updateTimeOfDay();
+
+  function drawSunMoonIcon(){ const svg=document.getElementById('sunMoon'); if(currentTime==='night'||currentTime==='evening'){ svg.innerHTML='<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />'; } else { svg.innerHTML='<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />'; } }
+
+  // ===== Grass generation =====
+  function getGrassColor(){ let h,s,l; switch(currentTime){ case 'dawn': h=95+Math.random()*20; s=50+Math.random()*20; l=30+Math.random()*15; break; case 'morning': h=100+Math.random()*30; s=60+Math.random()*20; l=25+Math.random()*20; break; case 'day': h=100+Math.random()*30; s=70+Math.random()*20; l=25+Math.random()*20; break; case 'dusk': h=85+Math.random()*20; s=40+Math.random()*20; l=20+Math.random()*15; break; case 'evening': h=90+Math.random()*20; s=30+Math.random()*20; l=15+Math.random()*10; break; case 'night': h=100+Math.random()*20; s=20+Math.random()*10; l=10+Math.random()*10; break; default: h=100+Math.random()*30; s=70; l=25+Math.random()*20; } return `hsl(${h}, ${s}%, ${l}%)`; }
+
+  function generateSpots(){ const spots=[]; const margin=100; for(let i=0;i<5;i++){ spots.push({ x: margin + Math.random()*(screenSize.width-2*margin), y: screenSize.height - 10 - Math.random()*150, found:false, rarity: Math.random() }); } hiddenSpots = spots; }
+
+  function generateGrass(){ const count = Math.floor((screenSize.width*screenSize.height)/500); const blades=[]; for(let i=0;i<count;i++){ blades.push({ x: Math.random()*screenSize.width, baseY: screenSize.height - 10 - Math.random()*200, height: 40+Math.random()*60, angle:0, targetAngle:0, width: 2+Math.random()*3, sway: Math.random()*Math.PI*2, swaySpeed:.02+Math.random()*.03, swayIntensity:.01+Math.random()*.03, springiness:.05+Math.random()*.05, color: getGrassColor() }); }
+    for(let i=0;i<count/4;i++){ blades.push({ x: Math.random()*screenSize.width, baseY: screenSize.height + Math.random()*50, height:60+Math.random()*80, angle:0, targetAngle:0, width:2+Math.random()*3, sway:Math.random()*Math.PI*2, swaySpeed:.02+Math.random()*.03, swayIntensity:.01+Math.random()*.03, springiness:.05+Math.random()*.05, color:`hsl(${100+Math.random()*30},70%,${25+Math.random()*20}%)` }); }
+    grass = blades; }
+  generateGrass(); generateSpots();
+
+  // ===== Resize =====
+  addEventListener('resize', ()=>{ screenSize={width:innerWidth, height:innerHeight}; canvas.width=screenSize.width; canvas.height=screenSize.height; generateGrass(); generateSpots(); });
+
+  // ===== Animation =====
+  function drawSky(){ const g = ctx.createLinearGradient(0,0,0,screenSize.height); if(currentTime==='dawn'){ g.addColorStop(0,'#FF6B6B'); g.addColorStop(.3,'#FFB88C'); g.addColorStop(.7,'#FFE0B2'); g.addColorStop(1,'#90CFA4'); } else if(currentTime==='morning'){ g.addColorStop(0,'#87CEEB'); g.addColorStop(.7,'#B2EBF2'); g.addColorStop(1,'#B9E3BD'); } else if(currentTime==='day'){ g.addColorStop(0,'#4DA6FF'); g.addColorStop(.7,'#87CEEB'); g.addColorStop(1,'#A1D7A9'); } else if(currentTime==='dusk'){ g.addColorStop(0,'#FF8C42'); g.addColorStop(.3,'#FFA872'); g.addColorStop(.7,'#91A6B4'); g.addColorStop(1,'#70997C'); } else if(currentTime==='evening'){ g.addColorStop(0,'#355C7D'); g.addColorStop(.3,'#6C5B7B'); g.addColorStop(.7,'#C06C84'); g.addColorStop(1,'#4A6F54'); } else { g.addColorStop(0,'#0B1A2A'); g.addColorStop(.3,'#183049'); g.addColorStop(.7,'#2A4D69'); g.addColorStop(1,'#203A2E'); } ctx.fillStyle=g; ctx.fillRect(0,0,screenSize.width,screenSize.height);
+    if(currentTime==='night'){ if(!stars){ stars=[]; for(let i=0;i<100;i++){ stars.push({ x:Math.random()*screenSize.width, y:Math.random()*screenSize.height*.7, size:Math.random()*1.5, opacity: .7+Math.random()*.3, tw: Math.random()*0.0005+0.0002 }); } }
+      const t=Date.now()*0.001; for(const s of stars){ const tw = Math.sin(t*s.tw)*.2+.8; ctx.fillStyle = `rgba(255,255,255,${s.opacity*tw})`; ctx.beginPath(); ctx.arc(s.x,s.y,s.size,0,Math.PI*2); ctx.fill(); }
+      // moon
+      ctx.fillStyle='rgba(255,255,255,.9)'; ctx.beginPath(); ctx.arc(screenSize.width*.8, screenSize.height*.2, 40, 0, Math.PI*2); ctx.fill(); ctx.fillStyle='#0B1A2A'; ctx.beginPath(); ctx.arc(screenSize.width*.8+10, screenSize.height*.2, 40, 0, Math.PI*2); ctx.fill();
+    } else if(currentTime==='evening'){ ctx.fillStyle='rgba(255,255,255,.9)'; ctx.beginPath(); ctx.arc(screenSize.width*.8, screenSize.height*.2, 40, 0, Math.PI*2); ctx.fill(); ctx.fillStyle='#355C7D'; ctx.beginPath(); ctx.arc(screenSize.width*.8+10, screenSize.height*.2, 40, 0, Math.PI*2); ctx.fill(); }
+    if(currentTime==='day' || currentTime==='morning'){ ctx.fillStyle='#FFD700'; ctx.beginPath(); ctx.arc(screenSize.width*.8, screenSize.height*.2, 40, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle='#FFD700'; ctx.lineWidth=3; for(let i=0;i<12;i++){ const a=i*Math.PI*2/12; ctx.beginPath(); ctx.moveTo(screenSize.width*.8+Math.cos(a)*50, screenSize.height*.2+Math.sin(a)*50); ctx.lineTo(screenSize.width*.8+Math.cos(a)*60, screenSize.height*.2+Math.sin(a)*60); ctx.stroke(); } }
+  }
+
+  function drawGrass(){ for(const b of grass){ const diff=b.targetAngle-b.angle; b.angle += diff*b.springiness; b.sway += b.swaySpeed; const nat = Math.sin(b.sway)*b.swayIntensity; ctx.save(); ctx.translate(b.x,b.baseY); ctx.rotate(b.angle+nat); ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(b.width/2, -b.height/2, 0, -b.height); ctx.quadraticCurveTo(-b.width/2, -b.height/2, 0, 0); ctx.fillStyle=b.color; ctx.fill(); ctx.restore(); } }
+
+  function drawFloating(){ for(const d of floatingDiscoveries){ ctx.save(); ctx.globalAlpha=d.opacity; ctx.font = `bold ${18 + d.scale*6}px Arial`; let col=d.color; if(d.color==='#4CAF50') col='#388E3C'; else if(d.color==='#2196F3') col='#1976D2'; else if(d.color==='#FFD700') col='#B8860B'; ctx.fillStyle=col; ctx.strokeStyle='white'; ctx.lineWidth=4; ctx.lineJoin='round'; ctx.textAlign='center'; ctx.shadowColor='rgba(0,0,0,.3)'; ctx.shadowBlur=8; const lines=d.text.split('\n'); lines.forEach((line,i)=>{ const y=d.y + i*25; ctx.strokeText(line,d.x,y); ctx.fillText(line,d.x,y); }); ctx.restore(); } }
+
+  function tick(){ ctx.clearRect(0,0,screenSize.width,screenSize.height); drawSky(); drawGrass(); if(phase==='exploring') drawFloating(); requestAnimationFrame(tick); }
+  tick();
+
+  // animate floating text
+  let floatInterval=null; function startFloat(){ if(floatInterval) clearInterval(floatInterval); floatInterval=setInterval(()=>{ floatingDiscoveries = floatingDiscoveries.map(d=>({ ...d, y:d.y-1.5, opacity:d.opacity-.005, scale:d.scale+.01 })).filter(d=>d.opacity>0); },16); }
+  function stopFloat(){ if(floatInterval){ clearInterval(floatInterval); floatInterval=null; } }
+
+  // ===== Interaction =====
+  function handleGrassInteraction(clientX, clientY){ if(phase!=='exploring') return; const rect=canvas.getBoundingClientRect(); const x=clientX-rect.left; const y=clientY-rect.top; // discoveries
+    hiddenSpots.forEach((s,idx)=>{ if(!s.found){ const dist=Math.hypot(s.x-x, s.y-y); if(dist<50){ createAIDiscovery(s.x,s.y,s.rarity); const margin=100; hiddenSpots[idx] = { x: margin + Math.random()*(screenSize.width-2*margin), y: screenSize.height - 10 - Math.random()*150, found:false, rarity: Math.random() }; } } });
+    // grass physics
+    const radius=100; grass = grass.map(b=>{ const d=Math.hypot(b.x-x, b.baseY-y); if(d<radius){ const strength=(radius-d)/radius; const dx=b.x-x; const ang=Math.atan2(dx,50)*strength*.5; return { ...b, targetAngle: ang }; } return { ...b, targetAngle: 0 }; }); }
+
+  canvas.addEventListener('mousemove', (e)=> handleGrassInteraction(e.clientX, e.clientY));
+  canvas.addEventListener('touchmove', (e)=>{ if(e.touches&&e.touches[0]){ e.preventDefault(); const t=e.touches[0]; handleGrassInteraction(t.clientX, t.clientY);} }, {passive:false});
+  canvas.addEventListener('mouseleave', ()=>{ grass = grass.map(b=>({ ...b, targetAngle:0 })); });
+  canvas.addEventListener('touchend', ()=>{ grass = grass.map(b=>({ ...b, targetAngle:0 })); });
+
+  // ===== Discoveries (AI optional) =====
+  function showDiscoveryText(text,x,y,color){ const max=20; let disp=text; if(text.length>max){ const words=text.split(' '); let a=[],b=[]; let curr=a; for(const w of words){ if(curr===a && (a.join(' ').length + w.length > max)) curr=b; curr.push(w); } disp=a.join(' ')+'\n'+b.join(' '); } let xPos=x; const pad=150; if(xPos<pad) xPos=pad; if(xPos>screenSize.width-pad) xPos=screenSize.width-pad; floatingDiscoveries.push({ text: t('youFoundText').replace('{item}', disp), x:xPos, y:y-60, opacity:1, scale:0, color }); }
+
+  async function createAIDiscovery(x,y,rarity){ if(isCreatingDiscovery) return; isCreatingDiscovery=true; try{ let prompt, itemColor; const seed=Math.floor(Math.random()*10000); const timeExamples={ dawn:{common:["a dew drop","a spider web","a morning newspaper"], uncommon:["bird eggs","a sunrise photo","jogger's earbuds"], rare:["a meteor fragment","a rare dawn flower"]}, morning:{common:["a coffee cup lid","school supplies","morning paper"], uncommon:["breakfast remnants","lost homework","morning crow feather"], rare:["a golden sunrise crystal","morning glory seed"]}, day:{common:["a bottle cap","a lost button","sandwich wrapper"], uncommon:["sunglasses","picnic blanket corner","frisbee fragment"], rare:["a sun-bleached artifact","midday rainbow stone"]}, dusk:{common:["a ticket stub","evening newspaper page","dog toy"], uncommon:["sunset photo","evening jogger's headband","dusk-blooming petal"], rare:["a sunset agate","twilight moth wing"]}, evening:{common:["a dinner napkin","restaurant receipt","evening commuter pass"], uncommon:["evening party invite","concert ticket stub","lost dinner reservation"], rare:["a star emerald","evening primrose seed"]}, night:{common:["a glow stick","flashlight battery","night owl feather"], uncommon:["moonstone chip","nocturnal flower petal","stargazer's map piece"], rare:["a fallen star fragment","lunar crystal","night bloom essence"]} };
+    const loc = (explorePlaceName||'').toLowerCase(); let locationContext=' in grass'; let commonItems=["a bottle cap","a coin","a button","a plastic wrapper piece"], uncommonItems=["a key","a ring","a zipper pull","a earring"], rareItems=["an antique coin","a vintage toy piece","a lost heirloom"]; function setCtx(ctx,com,un,ra){ locationContext=ctx; commonItems=com; uncommonItems=un; rareItems=ra; }
+    if(loc.includes('soccer')||loc.includes('football')) setCtx(' in soccer field grass',["a missing cleat stud","a torn goal net thread","a grass-stained shin guard strap","a referee's dropped whistle"],["a lost team captain's armband","a piece of championship confetti","a section of penalty box line chalk"],["a player's lucky pre-game penny","a World Cup final ticket stub","a signed soccer card"]);
+    else if(loc.includes('backyard')||loc.includes('back yard')) setCtx(' in backyard grass',["a dropped clothes pin","a lost earring back","a pet collar tag","a barbecue skewer"],["a child's lost tooth","a wedding ring","a buried dog toy"],["a 1950s soda bottle cap","grandmother's lost thimble","a time capsule corner"]);
+    else if(loc.includes('golf')) setCtx(' in golf course grass',["a broken tee","a lost ball marker","a scorecard pencil","a divot repair tool"],["a pro's ball marker","a clubhouse member pin","a yardage book page"],["a master's tournament ball","Arnold Palmer's cigar tip","a hole-in-one commemorative coin"]);
+    else if(loc.includes('school')||loc.includes('playground')) setCtx(' in school playground grass',["a lunch money quarter","a broken pencil tip","a hair tie","a Pokemon card"],["a retainer","a class ring","a report card corner"],["a 1980s lunch token","a vintage marble shooter","a class of '99 pin"]);
+    else if(loc.includes('picnic')) setCtx(' in picnic area grass',["a plastic fork tine","a bottle cap","a napkin corner","a watermelon seed"],["a wine cork","a picnic blanket tag","a forgotten corkscrew"],["a proposal ring box hinge","a vintage thermos lid","a 1960s soda pull tab"]);
+    else if(loc.includes('meadow')) setCtx(' in meadow grass',["a rabbit dropping","a bird feather","a dried flower head","an acorn cap"],["an arrowhead","a deer antler tip","a snake skin piece"],["a fossil impression","a natural crystal","a gold nugget fragment","an ancient pottery shard","a meteorite piece"]);
+    else if(loc.includes('park')) setCtx(' in park grass',["a dog tag","a frisbee chip","a tennis ball fuzz","a picnic fork"],["a lost earring","a festival wristband","a skateboard wheel"],["a 1920s jazz pin","a vintage arcade token","an antique carousel charm","a famous writer's lost pen cap"]);
+    else if(loc.includes('singapore')||loc.includes('botanical gardens')) setCtx(' in Singapore botanical garden grass',["a tropical flower petal","a orchid leaf","a tourist ticket stub","a garden map fragment"],["a heritage tree plaque piece","a bonsai exhibition tag","a bird watching notebook page"],["a Raffles-era trade coin","a WWII currency piece","a spice trader's ancient bead","a rare orchid seed pod"]);
+    else if(loc.includes('central park')||loc.includes('new york')) setCtx(' in Central Park grass',["a hot dog wrapper","a metro card","a tourist map piece","a horse carriage bolt"],["a Broadway ticket stub","a Yankees cap button","a film location marker"],["a 1920s speakeasy token","a legendary performer's button","a vintage subway token","an art deco period charm"]);
+    else if(loc.includes('tokyo')||loc.includes('imperial')) setCtx(' in Tokyo Imperial Garden grass',["a cherry blossom petal","a crane feather","a koi food pellet","a bamboo leaf"],["a tea ceremony ticket","a kimono fabric swatch","a garden stone fragment"],["an Edo period coin","a vintage samurai button","a traditional craft tool piece","a rare jade fragment"]);
+    else if(loc.includes('hyde park')||loc.includes('london')) setCtx(' in Hyde Park grass',["a pigeon feather","a speaker's corner badge","a royal parks map piece","a swan feather"],["a palace guard button","a rowing club pin","a speaker's corner plaque fragment"],["a Victorian jewelry piece","a literary society pin","a rare royal commemorative coin","an antique theater token"]);
+    else if(explorePlaceName) locationContext = ` in ${explorePlaceName} grass`;
+
+    const time = timeExamples[currentTime] || timeExamples.day;
+    if(rarity<.7){ const example = [...(time.common||[]), ...(commonItems||[])]; const pick=example[Math.floor(Math.random()*example.length)]||'a coin'; prompt = `Generate a common, realistic object someone would actually find${locationContext} during ${currentTime}. 2-4 words. Include "a" or "an". Lowercase. Example: "${pick}". Be very specific to the location and time. Seed: ${seed}`; itemColor = '#4CAF50'; }
+    else if(rarity<.9){ const example = [...(time.uncommon||[]), ...(uncommonItems||[])]; const pick=example[Math.floor(Math.random()*example.length)]||'a key'; prompt = `Generate an uncommon but real object someone might find${locationContext} during ${currentTime}. 2-5 words. Include "a" or "an". Lowercase. Example: "${pick}". Must be actually findable in that location at this time. Seed: ${seed}`; itemColor = '#2196F3'; }
+    else { const example = [...(time.rare||[]), ...(rareItems||[])]; const pick=example[Math.floor(Math.random()*example.length)]||'a rare coin'; prompt = `Generate a rare but real object someone could find${locationContext} during ${currentTime}. 2-5 words. Lowercase. Example: "${pick}". Should be exciting or unusual - could be historical, natural wonder, valuable, or whimsical. Consider the time of day. Seed: ${seed}`; itemColor = '#FFD700'; }
+
+    let finalPrompt = prompt; const recent = lastFoundItems.slice(-3); if(recent.length) finalPrompt += ` Avoid these recent discoveries: "${recent.join('", "')}". Generate something different.`;
+    let text=null; try{ if(window.claude && typeof window.claude.complete==='function'){ const resp = await window.claude.complete(finalPrompt); text = (resp||'').trim().toLowerCase(); } }catch(e){ /* ignore */ }
+    if(!text){ const fallback=[t('tinyTreasure'),t('smallWonder'),t('somethingSpecial'),t('curiousFind'),t('hiddenGem')]; text = fallback[Math.floor(Math.random()*fallback.length)]; }
+
+    const count = itemHistory[text]||0; if(count>=3 && window.claude && typeof window.claude.complete==='function'){ const retry = prompt + ` Avoid: "${text}". Also avoid these recent discoveries: "${lastFoundItems.join('", "')}". Generate something completely different.`; try{ const r = await window.claude.complete(retry); const alt=(r||'').trim().toLowerCase(); text = alt || text; }catch(e){} }
+    itemHistory[text] = (itemHistory[text]||0) + 1; lastFoundItems.push(text); if(lastFoundItems.length>5) lastFoundItems.shift();
+    foundItems.push({ text, color:itemColor, time: secondsOutside, rarity: rarity<.7?'common':(rarity<.9?'uncommon':'rare') });
+    document.getElementById('discoveriesCount').textContent = String(foundItems.length);
+    showDiscoveryText(text,x,y,itemColor); playFoundSound(rarity);
+  } catch(err){ console.error(err); const fall=[t('tinyTreasure'),t('smallWonder'),t('somethingSpecial'),t('curiousFind'),t('hiddenGem')]; const fb=fall[Math.floor(Math.random()*fall.length)]; floatingDiscoveries.push({ text:t('youFoundText').replace('{item}',fb), x, y:y-60, opacity:1, scale:0, color:'#9C27B0' }); } finally { setTimeout(()=>{ isCreatingDiscovery=false; },200); } }
+
+  // ===== Timer =====
+  function startTimer(){ const start = Date.now() - secondsOutside*1000; if(timerInterval) clearInterval(timerInterval); timerInterval = setInterval(()=>{ secondsOutside = Math.floor((Date.now()-start)/1000); document.getElementById('timer').textContent = formatTimer(secondsOutside); },1000); }
+  function stopTimer(){ if(timerInterval){ clearInterval(timerInterval); timerInterval=null; } }
+  function formatTimer(sec){ const m=Math.floor(sec/60); const s=String(sec%60).padStart(2,'0'); return `${m}:${s}`; }
+
+  // ===== Screens =====
+  function showWelcome(){ phase='welcome'; document.getElementById('screen-welcome').classList.remove('hidden'); document.getElementById('hud').classList.add('hidden'); document.getElementById('screen-results').classList.add('hidden'); stopTimer(); updateAmbient(); }
+  function showExploring(){ phase='exploring'; document.getElementById('screen-welcome').classList.add('hidden'); document.getElementById('hud').classList.remove('hidden'); document.getElementById('screen-results').classList.add('hidden'); startTimer(); updateAmbient(); if(soundContext && soundContext.state==='suspended') soundContext.resume(); startFloat(); }
+  function showResults(){ phase='results'; document.getElementById('screen-welcome').classList.add('hidden'); document.getElementById('hud').classList.add('hidden'); document.getElementById('screen-results').classList.remove('hidden'); stopTimer(); updateAmbient(); stopFloat(); renderResults(); }
+
+  function renderResultsTitle(){ const base = explorePlaceName ? t('locationGrassAdventureTitle').replace('{location}', explorePlaceName) : t('grassAdventureTitle'); document.getElementById('resultsTitle').textContent = base; if(explorePlaceName){ document.getElementById('locRow').style.display=''; document.getElementById('locText').textContent = explorePlaceName; } }
+  function renderResults(){ document.getElementById('resTime').textContent = formatTimer(secondsOutside); document.getElementById('resCount').textContent = String(foundItems.length); const box = document.getElementById('discoveriesList'); box.innerHTML=''; if(foundItems.length===0){ const p=document.createElement('p'); p.style.whiteSpace='pre-wrap'; p.textContent=t('professionalGrassAvoider'); box.appendChild(p); return; }
+    const groups={ rare:[], uncommon:[], common:[] }; for(const it of foundItems){ groups[it.rarity].push(it); }
+    function addGroup(name,label,cls){ if(!groups[name].length) return; const h=document.createElement('div'); h.className='badge'; h.textContent = t(label); box.appendChild(h); for(const it of groups[name]){ const row=document.createElement('div'); row.className=cls+''; row.style.padding='8px 10px'; row.style.borderRadius='10px'; row.style.margin='6px 0'; row.style.display='flex'; row.style.justifyContent='space-between'; const span=document.createElement('span'); span.textContent=it.text; const time=document.createElement('span'); time.style.color='#475569'; time.style.fontSize='12px'; time.textContent = formatTimer(it.time); row.appendChild(span); row.appendChild(time); box.appendChild(row); } }
+    addGroup('rare','rareFinds','rare'); addGroup('uncommon','uncommonFinds','uncommon'); addGroup('common','commonFinds','common'); }
+
+  // ===== Events =====
+  document.getElementById('shuffleBtn').addEventListener('click', pickRandomPlace);
+  document.getElementById('placeInput').addEventListener('input', (e)=>{ explorePlaceName=e.target.value; renderResultsTitle(); document.getElementById('locRow').style.display = explorePlaceName? '' : 'none'; document.getElementById('locText').textContent = explorePlaceName; });
+  document.getElementById('startBtn').addEventListener('click', ()=>{ showExploring(); });
+  document.getElementById('insideBtn').addEventListener('click', ()=>{ showResults(); });
+  document.getElementById('againBtn').addEventListener('click', ()=>{ // reset
+    secondsOutside=0; document.getElementById('timer').textContent='0:00'; foundItems=[]; floatingDiscoveries=[]; itemHistory={}; lastFoundItems=[]; showWelcome(); renderResultsTitle(); document.getElementById('discoveriesCount').textContent='0'; });
+
+  // initial icon
+  drawSunMoonIcon();
+  // start on welcome
+  showWelcome();
+  </script>
+</body>
+</html>
