@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Energy Sources Sorting Game</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          boxShadow: {
+            soft: '0 10px 30px -10px rgba(2, 6, 23, 0.2)'
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://unpkg.com/lucide@0.451.0/dist/umd/lucide.js"></script>
+  <style>
+    html, body { height: 100%; }
+    body { background: linear-gradient(135deg, #eff6ff, #ecfdf5); }
+    .dropping { outline: 2px dashed rgba(59,130,246,.6); outline-offset: 4px; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <!-- PLAYING VIEW -->
+  <section id="view-playing" class="max-w-6xl mx-auto p-6">
+    <div class="text-center mb-8">
+      <h1 class="text-4xl font-bold text-gray-800 mb-4">Energy Sources Sorting Game</h1>
+      <p class="text-lg text-gray-600">Drag each energy source to the correct category: Renewable or Non-Renewable</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-8 mb-8">
+      <!-- Renewable box -->
+      <div id="box-renewable" class="bg-green-100 rounded-xl p-6 border-2 border-dashed border-green-300 min-h-[300px]" data-drop="renewable">
+        <h2 class="text-2xl font-bold text-green-800 mb-4 text-center">🌱 Renewable Energy</h2>
+        <p class="text-green-700 text-center mb-4">Sources that can be replenished naturally</p>
+        <div id="grid-renewable" class="grid grid-cols-2 gap-3"></div>
+      </div>
+
+      <!-- Non-renewable box -->
+      <div id="box-nonrenewable" class="bg-gray-100 rounded-xl p-6 border-2 border-dashed border-gray-400 min-h-[300px]" data-drop="nonRenewable">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">⚡ Non-Renewable Energy</h2>
+        <p class="text-gray-700 text-center mb-4">Sources with limited supply that cannot be replenished</p>
+        <div id="grid-nonrenewable" class="grid grid-cols-2 gap-3"></div>
+      </div>
+    </div>
+
+    <!-- Unsorted -->
+    <div id="box-unsorted" class="bg-white rounded-xl p-6 border-2 border-dashed border-blue-300 mb-6" data-drop="unsorted">
+      <h3 class="text-xl font-semibold text-gray-800 mb-4 text-center">Energy Sources to Sort</h3>
+      <div id="grid-unsorted" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3"></div>
+    </div>
+
+    <div class="text-center">
+      <button id="btn-check" class="px-8 py-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-xl font-semibold" disabled>
+        Check My Answers
+      </button>
+      <p id="sorted-count" class="text-sm text-gray-500 mt-2">0/16 energy sources sorted</p>
+    </div>
+  </section>
+
+  <!-- COMPLETED VIEW -->
+  <section id="view-completed" class="max-w-6xl mx-auto p-6 hidden">
+    <div class="text-center mb-8">
+      <div class="flex items-center justify-center gap-3 mb-4">
+        <i data-lucide="check-circle" class="w-12 h-12 text-green-500"></i>
+        <h1 class="text-4xl font-bold text-gray-800">Congratulations!</h1>
+      </div>
+      <p class="text-lg text-gray-600 mb-6">You've successfully sorted all energy sources! Click on any energy source below to learn more about it.</p>
+      <button id="btn-play-again" class="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors inline-flex items-center gap-2">
+        <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+        Play Again
+      </button>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-8">
+      <div class="bg-green-100 rounded-xl p-6">
+        <h2 class="text-2xl font-bold text-green-800 mb-4 text-center">🌱 Renewable Energy Sources</h2>
+        <div id="grid-complete-renewable" class="grid grid-cols-2 gap-4"></div>
+      </div>
+
+      <div class="bg-gray-100 rounded-xl p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">⚡ Non-Renewable Energy Sources</h2>
+        <div id="grid-complete-nonrenewable" class="grid grid-cols-2 gap-4"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DETAILS MODAL -->
+  <div id="modal" class="fixed inset-0 hidden items-center justify-center bg-black/40 p-4">
+    <div class="bg-white rounded-xl shadow-soft w-full max-w-4xl p-6 md:p-8 relative">
+      <button id="modal-close" class="absolute top-4 left-4 inline-flex items-center gap-2 px-3 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back</button>
+      <div class="flex items-center gap-4 mb-6">
+        <div id="modal-icon" class="w-12 h-12"></div>
+        <h1 id="modal-title" class="text-3xl font-bold text-gray-800"></h1>
+      </div>
+      <div class="grid md:grid-cols-3 gap-6">
+        <div class="bg-blue-50 rounded-lg p-6">
+          <h2 class="text-xl font-semibold text-blue-800 mb-4">Common Uses</h2>
+          <ul id="modal-uses" class="space-y-2"></ul>
+        </div>
+        <div class="bg-green-50 rounded-lg p-6">
+          <h2 class="text-xl font-semibold text-green-800 mb-4">Advantages</h2>
+          <ul id="modal-pros" class="space-y-2"></ul>
+        </div>
+        <div class="bg-red-50 rounded-lg p-6">
+          <h2 class="text-xl font-semibold text-red-800 mb-4">Disadvantages</h2>
+          <ul id="modal-cons" class="space-y-2"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ----- Data -----
+    const energySources = {
+      renewable: [
+        { id: 'solar', name: 'Solar Energy', icon: 'sun', color: 'text-yellow-500' },
+        { id: 'wind', name: 'Wind Energy', icon: 'wind', color: 'text-blue-400' },
+        { id: 'hydro', name: 'Hydroelectric', icon: 'droplets', color: 'text-blue-600' },
+        { id: 'geothermal', name: 'Geothermal', icon: 'mountain', color: 'text-orange-600' },
+        { id: 'biomass', name: 'Biomass', icon: 'tree-pine', color: 'text-green-600' },
+        { id: 'tidal', name: 'Tidal Energy', icon: 'waves', color: 'text-cyan-500' },
+        { id: 'hydrokinetic', name: 'Wave Energy', icon: 'waves', color: 'text-indigo-500' },
+        { id: 'biofuel', name: 'Biofuel', icon: 'fuel', color: 'text-green-500' }
+      ],
+      nonRenewable: [
+        { id: 'coal', name: 'Coal', icon: 'shopping-cart', color: 'text-gray-800' },
+        { id: 'oil', name: 'Oil/Petroleum', icon: 'drill', color: 'text-gray-700' },
+        { id: 'naturalgas', name: 'Natural Gas', icon: 'flame', color: 'text-orange-400' },
+        { id: 'nuclear', name: 'Nuclear', icon: 'zap', color: 'text-yellow-600' },
+        { id: 'propane', name: 'Propane', icon: 'factory', color: 'text-purple-600' },
+        { id: 'diesel', name: 'Diesel', icon: 'truck', color: 'text-red-700' },
+        { id: 'gasoline', name: 'Gasoline', icon: 'fuel', color: 'text-red-500' },
+        { id: 'kerosene', name: 'Kerosene', icon: 'flame', color: 'text-orange-700' }
+      ]
+    };
+
+    const energyDetails = {
+      solar: { uses:['Solar panels for homes','Solar farms','Solar water heaters','Solar calculators'], pros:['Clean and renewable','Low maintenance costs','Reduces electricity bills','Silent operation'], cons:['Weather dependent','High initial cost','Requires space','Energy storage is expensive'] },
+      wind: { uses:['Wind turbines','Windmills for water pumping','Small residential turbines','Offshore wind farms'], pros:['Clean and renewable','Cost-effective','Job creation','Low operating costs'], cons:['Weather dependent','Noise pollution','Visual impact','Bird and bat mortality'] },
+      hydro: { uses:['Hydroelectric dams','Run-of-river systems','Pumped storage','Micro-hydro systems'], pros:['Very reliable','Long lifespan','Low operating costs','Can provide flood control'], cons:['Environmental impact','High initial cost','Limited locations','Affects fish migration'] },
+      geothermal: { uses:['Geothermal power plants','Ground-source heat pumps','Hot water heating','Greenhouse heating'], pros:['Very reliable','Small land footprint','24/7 availability','Low emissions'], cons:['Location specific','High upfront costs','Potential for small earthquakes','Limited to certain areas'] },
+      biomass: { uses:['Wood burning stoves','Biomass power plants','Biogas digesters','Agricultural waste burning'], pros:['Carbon neutral','Uses waste materials','Reliable baseload power','Supports rural economies'], cons:['Air pollution concerns','Requires large amounts of material','Competes with food production','Transportation costs'] },
+      tidal: { uses:['Tidal barrages','Tidal stream generators','Tidal lagoons','Underwater turbines'], pros:['Highly predictable','Long lifespan','High energy density','No fuel costs'], cons:['High initial costs','Limited locations','Environmental impact','Affects marine ecosystems'] },
+      hydrokinetic: { uses:['Wave energy converters','Oscillating water columns','Point absorbers','Overtopping devices'], pros:['Abundant resource','High energy density','Predictable','Minimal visual impact'], cons:['Technology still developing','Harsh marine environment','High costs','Maintenance challenges'] },
+      biofuel: { uses:['Vehicle fuel','Aviation fuel','Heating oil substitute','Industrial fuel'], pros:['Can use existing infrastructure','Reduces petroleum dependence','Lower emissions','Biodegradable'], cons:['Competes with food crops','Land use issues','Processing costs','Lower energy density'] },
+      coal: { uses:['Electricity generation','Steel production','Cement manufacturing','Home heating'], pros:['Abundant supply','Reliable baseload power','Well-established technology','Low cost'], cons:['High CO2 emissions','Air pollution','Mining environmental impact','Health concerns'] },
+      oil: { uses:['Transportation fuel','Heating oil','Plastics production','Chemical feedstock'], pros:['High energy density','Easy to transport','Versatile uses','Well-established infrastructure'], cons:['Finite resource','Price volatility','Environmental spills','High CO2 emissions'] },
+      naturalgas: { uses:['Electricity generation','Home heating','Industrial processes','Vehicle fuel'], pros:['Cleaner than coal/oil','Abundant supply','Efficient combustion','Lower CO2 than other fossils'], cons:['Still produces emissions','Methane leaks','Finite resource','Infrastructure needs'] },
+      nuclear: { uses:['Electricity generation','Medical isotopes','Naval propulsion','Space missions'], pros:['Very low emissions','High energy output','Reliable baseload','Small land footprint'], cons:['Radioactive waste','High initial costs','Safety concerns','Long construction time'] },
+      propane: { uses:['Home heating','Cooking fuel','Vehicle fuel','Industrial heating'], pros:['Clean burning','Portable','High energy content','Reliable supply'], cons:['Finite resource','Storage requirements','Safety concerns','Price fluctuations'] },
+      diesel: { uses:['Heavy vehicle fuel','Backup generators','Marine fuel','Agricultural equipment'], pros:['High energy density','Good fuel economy','Reliable performance','Wide availability'], cons:['Air pollution','Particulate emissions','Finite resource','Health impacts'] },
+      gasoline: { uses:['Car fuel','Small engines','Generators','Racing fuel'], pros:['High energy density','Quick refueling','Wide availability','Good performance'], cons:['High emissions','Volatile prices','Finite resource','Air pollution'] },
+      kerosene: { uses:['Jet fuel','Heating fuel','Lighting','Rocket fuel'], pros:['High energy density','Stable at high altitudes','Long storage life','Clean burning'], cons:['Finite resource','Expensive refining','Emissions','Safety concerns'] }
+    };
+
+    const ITEMS = [...energySources.renewable, ...energySources.nonRenewable];
+    const ITEM_BY_ID = Object.fromEntries(ITEMS.map(i => [i.id, i]));
+
+    // ----- Helpers -----
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+    function shuffle(arr){ return arr.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]); }
+
+    function makeCard(item, draggable=true, clickable=false){
+      const card = document.createElement('div');
+      card.className = `bg-white rounded-lg shadow-md p-3 border-2 border-gray-200 flex flex-col items-center justify-center min-h-[100px] transition-all ${draggable? 'cursor-move hover:scale-105 hover:shadow-lg' : (clickable? 'cursor-pointer hover:bg-gray-50' : '')}`;
+      card.setAttribute('data-id', item.id);
+      if (draggable){
+        card.setAttribute('draggable','true');
+        card.addEventListener('dragstart', e=>{
+          e.dataTransfer.setData('text/plain', item.id);
+          e.dataTransfer.effectAllowed = 'move';
+        });
+      }
+      if (clickable){
+        card.addEventListener('click', ()=> openDetails(item.id));
+      }
+      card.innerHTML = `<i data-lucide="${item.icon}" class="w-8 h-8 ${item.color} mb-2"></i><span class="text-sm font-medium text-center">${item.name}</span>`;
+      return card;
+    }
+
+    function enableDroppable(boxEl){
+      boxEl.addEventListener('dragover', e=>{ e.preventDefault(); boxEl.classList.add('dropping'); e.dataTransfer.dropEffect='move'; });
+      boxEl.addEventListener('dragleave', ()=> boxEl.classList.remove('dropping'));
+      boxEl.addEventListener('drop', e=>{
+        e.preventDefault(); boxEl.classList.remove('dropping');
+        const id = e.dataTransfer.getData('text/plain'); if(!id) return;
+        moveItemToBox(id, boxEl.dataset.drop);
+      });
+    }
+
+    function currentIds(gridSel){ return Array.from($(gridSel).children).map(el=>el.getAttribute('data-id')); }
+
+    function moveItemToBox(id, box){
+      const item = ITEM_BY_ID[id]; if(!item) return;
+      // Remove wherever it currently is
+      $$(`[data-id="${id}"]`).forEach(el=> el.parentElement && el.parentElement.removeChild(el));
+      // Append to target
+      if(box==='renewable') $('#grid-renewable').appendChild(makeCard(item));
+      else if(box==='nonRenewable') $('#grid-nonrenewable').appendChild(makeCard(item));
+      else $('#grid-unsorted').appendChild(makeCard(item));
+      lucide.createIcons();
+      updateSortedCount();
+    }
+
+    function updateSortedCount(){
+      const count = $('#grid-renewable').children.length + $('#grid-nonrenewable').children.length;
+      $('#sorted-count').textContent = `${count}/16 energy sources sorted`;
+      $('#btn-check').disabled = (count !== 16);
+    }
+
+    function checkAnswers(){
+      const renewableIds = energySources.renewable.map(i=>i.id);
+      const nonRenewableIds = energySources.nonRenewable.map(i=>i.id);
+      const ren = currentIds('#grid-renewable');
+      const non = currentIds('#grid-nonrenewable');
+      if (ren.length !== 8 || non.length !== 8){
+        alert('Please place all energy sources in the boxes before checking!'); return;
+      }
+      const okRen = ren.every(id => renewableIds.includes(id));
+      const okNon = non.every(id => nonRenewableIds.includes(id));
+      if (okRen && okNon){
+        showCompleted(ren, non);
+      } else {
+        alert('Some energy sources are in the wrong category. Try again!');
+      }
+    }
+
+    function showCompleted(renIds, nonIds){
+      // Build completed grids (clickable for details)
+      const renGrid = $('#grid-complete-renewable'); renGrid.innerHTML='';
+      const nonGrid = $('#grid-complete-nonrenewable'); nonGrid.innerHTML='';
+      renIds.forEach(id => renGrid.appendChild(makeCard(ITEM_BY_ID[id], false, true)));
+      nonIds.forEach(id => nonGrid.appendChild(makeCard(ITEM_BY_ID[id], false, true)));
+      lucide.createIcons();
+      // Toggle views
+      $('#view-playing').classList.add('hidden');
+      $('#view-completed').classList.remove('hidden');
+      // Clear play grids (optional)
+    }
+
+    function resetGame(){
+      // Toggle views
+      $('#view-completed').classList.add('hidden');
+      $('#view-playing').classList.remove('hidden');
+      // Clear all grids
+      $('#grid-renewable').innerHTML='';
+      $('#grid-nonrenewable').innerHTML='';
+      $('#grid-unsorted').innerHTML='';
+      // Refill unsorted with shuffled items
+      shuffle(ITEMS.slice()).forEach(item => $('#grid-unsorted').appendChild(makeCard(item)));
+      lucide.createIcons();
+      updateSortedCount();
+    }
+
+    // ----- Details Modal -----
+    function openDetails(id){
+      const item = ITEM_BY_ID[id]; if(!item) return;
+      const details = energyDetails[id];
+      $('#modal-title').textContent = item.name;
+      $('#modal-icon').innerHTML = `<i data-lucide="${item.icon}" class="w-12 h-12 ${item.color}"></i>`;
+      const ul = (id)=>document.getElementById(id);
+      function fillList(el, arr, color){ el.innerHTML = arr.map(v=>`<li class='flex items-start gap-2 text-${color}-700'><span class='w-2 h-2 bg-${color}-500 rounded-full mt-2 flex-shrink-0'></span>${v}</li>`).join(''); }
+      fillList(ul('modal-uses'), details.uses, 'blue');
+      fillList(ul('modal-pros'), details.pros, 'green');
+      fillList(ul('modal-cons'), details.cons, 'red');
+      lucide.createIcons();
+      $('#modal').classList.remove('hidden');
+      $('#modal').classList.add('flex');
+    }
+
+    function closeModal(){
+      $('#modal').classList.add('hidden');
+      $('#modal').classList.remove('flex');
+    }
+
+    // ----- Init -----
+    window.addEventListener('DOMContentLoaded', () => {
+      // Build unsorted
+      shuffle(ITEMS.slice()).forEach(item => $('#grid-unsorted').appendChild(makeCard(item)));
+      // Enable droppable areas
+      enableDroppable($('#box-renewable'));
+      enableDroppable($('#box-nonrenewable'));
+      enableDroppable($('#box-unsorted'));
+      // Buttons
+      $('#btn-check').addEventListener('click', checkAnswers);
+      $('#btn-play-again').addEventListener('click', resetGame);
+      $('#modal-close').addEventListener('click', closeModal);
+      // Initial UI
+      updateSortedCount();
+      // Render icons
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
