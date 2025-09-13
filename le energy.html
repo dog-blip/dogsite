@@ -20,7 +20,42 @@
   <style>
     html, body { height: 100%; }
     body { background: linear-gradient(135deg, #eff6ff, #ecfdf5); }
-    .dropping { outline: 2px dashed rgba(59,130,246,.6); outline-offset: 4px; }
+    .dropping { outline: 2px dashed rgba(59,130,246,.6); outline-offset: 4px; transform: scale(1.01); transition: transform .15s ease; }
+
+    /* ===== Fancy animations ===== */
+    @keyframes popIn { 0% { transform: scale(.88) rotate(-2deg); opacity: 0 } 100% { transform: scale(1) rotate(0); opacity: 1 } }
+    .pop-in { animation: popIn .35s cubic-bezier(.2,.7,.2,1) both; }
+
+    @keyframes floaty { 0% { transform: translateY(0) } 50% { transform: translateY(-4px) } 100% { transform: translateY(0) } }
+    .floaty { animation: floaty 6s ease-in-out infinite; animation-delay: var(--d, 0s); }
+
+    @keyframes dropBounce { 0% { transform: scale(0.96) } 50% { transform: scale(1.03) } 100% { transform: scale(1) } }
+    .drop-bounce { animation: dropBounce .28s ease-out; }
+
+    @keyframes wiggle { 0%,100% { transform: translateX(0) } 20% { transform: translateX(-4px) } 40% { transform: translateX(4px) } 60% { transform: translateX(-3px) } 80% { transform: translateX(3px) } }
+    .wiggle { animation: wiggle .5s ease; }
+
+    .dragging { transform: rotate(2deg) scale(1.06) !important; box-shadow: 0 20px 40px -10px rgba(2,6,23,.3) !important; }
+
+    .shine { position: relative; overflow: hidden; }
+    .shine::after { content:''; position:absolute; top:-120%; left:-120%; width:240%; height:240%; background: linear-gradient(120deg, transparent 45%, rgba(255,255,255,.35) 50%, transparent 55%); transform: rotate(15deg); transition: transform .6s; }
+    .shine:hover::after { transform: translateX(60%) rotate(15deg); }
+
+    .fade-in { animation: fadeIn .35s ease both; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:none } }
+
+    .drop-flash { animation: flash .6s ease; }
+    @keyframes flash { 0%{ box-shadow: 0 0 0 0 rgba(34,197,94,.0) } 30%{ box-shadow: 0 0 0 6px rgba(34,197,94,.25) } 100%{ box-shadow: 0 0 0 0 rgba(34,197,94,.0) } }
+
+    /* Confetti */
+    .confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 50; }
+    .confetti-piece { position: absolute; width: 10px; height: 14px; top: -20px; opacity: .95; background: var(--c); left: var(--x); animation: confFall var(--dur) ease-out var(--delay) forwards; transform: translateY(-10vh) rotate(0deg); will-change: transform, opacity; }
+    @keyframes confFall { to { transform: translateY(110vh) rotate(720deg); opacity: 1 } }
+
+    /* Drag particles */
+    .particle-layer{ position:fixed; inset:0; pointer-events:none; z-index:40; overflow:hidden; }
+    .spark{ position:absolute; width:8px; height:8px; border-radius:9999px; opacity:.95; mix-blend-mode:screen; filter:drop-shadow(0 2px 6px rgba(0,0,0,.25)); animation:spark .6s ease-out forwards; }
+    @keyframes spark{ to{ transform:translate(var(--dx),var(--dy)) scale(.2); opacity:0 } }
   </style>
 </head>
 <body class="min-h-screen">
@@ -165,21 +200,39 @@
     const $$ = sel => Array.from(document.querySelectorAll(sel));
     function shuffle(arr){ return arr.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]); }
 
+    // Icon safety + refresh
+    function safeIcon(name){ const allowed=new Set(['sun','wind','droplets','mountain','tree-pine','waves','flame','shopping-cart','truck','factory','zap','rotate-ccw','check-circle','arrow-left','leaf','car','circle']); return allowed.has(name)? name : 'circle'; }
+    function refreshIcons(){ try{ if(window.lucide && lucide.createIcons) lucide.createIcons(); }catch(e){} }
+
+    // Drag particles
+    let PARTICLE_LAYER=null;
+    function ensureParticleLayer(){ if(!PARTICLE_LAYER){ PARTICLE_LAYER=document.createElement('div'); PARTICLE_LAYER.id='particle-layer'; PARTICLE_LAYER.className='particle-layer'; document.body.appendChild(PARTICLE_LAYER);} }
+    function spawnDragParticles(x,y,colorHint){ ensureParticleLayer(); const colors=['#60a5fa','#34d399','#fbbf24','#f472b6','#a78bfa','#f87171']; const base=colorHint||colors[(Math.random()*colors.length)|0]; for(let i=0;i<6;i++){ const p=document.createElement('div'); p.className='spark'; const dx=(Math.random()*30-15).toFixed(1)+'px'; const dy=(-10-Math.random()*30).toFixed(1)+'px'; p.style.left=(x+(Math.random()*12-6))+'px'; p.style.top=(y+(Math.random()*12-6))+'px'; p.style.background=base; p.style.setProperty('--dx',dx); p.style.setProperty('--dy',dy); p.style.animationDuration=(300+Math.random()*300)+'ms'; PARTICLE_LAYER.appendChild(p); setTimeout(()=>p.remove(),800);} }
+
     function makeCard(item, draggable=true, clickable=false){
       const card = document.createElement('div');
-      card.className = `bg-white rounded-lg shadow-md p-3 border-2 border-gray-200 flex flex-col items-center justify-center min-h-[100px] transition-all ${draggable? 'cursor-move hover:scale-105 hover:shadow-lg' : (clickable? 'cursor-pointer hover:bg-gray-50' : '')}`;
+      card.className = `bg-white rounded-lg shadow-md p-3 border-2 border-gray-200 flex flex-col items-center justify-center min-h-[100px] transition-all will-change-transform pop-in shine floaty ${draggable? 'cursor-move hover:scale-105 hover:shadow-lg' : (clickable? 'cursor-pointer hover:bg-gray-50' : '')}`;
+      card.style.setProperty('--d', (Math.random()*2)+'s');
       card.setAttribute('data-id', item.id);
       if (draggable){
         card.setAttribute('draggable','true');
+        let last=0;
         card.addEventListener('dragstart', e=>{
           e.dataTransfer.setData('text/plain', item.id);
           e.dataTransfer.effectAllowed = 'move';
+          card.classList.add('dragging');
         });
+        card.addEventListener('drag', e=>{
+          const now=performance.now();
+          if(now-last>22 && e.clientX && e.clientY){
+            spawnDragParticles(e.clientX, e.clientY);
+            last=now;
+          }
+        });
+        card.addEventListener('dragend', ()=> card.classList.remove('dragging'));
       }
-      if (clickable){
-        card.addEventListener('click', ()=> openDetails(item.id));
-      }
-      card.innerHTML = `<i data-lucide="${item.icon}" class="w-8 h-8 ${item.color} mb-2"></i><span class="text-sm font-medium text-center">${item.name}</span>`;
+      if (clickable){ card.addEventListener('click', ()=> openDetails(item.id)); }
+      card.innerHTML = `<i data-lucide="${safeIcon(item.icon)}" class="w-8 h-8 ${item.color} mb-2"></i><span class="text-sm font-medium text-center">${item.name}</span>`;
       return card;
     }
 
@@ -199,11 +252,20 @@
       const item = ITEM_BY_ID[id]; if(!item) return;
       // Remove wherever it currently is
       $$(`[data-id="${id}"]`).forEach(el=> el.parentElement && el.parentElement.removeChild(el));
-      // Append to target
-      if(box==='renewable') $('#grid-renewable').appendChild(makeCard(item));
-      else if(box==='nonRenewable') $('#grid-nonrenewable').appendChild(makeCard(item));
-      else $('#grid-unsorted').appendChild(makeCard(item));
-      lucide.createIcons();
+      // Determine target grid + container
+      let grid, container;
+      if (box==='renewable'){ grid = $('#grid-renewable'); container = $('#box-renewable'); }
+      else if (box==='nonRenewable'){ grid = $('#grid-nonrenewable'); container = $('#box-nonrenewable'); }
+      else { grid = $('#grid-unsorted'); container = $('#box-unsorted'); }
+      // Append new card with bounce
+      const el = makeCard(item);
+      grid.appendChild(el);
+      el.classList.add('drop-bounce');
+      el.addEventListener('animationend', ()=> el.classList.remove('drop-bounce'), { once:true });
+      // Flash container
+      container.classList.add('drop-flash');
+      container.addEventListener('animationend', ()=> container.classList.remove('drop-flash'), { once:true });
+      refreshIcons();
       updateSortedCount();
     }
 
@@ -213,19 +275,40 @@
       $('#btn-check').disabled = (count !== 16);
     }
 
+    function shake(sel){ const el=$(sel); el.classList.add('wiggle'); el.addEventListener('animationend', ()=> el.classList.remove('wiggle'), { once:true }); }
+
+    function burstConfetti(n=180){
+      const wrap=document.createElement('div'); wrap.className='confetti'; document.body.appendChild(wrap);
+      const colors=['#60a5fa','#34d399','#fbbf24','#f472b6','#a78bfa','#f87171'];
+      for(let i=0;i<n;i++){
+        const s=document.createElement('div'); s.className='confetti-piece';
+        s.style.setProperty('--dur', (2+Math.random()*2).toFixed(2)+'s');
+        s.style.setProperty('--delay', (Math.random()*0.3).toFixed(2)+'s');
+        s.style.setProperty('--x', (Math.random()*100)+'vw');
+        s.style.setProperty('--c', colors[(Math.random()*colors.length)|0]);
+        wrap.appendChild(s);
+      }
+      setTimeout(()=> wrap.remove(), 3800);
+    }
+
     function checkAnswers(){
       const renewableIds = energySources.renewable.map(i=>i.id);
       const nonRenewableIds = energySources.nonRenewable.map(i=>i.id);
       const ren = currentIds('#grid-renewable');
       const non = currentIds('#grid-nonrenewable');
       if (ren.length !== 8 || non.length !== 8){
-        alert('Please place all energy sources in the boxes before checking!'); return;
+        shake('#box-renewable'); shake('#box-nonrenewable');
+        if(navigator.vibrate) navigator.vibrate(60);
+        alert('Please place all energy sources in the boxes before checking!');
+        return;
       }
       const okRen = ren.every(id => renewableIds.includes(id));
       const okNon = non.every(id => nonRenewableIds.includes(id));
       if (okRen && okNon){
         showCompleted(ren, non);
       } else {
+        shake('#box-renewable'); shake('#box-nonrenewable');
+        if(navigator.vibrate) navigator.vibrate([40,40,40]);
         alert('Some energy sources are in the wrong category. Try again!');
       }
     }
@@ -236,11 +319,14 @@
       const nonGrid = $('#grid-complete-nonrenewable'); nonGrid.innerHTML='';
       renIds.forEach(id => renGrid.appendChild(makeCard(ITEM_BY_ID[id], false, true)));
       nonIds.forEach(id => nonGrid.appendChild(makeCard(ITEM_BY_ID[id], false, true)));
-      lucide.createIcons();
-      // Toggle views
+      refreshIcons();
+      // Confetti & view transition
+      burstConfetti(220);
       $('#view-playing').classList.add('hidden');
-      $('#view-completed').classList.remove('hidden');
-      // Clear play grids (optional)
+      const completed = $('#view-completed');
+      completed.classList.remove('hidden');
+      completed.classList.add('fade-in');
+      completed.addEventListener('animationend', ()=> completed.classList.remove('fade-in'), { once:true });
     }
 
     function resetGame(){
@@ -253,24 +339,27 @@
       $('#grid-unsorted').innerHTML='';
       // Refill unsorted with shuffled items
       shuffle(ITEMS.slice()).forEach(item => $('#grid-unsorted').appendChild(makeCard(item)));
-      lucide.createIcons();
+      refreshIcons();
       updateSortedCount();
+      // Nice entrance
+      $$('#grid-unsorted > div').forEach((el,i)=>{ el.style.animationDelay = (i*0.02)+'s'; });
     }
 
     // ----- Details Modal -----
     function openDetails(id){
       const item = ITEM_BY_ID[id]; if(!item) return;
       const details = energyDetails[id];
-      $('#modal-title').textContent = item.name;
-      $('#modal-icon').innerHTML = `<i data-lucide="${item.icon}" class="w-12 h-12 ${item.color}"></i>`;
+      document.getElementById('modal-title').textContent = item.name;
+      document.getElementById('modal-icon').innerHTML = `<i data-lucide="${safeIcon(item.icon)}" class="w-12 h-12 ${item.color}"></i>`;
       const ul = (id)=>document.getElementById(id);
-      function fillList(el, arr, color){ el.innerHTML = arr.map(v=>`<li class='flex items-start gap-2 text-${color}-700'><span class='w-2 h-2 bg-${color}-500 rounded-full mt-2 flex-shrink-0'></span>${v}</li>`).join(''); }
+      function fillList(el, arr, color){ el.innerHTML = arr.map(v=>`<li class='flex items-start gap-2 text-${color}-700 pop-in'><span class='w-2 h-2 bg-${color}-500 rounded-full mt-2 flex-shrink-0'></span>${v}</li>`).join(''); }
       fillList(ul('modal-uses'), details.uses, 'blue');
       fillList(ul('modal-pros'), details.pros, 'green');
       fillList(ul('modal-cons'), details.cons, 'red');
-      lucide.createIcons();
-      $('#modal').classList.remove('hidden');
-      $('#modal').classList.add('flex');
+      refreshIcons();
+      const modal = document.getElementById('modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
     }
 
     function closeModal(){
@@ -293,7 +382,7 @@
       // Initial UI
       updateSortedCount();
       // Render icons
-      lucide.createIcons();
+      refreshIcons();
     });
   </script>
 </body>
