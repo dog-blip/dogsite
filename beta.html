@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>dogsite beta</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+</head>
+<body>
+  <!-- ============== LOGIN SCREEN ============== -->
+  <section id="screen-login">
+    <h1>Sign in</h1>
+
+    <form id="loginForm" novalidate>
+      <div>
+        <label for="username">Username</label><br />
+        <input id="username" name="username" type="text" placeholder="demo" autocomplete="username" required />
+      </div>
+
+      <div style="margin-top:8px;">
+        <label for="password">Password</label><br />
+        <input id="password" name="password" type="password" placeholder="••••••••" autocomplete="current-password" required />
+        <button type="button" id="togglePw" aria-label="Show password">Show</button>
+      </div>
+
+      <div style="margin-top:8px;">
+        <label><input type="checkbox" id="remember" /> Remember me</label>
+      </div>
+
+      <div style="margin-top:12px;">
+        <button type="submit" id="btnLogin">Continue</button>
+        <button type="button" id="btnReset">Reset</button>
+      </div>
+
+      <div id="msg" aria-live="polite" style="margin-top:8px;"></div>
+    </form>
+  </section>
+
+  <!-- ============== DASHBOARD SCREEN (SUCCESS) ============== -->
+  <section id="screen-dashboard" aria-labelledby="dashTitle" hidden>
+    <h1 id="dashTitle">Welcome</h1>
+    <button type="button" id="btnLogout">Log out</button>
+
+    <p id="whoami">Authenticated</p>
+    <hr />
+    <h3>Your Session</h3>
+    <div id="sessionInfo"></div>
+
+    <h3>Quick Links</h3>
+    <ul>
+      <li><a href="www.dogblip.site">main site</a></li>
+<li><a href="https://www.dogblip.site/le%20energy">energy thingy</a></li>
+<li><a href="https://www.dogblip.site/car">car</a></li>
+    </ul>
+
+    <img src="https://images.steamusercontent.com/ugc/1464186273791944485/A235FCC6F904F86BC5F0311E05BCBA50588EA5D4/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false" alt="duck" width="100" height="100">
+    <img src="https://media.tenor.com/k-5EBmqO6ycAAAAj/minecraft-wolf.gif" alt="dawg" width="100" height="87.5">
+  </section>
+  <script>
+    // ======= pass =======
+    const EXPECTED_USERNAME = "demov6";
+    const EXPECTED_PASSWORD = "vvm";
+
+    // ======= Elements =======
+    const screenLogin = document.getElementById('screen-login');
+    const screenDash  = document.getElementById('screen-dashboard');
+    const form        = document.getElementById('loginForm');
+    const inpUser     = document.getElementById('username');
+    const inpPass     = document.getElementById('password');
+    const chkRemember = document.getElementById('remember');
+    const btnToggle   = document.getElementById('togglePw');
+    const btnReset    = document.getElementById('btnReset');
+    const btnLogout   = document.getElementById('btnLogout');
+    const msg         = document.getElementById('msg');
+    const whoami      = document.getElementById('whoami');
+    const sessionInfo = document.getElementById('sessionInfo');
+
+    // Password show/hide
+    btnToggle.addEventListener('click', () => {
+      const isPw = inpPass.type === 'password';
+      inpPass.type = isPw ? 'text' : 'password';
+      btnToggle.textContent = isPw ? 'Hide' : 'Show';
+      inpPass.focus();
+    });
+
+    // Simple “routing” using the hidden attribute
+    function goto(hash) {
+      const toDash = (hash === '#/dashboard');
+      screenLogin.hidden = toDash;
+      screenDash.hidden  = !toDash;
+      history.replaceState(null, '', toDash ? '#/dashboard' : '#/');
+    }
+
+    function signInUser(u, note) {
+      whoami.textContent = `Authenticated as ${u}`;
+      sessionInfo.textContent = note || `Signed in at ${new Date().toLocaleString()}`;
+      goto('#/dashboard');
+    }
+
+    // Validate and “redirect”
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      msg.textContent = '';
+      const u = inpUser.value.trim();
+      const p = inpPass.value;
+
+      if (!u || !p) {
+        msg.textContent = 'Please fill in username and password.';
+        return;
+      }
+
+      // Demo auth
+      if (u === EXPECTED_USERNAME && p === EXPECTED_PASSWORD) {
+        // Remember logic
+        localStorage.setItem('rememberedUser', u);
+        if (chkRemember.checked) {
+          localStorage.setItem('rememberedSession', '1');
+          localStorage.setItem('rememberedSince', String(Date.now()));
+        } else {
+          localStorage.removeItem('rememberedSession');
+          localStorage.removeItem('rememberedSince');
+        }
+        signInUser(u);
+      } else {
+        msg.textContent = 'Invalid username or password.';
+      }
+    });
+
+    btnReset.addEventListener('click', () => {
+      form.reset();
+      msg.textContent = '';
+      // If we have a remembered username, keep it in the box
+      const savedUser = localStorage.getItem('rememberedUser');
+      if (savedUser) {
+        inpUser.value = savedUser;
+        chkRemember.checked = !!localStorage.getItem('rememberedSession');
+      }
+      inpUser.focus();
+    });
+
+    btnLogout.addEventListener('click', () => {
+      inpPass.value = '';
+      msg.textContent = '';
+      // End remembered session but keep remembered username
+      localStorage.removeItem('rememberedSession');
+      localStorage.removeItem('rememberedSince');
+      goto('#/');
+      // Prefill username if remembered
+      const savedUser = localStorage.getItem('rememberedUser');
+      if (savedUser) {
+        inpUser.value = savedUser;
+        chkRemember.checked = false; // session ended
+      }
+      inpUser.focus();
+    });
+
+    // Deep linking (optional)
+    window.addEventListener('hashchange', () => {
+      if (location.hash === '#/dashboard') goto('#/dashboard'); else goto('#/');
+    });
+
+    // ======= Initial load: restore remembered username/session =======
+    (function initRemembered() {
+      const savedUser = localStorage.getItem('rememberedUser');
+      const rememberedSession = localStorage.getItem('rememberedSession') === '1';
+      if (savedUser) {
+        inpUser.value = savedUser;
+        chkRemember.checked = rememberedSession;
+      }
+      if (rememberedSession && savedUser) {
+        const since = Number(localStorage.getItem('rememberedSince')) || Date.now();
+        const note = `Session restored (since ${new Date(since).toLocaleString()})`;
+        signInUser(savedUser, note);
+      } else {
+        goto('#/');
+      }
+    })();
+  </script>
+</body>
+</html>
