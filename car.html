@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Car Drift Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: #87CEEB;
+            font-family: Arial, sans-serif;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .ui {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 16px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 100;
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            font-size: 14px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 100;
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+        }
+
+        .speedometer {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 100;
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+        }
+    </style>
+</head>
+<body>
+    <div class="ui">
+        <div>🏁 3D Drift Simulator</div>
+        <div>Camera: <span id="cameraMode">Chase</span></div>
+    </div>
+
+    <div class="controls">
+        <div><strong>Controls:</strong></div>
+        <div>W/S - Accelerate/Brake</div>
+        <div>A/D - Steer Left/Right</div>
+        <div>Space - Handbrake (Drift)</div>
+        <div>C - Change Camera</div>
+        <div>R - Reset Car</div>
+    </div>
+
+    <div class="speedometer">
+        <div>Speed: <span id="speed">0</span> km/h</div>
+        <div>Drift: <span id="driftStatus">No</span></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.setClearColor(0x87CEEB);
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(100, 100, 50);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 500;
+        directionalLight.shadow.camera.left = -1000;
+        directionalLight.shadow.camera.right = 1000;
+        directionalLight.shadow.camera.top = 1000;
+        directionalLight.shadow.camera.bottom = -1000;
+        scene.add(directionalLight);
+
+        // Ground
+        const groundGeometry = new THREE.PlaneGeometry(10000, 10000);
+        const groundMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0x4a4a4a,
+            transparent: true,
+            opacity: 0.8
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Grid lines for ground
+        const gridHelper = new THREE.GridHelper(10000, 50, 0x666666, 0x555555);
+        scene.add(gridHelper);
+
+        // Car creation
+        function createCar() {
+            const car = new THREE.Group();
+
+            // Car body
+            const bodyGeometry = new THREE.BoxGeometry(4, 1.5, 8);
+            const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0xff4444 });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 1;
+            body.castShadow = true;
+            car.add(body);
+
+            // Car roof
+            const roofGeometry = new THREE.BoxGeometry(3, 1, 4);
+            const roofMaterial = new THREE.MeshLambertMaterial({ color: 0xcc3333 });
+            const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+            roof.position.y = 2;
+            roof.position.z = -0.5;
+            roof.castShadow = true;
+            car.add(roof);
+
+            // Wheels
+            const wheelGeometry = new THREE.CylinderGeometry(0.8, 0.8, 0.3, 8);
+            const wheelMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+            
+            const wheels = [];
+            const wheelPositions = [
+                { x: -1.7, z: 2.5 },  // Front left
+                { x: 1.7, z: 2.5 },   // Front right
+                { x: -1.7, z: -2.5 }, // Rear left
+                { x: 1.7, z: -2.5 }   // Rear right
+            ];
+
+            wheelPositions.forEach((pos, i) => {
+                const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+                wheel.rotation.z = Math.PI / 2;
+                wheel.position.set(pos.x, 0.8, pos.z);
+                wheel.castShadow = true;
+                car.add(wheel);
+                wheels.push(wheel);
+            });
+
+            car.wheels = wheels;
+            car.position.y = 0.4;
+            car.castShadow = true;
+            return car;
+        }
+
+        const car = createCar();
+        scene.add(car);
+
+        // Car physics
+        const carPhysics = {
+            position: new THREE.Vector3(0, 0.4, 0),
+            velocity: new THREE.Vector3(0, 0, 0),
+            rotation: 0,
+            angularVelocity: 0,
+            speed: 0,
+            maxSpeed: 80,
+            acceleration: 0.5,
+            deceleration: 0.3,
+            turnSpeed: 0.02,
+            driftFriction: 0.85,
+            normalFriction: 0.95,
+            isDrifting: false
+        };
+
+        // Input handling
+        const keys = {};
+        let cameraMode = 0; // 0: chase, 1: first person, 2: top-down
+
+        document.addEventListener('keydown', (event) => {
+            keys[event.code] = true;
+            
+            if (event.code === 'KeyC') {
+                cameraMode = (cameraMode + 1) % 3;
+                const modes = ['Chase', 'First Person', 'Top Down'];
+                document.getElementById('cameraMode').textContent = modes[cameraMode];
+            }
+            
+            if (event.code === 'KeyR') {
+                // Reset car
+                carPhysics.position.set(0, 0.4, 0);
+                carPhysics.velocity.set(0, 0, 0);
+                carPhysics.rotation = 0;
+                carPhysics.angularVelocity = 0;
+                carPhysics.speed = 0;
+            }
+        });
+
+        document.addEventListener('keyup', (event) => {
+            keys[event.code] = false;
+        });
+
+        // Particle system for drift smoke
+        const smokeParticles = [];
+        const smokeGeometry = new THREE.SphereGeometry(0.2, 4, 4);
+        const smokeMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xffffff, 
+            transparent: true, 
+            opacity: 0.6 
+        });
+
+        function createSmokeParticle(position) {
+            const particle = new THREE.Mesh(smokeGeometry, smokeMaterial.clone());
+            particle.position.copy(position);
+            particle.scale.set(0.1, 0.1, 0.1);
+            particle.life = 1.0;
+            scene.add(particle);
+            smokeParticles.push(particle);
+        }
+
+        function updateSmokeParticles() {
+            for (let i = smokeParticles.length - 1; i >= 0; i--) {
+                const particle = smokeParticles[i];
+                particle.life -= 0.02;
+                particle.scale.multiplyScalar(1.05);
+                particle.material.opacity = particle.life * 0.6;
+                
+                if (particle.life <= 0) {
+                    scene.remove(particle);
+                    smokeParticles.splice(i, 1);
+                }
+            }
+        }
+
+        // Physics update
+        function updateCarPhysics() {
+            let accelerationInput = 0;
+            let steeringInput = 0;
+            let handbrake = false;
+
+            // Input processing
+            if (keys['KeyW'] || keys['ArrowUp']) accelerationInput = 1;
+            if (keys['KeyS'] || keys['ArrowDown']) accelerationInput = -0.7;
+            if (keys['KeyD'] || keys['ArrowRight']) steeringInput = -1;
+            if (keys['KeyA'] || keys['ArrowLeft']) steeringInput = 1;
+            if (keys['Space']) handbrake = true;
+
+            // Apply acceleration
+            if (accelerationInput !== 0) {
+                carPhysics.speed += accelerationInput * carPhysics.acceleration;
+            } else {
+                // Natural deceleration
+                carPhysics.speed *= 0.98;
+            }
+
+            // Speed limits
+            carPhysics.speed = Math.max(-carPhysics.maxSpeed * 0.5, Math.min(carPhysics.maxSpeed, carPhysics.speed));
+
+            // Steering (only when moving)
+            if (Math.abs(carPhysics.speed) > 0.5 && steeringInput !== 0) {
+                const steerAmount = steeringInput * carPhysics.turnSpeed * (carPhysics.speed / carPhysics.maxSpeed);
+                carPhysics.angularVelocity += steerAmount;
+            }
+
+            // Drift mechanics
+            const speedRatio = Math.abs(carPhysics.speed) / carPhysics.maxSpeed;
+            const turnAmount = Math.abs(carPhysics.angularVelocity);
+            
+            carPhysics.isDrifting = handbrake || (speedRatio > 0.4 && turnAmount > 0.01);
+            
+            // Apply friction
+            const frictionFactor = carPhysics.isDrifting ? carPhysics.driftFriction : carPhysics.normalFriction;
+            carPhysics.angularVelocity *= frictionFactor;
+
+            // Update rotation
+            carPhysics.rotation += carPhysics.angularVelocity;
+
+            // Calculate movement direction
+            const forward = new THREE.Vector3(0, 0, 1);
+            forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), carPhysics.rotation);
+
+            // Update velocity
+            const speedVector = forward.clone().multiplyScalar(carPhysics.speed * 0.1);
+            
+            if (carPhysics.isDrifting) {
+                // Drift physics - less grip, more sliding
+                carPhysics.velocity.lerp(speedVector, 0.1);
+            } else {
+                // Normal physics - better grip
+                carPhysics.velocity.lerp(speedVector, 0.3);
+            }
+
+            // Apply velocity to position
+            carPhysics.position.add(carPhysics.velocity);
+
+            // Update car visual
+            car.position.copy(carPhysics.position);
+            car.rotation.y = carPhysics.rotation;
+
+            // Wheel rotation
+            const wheelRotation = carPhysics.speed * 0.05;
+            car.wheels.forEach((wheel, i) => {
+                wheel.rotation.x += wheelRotation;
+                
+                // Front wheel steering
+                if (i < 2) {
+                    wheel.rotation.y = steeringInput * 0.3;
+                }
+            });
+
+            // Create smoke particles when drifting
+            if (carPhysics.isDrifting && Math.abs(carPhysics.speed) > 5) {
+                const smokePos = carPhysics.position.clone();
+                smokePos.x += (Math.random() - 0.5) * 3;
+                smokePos.z += (Math.random() - 0.5) * 3;
+                smokePos.y = 0.5;
+                
+                if (Math.random() < 0.3) {
+                    createSmokeParticle(smokePos);
+                }
+            }
+
+            // Update UI
+            document.getElementById('speed').textContent = Math.abs(carPhysics.speed * 3).toFixed(0);
+            document.getElementById('driftStatus').textContent = carPhysics.isDrifting ? 'YES!' : 'No';
+        }
+
+        // Camera update
+        function updateCamera() {
+            const carPos = car.position;
+            const carRot = car.rotation.y;
+
+            switch (cameraMode) {
+                case 0: // Chase camera
+                    const chaseDistance = 15;
+                    const chaseHeight = 8;
+                    const chaseOffset = new THREE.Vector3(0, chaseHeight, -chaseDistance);
+                    chaseOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), carRot);
+                    
+                    camera.position.lerp(carPos.clone().add(chaseOffset), 0.1);
+                    camera.lookAt(carPos);
+                    break;
+
+                case 1: // First person
+                    const fpOffset = new THREE.Vector3(0, 3, 2);
+                    fpOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), carRot);
+                    
+                    camera.position.lerp(carPos.clone().add(fpOffset), 0.2);
+                    const lookAhead = new THREE.Vector3(0, 2, 10);
+                    lookAhead.applyAxisAngle(new THREE.Vector3(0, 1, 0), carRot);
+                    camera.lookAt(carPos.clone().add(lookAhead));
+                    break;
+
+                case 2: // Top-down
+                    camera.position.lerp(new THREE.Vector3(carPos.x, 50, carPos.z), 0.1);
+                    camera.lookAt(carPos);
+                    break;
+            }
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            updateCarPhysics();
+            updateCamera();
+            updateSmokeParticles();
+            
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start the simulation
+        camera.position.set(0, 10, -20);
+        animate();
+    </script>
+</body>
+</html>
