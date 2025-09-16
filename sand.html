@@ -6,7 +6,7 @@
 	<title id="titleTag">sandbox - dogblip</title>
 
 	<script> // versioning info
-		currentversion = "1.12";
+		currentversion = "1.31";
 		saveVersion = 5;
 		standalone = false;
 		standaloneType = null;
@@ -47,6 +47,10 @@ html {
 
 * {
   font-family: monospace !important;  
+}
+
+#modsButton, #elemSelectButton {
+  display:none !important;
 }
 body {
 	font-family: 'Press Start 2P', 'VT323', Arial;
@@ -964,46 +968,6 @@ a.texticon:hover, a.texticon:active, a.texticon:hover:active {
 			display:block;padding-bottom:0.5em
 		}
 	</style>
-	<!-- Schema -->
-	<script type="application/ld+json">
-		{
-		  "@context": "https://schema.org",
-		  "@type": ["VideoGame","MobileApplication","WebApplication"],
-		  "gamePlatform":["Web Browser","Windows","macOS"],
-		  "image":"https://sandboxels.r74n.com/icons/icon.png",
-		  "url": "https://sandboxels.r74n.com",
-		  "name":"Sandboxels",
-		  "author":"R74n",
-		  "creator":"R74n",
-		  "description":"Sandboxels is an in-browser falling sand simulator, with mechanics such as heat simulation, electricity, density, chemical reactions, fire, and over 500 unique elements to play with.",
-		  "offers":{
-			"@type":"Offer",
-			"price":"0",
-			"priceCurrency":"USD",
-			"availability":"https://schema.org/InStock"
-		  },
-		  "genre": "Falling-sand game",
-		  "softwareVersion":"1.11.2",
-		  "datePublished":"2021-12-15",
-		  "dateCreated":"2021-12-15",
-		  "gameTip":"https://sandboxels.r74n.com/controls",
-		  "softwareHelp":"https://sandboxels.r74n.com/controls",
-		  "releaseNotes":"https://sandboxels.r74n.com/changelog",
-		  "screenshot": "https://sandboxels.r74n.com/icons/cover-3840x1240px-text.png",
-		  "softwareRequirements": "HTML5",
-		  "archivedAt": "https://web.archive.org/web/20230519005427/https://sandboxels.r74n.com/",
-		  "copyrightYear": 2021,
-		  "copyrightNotice": "©2021-2025. All Rights Reserved. R74n",
-		  "license": "https://sandboxels.r74n.com/license.txt",
-		  "discussionUrl": ["https://r74n.com/discord/","https://www.reddit.com/r/Sandboxels/","https://steamcommunity.com/app/3664820/discussions/"],
-		  "downloadUrl": "https://store.steampowered.com/app/3664820/Sandboxels/",
-		  "installUrl": "https://store.steampowered.com/app/3664820/Sandboxels/",
-		  "trailer": "https://www.youtube.com/watch?v=TgHnD-KRieM",
-		  "educationalUse": "Hands-on lab experiments and learning",
-		  "headline": "Sandboxels",
-		  "isAccessibleForFree": true,
-		  "isFamilyFriendly": true
-	}</script>
 
 	<script>
 		// replaceAll polyfill
@@ -1024,7 +988,7 @@ a.texticon:hover, a.texticon:active, a.texticon:hover:active {
 	</script>
 
 	<script>
-		console.log("%c WELCOME TO DOGBLIP SANDBOXE ","position: absolute; top: 50%; right: 50%; transform: translate(50%,-50%); font-family: Arial; font-size: 3em; font-weight: 700; color: #00ffff; text-shadow: 1px 1px 1px #14c9c9, 1px 2px 1px #14c9c9, 1px 3px 1px #14c9c9, 1px 4px 1px #14c9c9, 1px 5px 1px #14c9c9, 1px 13px 6px rgba(16,16,16,0.4), 1px 22px 10px rgba(16,16,16,0.2), 1px 25px 35px rgba(16,16,16,0.2), 1px 30px 60px rgba(16,16,16,0.4);padding:10px");
+		console.log("%c WELCOME TO DOGBLIP SANDBOXE, NOTHING BEATS A JETSU HOLIDAY! ","position: absolute; top: 50%; right: 50%; transform: translate(50%,-50%); font-family: Arial; font-size: 3em; font-weight: 700; color: #00ffff; text-shadow: 1px 1px 1px #14c9c9, 1px 2px 1px #14c9c9, 1px 3px 1px #14c9c9, 1px 4px 1px #14c9c9, 1px 5px 1px #14c9c9, 1px 13px 6px rgba(16,16,16,0.4), 1px 22px 10px rgba(16,16,16,0.2), 1px 25px 35px rgba(16,16,16,0.2), 1px 30px 60px rgba(16,16,16,0.4);padding:10px");
 
 		// If settings is in localStorage, load it. If not, create an empty object.
 		settings = localStorage.getItem("settings") ? JSON.parse(localStorage.getItem("settings")) : {};
@@ -20560,9 +20524,29 @@ window.onload = function() {
 						document.getElementById("shiftButton").style.display = "inline-block";
 					}
 				</script>
+        <div id="toolControls">
+					<button id="shiftButton" title="Toggle Shift key" class="controlButton" onclick='toggleShift();focusGame();' on="false" style="display:none">↑</button><button id="pauseButton" title="Pause/play the simulation" class="controlButton" onclick='togglePause();focusGame();' on="false">Pause</button><button id="frameButton" title="Pause and play one frame" class="controlButton" onclick='doFrame();focusGame();' on="false">&gt;</button><button id="sizeDownButton" title="Decrease the brush size" class="controlButton" onclick="mouseSize -= shiftDown?mouseSize-1:2;checkMouseSize(true);centerMouse();focusGame();">-</button><button id="sizeUpButton" title="Increase the brush size" class="controlButton" onclick="mouseSize += shiftDown?14:2;checkMouseSize(true);centerMouse();focusGame();">+</button><button id="resetButton" title="Clear the entire scene" class="controlButton" onclick="resetPrompt();">Reset</button><button id="replaceButton" title="Override existing pixels when placing" class="controlButton" onclick='if (mode == "replace") {mode = null;this.setAttribute("on","false");}else {mode = "replace";this.setAttribute("on","true");};focusGame();' on="false">Replace</button><button id="elemSelectButton" title="Select an element by name" class="controlButton" onclick='chooseElementPrompt();'>E</button><button id="tpsButton" title="Change the simulation Ticks Per Second (TPS)" class="controlButton" onclick='tpsPrompt()'>Tps</button><!--<button id="hideButton" title="Stops updating the scene to allow more resources towards simulation" class="controlButton" onclick='if (hiding) {hiding = false;this.setAttribute("on","false");}else {hiding = true;this.setAttribute("on","true");};focusGame();' on="false">Hide</button>--><button id="infoButton" title="Brings up the element info screen" class="controlButton" onclick='if (showingMenu!="info"){closeMenu();showInfo("")}else{closeMenu()};' on="false">Info</button><button id="savesButton" title="Brings up the Save & Load menu" class="controlButton" onclick='if (showingMenu!="saves"){closeMenu();showSaves()}else{closeMenu()};' on="false">Saves</button><button id="modsButton" title="Brings up the Mod Manager" class="controlButton" onclick='if (showingMenu!="mods"){closeMenu();showModManager()}else{closeMenu()};' on="false">Mods</button><button id="settingsButton" title="Brings up the settings screen" class="controlButton" onclick='if (showingMenu!="settings"){closeMenu();showSettings()}else{closeMenu()};' on="false">Settings</button>
+				</div>
 				<div id="category-tools" category="tools" style="display: flex;"></div>
 				<div id="categoryControls"></div>
 				<div id="elementControls"></div>
+				<script>
+					// if it is the 1st of April, add a rainbow-colored button
+					if (!standalone && new Date().getMonth() == 3 && new Date().getDate() <= 3) {
+						// if url contains "fools=true"
+						if (!window.location.href.includes("fools=true")) {
+							var foolsButton = `<button id="foolsButton" title="Enable FOOLS Mode" class="controlButton" onclick="window.location.href = '?fools=true'" style="background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3); background-size: 800% 800%; animation: rainbow 15s ease infinite; -webkit-background-clip: text; -webkit-text-fill-color: transparent; border-color: #ff00ff; outline: none; text-shadow: 0px 0px 10px #ff00ff;">Fools</button>`
+						}
+						else {
+							var foolsButton = `<button id="foolsButton" title="Disable FOOLS Mode" class="controlButton" onclick="window.location.href = '?fools=false'" style="background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3); background-size: 800% 800%; animation: rainbow 15s ease infinite; -webkit-background-clip: text; -webkit-text-fill-color: transparent; border-color: #ff00ff; text-shadow: 0px 0px 10px #ff00ff;">Escape</button>`
+						}
+						// insert before pauseButton
+						document.getElementById("pauseButton").insertAdjacentHTML("beforebegin", foolsButton);
+					}
+					if (isMobile) {
+						document.getElementById("shiftButton").style.display = "inline-block";
+					}
+				</script>
 			</div>
 			<script>
 				// version check
@@ -20625,16 +20609,12 @@ window.onload = function() {
 			</div>
 			<!-- <button id="modManagerAdd" onclick="addMod(document.getElementById('modManagerUrl').value); document.getElementById('modManagerUrl').value = '';">+</button> -->
 		</div>
-
 		<div id="savesParent" class="menuParent">
 			<div id="savesMenu" class="menuScreen">
 				<button class="XButton" onclick="closeMenu();">-</button>
 				<span class="menuTitle" id="savesMenuTitle">Save & Load</span>
 				<div class="menuTabs">
 					<button class="menuTab selected" onclick="handleTab(this)" data-tab="local" id="savesTabLocal">Local</button>
-					<button class="menuTab" onclick="handleTab(this); showFeaturedSaves();" data-tab="featured" id="savesTabFeatured">Featured</button>
-					<button class="menuTab" onclick="showOnlineWarning(() => {if (showingMenu !== 'saves') showSaves(); handleTab(this); showDiscordSaves()})" data-tab="discord" id="savesTabDiscord">Discord</button>
-					<button class="menuTab" onclick="if (window.showWorkshopSaves) showOnlineWarning(() => {if (showingMenu !== 'saves') showSaves(); handleTab(this); showWorkshopSaves()}); else handleTab(this);" data-tab="workshop" id="savesTabWorkshop">Steam</button>
 				</div>
 				<div class="menuTab selected" data-tab="local">
 					<div class="menuText" id="saveSlotList"></div>
@@ -20643,7 +20623,6 @@ window.onload = function() {
 				</div>
 				<div class="menuTab" data-tab="featured">
 					<div class="menuText" id="saveFeaturedList">Loading saves...</div>
-					<span class="menuBottomButton" onclick="window.open('https://github.com/R74nCom/Sandboxels-Featured-Saves/tree/main', '_blank').focus();">View Source</span>
 				</div>
 				<div class="menuTab" data-tab="workshop">
 					<span class="menuTopBar" style="display:none">
@@ -20653,23 +20632,7 @@ window.onload = function() {
 							<option value="0">All Saves</option>
 						</select>
 					</span>
-					<div class="menuText" id="saveWorkshopList">
-						<div style="margin-top:1em">Get <a href="https://store.steampowered.com/app/3664820/Sandboxels/" target="_blank">Sandboxels on Steam</a> to browse saves and publish your own!</div>
-					</div>
-					<span class="menuBottomButton" onclick="openWorkshopPopup();" style="display:none" id="savesOpenWorkshop">Open Workshop</span>
-					<span class="menuBottomButton" onclick="window.open('https://store.steampowered.com/app/3664820/Sandboxels/', '_blank').focus();" id="savesGetOnSteam">Get on Steam</span>
 				</div>
-				<div class="menuTab" data-tab="discord" onscroll="handleDiscordScroll(this)">
-					<span class="menuTopBar">
-						<input type="text" placeholder="Search..." id="discordSearch" oninput="discordSearchChange();">
-						<select id="discordFilter" onchange="showDiscordSaves();">
-							<option value="" disabled selected>Filter...</option>
-							<option value="Popular">Popular</option>
-							<option value="Recent">Recent</option>
-						</select>
-					</span>
-					<div class="menuText" id="saveDiscordList">Loading saves...</div>
-					<span class="menuBottomButton" onclick="window.open('https://discord.gg/ejUc6YPQuS', '_blank').focus();">Join Server</span>
 				</div>
 			</div>
 		</div>
@@ -20952,7 +20915,7 @@ Cancer, Landmine, Grenade, Smoke Grenade">?</span>
 	}
 </script>
 <h3 style="text-align: center;">website made by dog-blip</h3>
-<div id="bottomRightBox" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%;">
+<!---<div id="bottomRightBox" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%;">
   <h2 style="text-align: center; width: 100%;">Controls</h2>
   <table id="controlsTable" style="margin: 0 auto;">
     <tr><td style="text-align:right; padding-right:1em;">Pause simulation</td>   <td><kbd>Space</kbd> or <kbd>P</kbd></td></tr>
@@ -20961,6 +20924,6 @@ Cancer, Landmine, Grenade, Smoke Grenade">?</span>
     <tr><td style="text-align:right; padding-right:1em;">Reset canvas</td>   <td><kbd>R</kbd></td></tr>
     <tr><td style="text-align:right; padding-right:1em;">Capture screenshot</td>   <td><kbd>C</kbd></td></tr>
   </table>
-</div>
+</div> --->
 </body>
 </html>
