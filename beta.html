@@ -2,63 +2,150 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>dogsite beta</title>
+  <title>DogBlip Beta</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root {
+      --bg:#0b1220; --card:#0f172a; --muted:#94a3b8; --text:#e2e8f0;
+      --accent:#60a5fa; --accent-2:#34d399; --danger:#f87171; --ring:rgba(96,165,250,.45);
+    }
+
+    a:link {
+      color:white !important;
+    }
+    *{box-sizing:border-box} html,body{height:100%}
+    body{
+      margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial;
+      color:var(--text);
+      background:
+        radial-gradient(1200px 800px at 10% -10%, #1e293b 0%, transparent 60%),
+        radial-gradient(900px 600px at 100% 10%, #0b3d59 0%, transparent 55%),
+        linear-gradient(180deg,#020617,#0b1220 70%);
+      display:grid;place-items:center;
+    }
+    .container{width:100%;max-width:560px;padding:24px}
+    .screen{display:none;opacity:0;transform:translateY(6px);transition:opacity .25s,transform .25s}
+    .screen.active{display:block;opacity:1;transform:none}
+    .card{
+      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+      border:1px solid rgba(148,163,184,.18);
+      border-radius:16px;padding:28px;box-shadow:0 10px 40px rgba(2,6,23,.45);
+      backdrop-filter:blur(6px);
+    }
+    h1{margin:0 0 4px;font-weight:600;letter-spacing:.2px}
+    p.muted{margin:0 0 18px;color:var(--muted)}
+    .field{margin:14px 0}
+    label{display:block;margin-bottom:6px;color:var(--muted);font-size:14px}
+    input[type="text"],input[type="password"]{
+      width:100%;padding:12px 14px;font-size:15px;color:var(--text);
+      background:#0b1020;border:1px solid rgba(148,163,184,.25);border-radius:10px;
+      outline:none;transition:border-color .15s,box-shadow .15s,background .15s;
+    }
+    input:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--ring)}
+    .row{display:flex;gap:10px;align-items:center}
+    .actions{margin-top:18px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    button{
+      cursor:pointer;border:1px solid rgba(148,163,184,.25);color:#081018;
+      background:linear-gradient(180deg,#93c5fd,#60a5fa);
+      padding:10px 16px;font-weight:600;border-radius:10px;
+      box-shadow:0 8px 24px rgba(96,165,250,.35);transition:transform .06s,filter .15s;
+    }
+    button:active{transform:translateY(1px)}
+    .ghost{background:transparent;color:var(--text);border:1px solid rgba(148,163,184,.35);box-shadow:none}
+    .ok{background:linear-gradient(180deg,#6ee7b7,#34d399);box-shadow:0 8px 24px rgba(52,211,153,.35)}
+    .error{color:var(--danger);font-size:14px;min-height:1.2em}
+    .badge{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:8px 12px;border-radius:999px;
+      background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.35);color:#a7f3d0;
+      font-weight:600;
+    }
+    .divider{height:1px;background:rgba(148,163,184,.18);margin:20px 0}
+    .tile{border:1px solid rgba(148,163,184,.25);border-radius:12px;padding:16px;background:#0b1020}
+    .linkbtn{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(148,163,184,.25);color:var(--text)}
+    .flex{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    code.k{color:#cbd5e1;background:#0b1020;border:1px solid rgba(148,163,184,.25);padding:2px 6px;border-radius:6px}
+  </style>
 </head>
 <body>
-  <!-- ============== LOGIN SCREEN ============== -->
-  <section id="screen-login">
-    <h1>Sign in</h1>
+  <main class="container">
+    <section id="screen-login" class="screen active">
+      <div class="card">
+        <h1>Sign in</h1>
+        <p class="muted">Multi-account demo in a single HTML file (no server).</p>
 
-    <form id="loginForm" novalidate>
-      <div>
-        <label for="username">Username</label><br />
-        <input id="username" name="username" type="text" placeholder="demo" autocomplete="username" required />
+        <!-- Login form only (right Tips tile removed) -->
+        <form id="loginForm" novalidate>
+          <div class="field">
+            <label for="username">Username</label>
+            <input id="username" name="username" type="text" placeholder="e.g. demo" autocomplete="username" required />
+          </div>
+
+          <div class="field">
+            <label for="password">Password</label>
+            <div class="row">
+              <input id="password" name="password" type="password" placeholder="••••••••" autocomplete="current-password" required />
+              <button type="button" id="togglePw" class="ghost" aria-label="Show password">Show</button>
+            </div>
+          </div>
+
+          <div class="row">
+            <label class="row" style="gap:8px;align-items:center;">
+              <input type="checkbox" id="remember" />
+              <span>Remember me</span>
+            </label>
+            <span class="muted" style="font-size:12px;">(keeps you signed in until you log out)</span>
+          </div>
+
+          <div class="actions">
+            <button type="submit" id="btnLogin">Continue</button>
+            <button type="button" id="btnReset" class="ghost">Reset</button>
+            <div id="msg" class="error" aria-live="polite"></div>
+          </div>
+        </form>
       </div>
+    </section>
 
-      <div style="margin-top:8px;">
-        <label for="password">Password</label><br />
-        <input id="password" name="password" type="password" placeholder="••••••••" autocomplete="current-password" required />
-        <button type="button" id="togglePw" aria-label="Show password">Show</button>
+    <section id="screen-dashboard" class="screen" aria-labelledby="dashTitle">
+      <div class="card">
+        <div class="flex" style="justify-content:space-between;">
+          <div>
+            <h1 id="dashTitle" style="margin-bottom:6px;">Welcome</h1>
+            <p class="badge" id="whoami">Authenticated</p>
+          </div>
+          <div class="flex">
+            <button type="button" id="btnLogout" class="ghost">Log out</button>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="grid">
+          <div class="tile">
+            <h3 style="margin:0 0 8px">Your Session</h3>
+            <div id="sessionInfo" class="muted"></div>
+          </div>
+          <div class="tile">
+            <h3 style="margin:0 0 8px">Account</h3>
+            <div id="accountInfo" class="muted"></div>
+          </div>
+          <div class="tile">
+            <h3 style="margin:0 0 8px">Beta Area</h3>
+            <h5><a href="https://www.dogblip.site/le%20energy">energy sorting game</a></h5>
+            <h5><a href="https://www.dogblip.site/car">car</a></h5>
+          </div>
+        </div>
       </div>
+    </section>
+  </main>
 
-      <div style="margin-top:8px;">
-        <label><input type="checkbox" id="remember" /> Remember me</label>
-      </div>
-
-      <div style="margin-top:12px;">
-        <button type="submit" id="btnLogin">Continue</button>
-        <button type="button" id="btnReset">Reset</button>
-      </div>
-
-      <div id="msg" aria-live="polite" style="margin-top:8px;"></div>
-    </form>
-  </section>
-
-  <!-- ============== DASHBOARD SCREEN (SUCCESS) ============== -->
-  <section id="screen-dashboard" aria-labelledby="dashTitle" hidden>
-    <h1 id="dashTitle">Welcome</h1>
-    <button type="button" id="btnLogout">Log out</button>
-
-    <p id="whoami">Authenticated</p>
-    <hr />
-    <h3>Your Session</h3>
-    <div id="sessionInfo"></div>
-
-    <h3>Quick Links</h3>
-    <ul>
-      <li><a href="www.dogblip.site">main site</a></li>
-<li><a href="https://www.dogblip.site/le%20energy">energy thingy</a></li>
-<li><a href="https://www.dogblip.site/car">car</a></li>
-    </ul>
-
-    <img src="https://images.steamusercontent.com/ugc/1464186273791944485/A235FCC6F904F86BC5F0311E05BCBA50588EA5D4/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false" alt="duck" width="100" height="100">
-    <img src="https://media.tenor.com/k-5EBmqO6ycAAAAj/minecraft-wolf.gif" alt="dawg" width="100" height="87.5">
-  </section>
   <script>
-    // ======= pass =======
-    const EXPECTED_USERNAME = "demov6";
-    const EXPECTED_PASSWORD = "vvm";
+    // ======= DEMO ACCOUNTS (edit these) =======
+    const ACCOUNTS = [
+      { username:'sealfr0',  password:'justkeepswimming', display:'god', role:'Owner' },
+      { username:'MaxM', password:'maxmaxmax',  display:'Max',     role:'Beta Tester' },
+//      { username:'bob',   password:'builder', display:'Bob',       role:'Ops' }, 
+    ];
 
     // ======= Elements =======
     const screenLogin = document.getElementById('screen-login');
@@ -73,8 +160,35 @@
     const msg         = document.getElementById('msg');
     const whoami      = document.getElementById('whoami');
     const sessionInfo = document.getElementById('sessionInfo');
+    const accountInfo = document.getElementById('accountInfo');
 
-    // Password show/hide
+    const findAccount = (u) => ACCOUNTS.find(a => a.username === u);
+
+    function show(screen){
+      if (screen === 'dash'){
+        screenLogin.classList.remove('active'); screenLogin.style.display='none';
+        screenDash.style.display='block'; requestAnimationFrame(()=>screenDash.classList.add('active'));
+      } else {
+        screenDash.classList.remove('active'); screenDash.style.display='none';
+        screenLogin.style.display='block'; requestAnimationFrame(()=>screenLogin.classList.add('active'));
+      }
+    }
+    function goto(hash){
+      const toDash = (hash === '#/dashboard');
+      history.replaceState(null,'',toDash?'#/dashboard':'#/');
+      show(toDash?'dash':'login');
+    }
+    function signInUser(acct,note){
+      whoami.textContent = `Authenticated as ${acct.display} (${acct.username})`;
+      sessionInfo.textContent = note || `Signed in at ${new Date().toLocaleString()}`;
+      accountInfo.innerHTML = `
+        <div><b>User:</b> ${acct.display}</div>
+        <div><b>Username:</b> ${acct.username}</div>
+        <div><b>Role:</b> ${acct.role}</div>`;
+      goto('#/dashboard');
+    }
+
+    // Show/hide password
     btnToggle.addEventListener('click', () => {
       const isPw = inpPass.type === 'password';
       inpPass.type = isPw ? 'text' : 'password';
@@ -82,55 +196,31 @@
       inpPass.focus();
     });
 
-    // Simple “routing” using the hidden attribute
-    function goto(hash) {
-      const toDash = (hash === '#/dashboard');
-      screenLogin.hidden = toDash;
-      screenDash.hidden  = !toDash;
-      history.replaceState(null, '', toDash ? '#/dashboard' : '#/');
-    }
-
-    function signInUser(u, note) {
-      whoami.textContent = `Authenticated as ${u}`;
-      sessionInfo.textContent = note || `Signed in at ${new Date().toLocaleString()}`;
-      goto('#/dashboard');
-    }
-
-    // Validate and “redirect”
+    // Handle login
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       msg.textContent = '';
       const u = inpUser.value.trim();
       const p = inpPass.value;
+      if (!u || !p){ msg.textContent = 'Please fill in username and password.'; return; }
+      const acct = findAccount(u);
+      if (!acct || acct.password !== p){ msg.textContent = 'Invalid username or password.'; return; }
 
-      if (!u || !p) {
-        msg.textContent = 'Please fill in username and password.';
-        return;
-      }
-
-      // Demo auth
-      if (u === EXPECTED_USERNAME && p === EXPECTED_PASSWORD) {
-        // Remember logic
-        localStorage.setItem('rememberedUser', u);
-        if (chkRemember.checked) {
-          localStorage.setItem('rememberedSession', '1');
-          localStorage.setItem('rememberedSince', String(Date.now()));
-        } else {
-          localStorage.removeItem('rememberedSession');
-          localStorage.removeItem('rememberedSince');
-        }
-        signInUser(u);
+      localStorage.setItem('rememberedUser', acct.username);
+      if (chkRemember.checked){
+        localStorage.setItem('rememberedSession','1');
+        localStorage.setItem('rememberedSince', String(Date.now()));
       } else {
-        msg.textContent = 'Invalid username or password.';
+        localStorage.removeItem('rememberedSession');
+        localStorage.removeItem('rememberedSince');
       }
+      signInUser(acct);
     });
 
     btnReset.addEventListener('click', () => {
-      form.reset();
-      msg.textContent = '';
-      // If we have a remembered username, keep it in the box
+      form.reset(); msg.textContent = '';
       const savedUser = localStorage.getItem('rememberedUser');
-      if (savedUser) {
+      if (savedUser){
         inpUser.value = savedUser;
         chkRemember.checked = !!localStorage.getItem('rememberedSession');
       }
@@ -138,41 +228,38 @@
     });
 
     btnLogout.addEventListener('click', () => {
-      inpPass.value = '';
-      msg.textContent = '';
-      // End remembered session but keep remembered username
+      inpPass.value = ''; msg.textContent = '';
       localStorage.removeItem('rememberedSession');
       localStorage.removeItem('rememberedSince');
       goto('#/');
-      // Prefill username if remembered
       const savedUser = localStorage.getItem('rememberedUser');
-      if (savedUser) {
-        inpUser.value = savedUser;
-        chkRemember.checked = false; // session ended
-      }
+      if (savedUser){ inpUser.value = savedUser; chkRemember.checked = false; }
       inpUser.focus();
     });
 
-    // Deep linking (optional)
+    // Hash routing
     window.addEventListener('hashchange', () => {
       if (location.hash === '#/dashboard') goto('#/dashboard'); else goto('#/');
     });
 
-    // ======= Initial load: restore remembered username/session =======
-    (function initRemembered() {
+    // Init remembered
+    (function initRemembered(){
       const savedUser = localStorage.getItem('rememberedUser');
       const rememberedSession = localStorage.getItem('rememberedSession') === '1';
-      if (savedUser) {
-        inpUser.value = savedUser;
-        chkRemember.checked = rememberedSession;
+      if (savedUser){ inpUser.value = savedUser; chkRemember.checked = rememberedSession; }
+      if (rememberedSession && savedUser){
+        const acct = findAccount(savedUser);
+        if (acct){
+          const since = Number(localStorage.getItem('rememberedSince')) || Date.now();
+          const note = `Session restored (since ${new Date(since).toLocaleString()})`;
+          signInUser(acct, note);
+          return;
+        } else {
+          localStorage.removeItem('rememberedSession');
+          localStorage.removeItem('rememberedSince');
+        }
       }
-      if (rememberedSession && savedUser) {
-        const since = Number(localStorage.getItem('rememberedSince')) || Date.now();
-        const note = `Session restored (since ${new Date(since).toLocaleString()})`;
-        signInUser(savedUser, note);
-      } else {
-        goto('#/');
-      }
+      goto('#/');
     })();
   </script>
 </body>
