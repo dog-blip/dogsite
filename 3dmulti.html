@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Supabase 3D Multiplayer — FP • Hands • Air Pen • Colors • Punch</title>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<style>
+  :root{--bg:#0b1220;--panel:#0f172a;--border:#1f2a44;--text:#e5e7eb;--muted:#94a3b8;--brand:#60a5fa;}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:#e5e7eb;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter}
+  canvas{display:block}
+  header{position:fixed;left:12px;top:12px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:10px 12px;z-index:10}
+  .tip{color:#94a3b8;font-size:12px;margin-top:6px}
+  #hud{position:fixed;right:12px;top:12px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:10px 12px;z-index:10;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  #hud .stat{min-width:90px}
+  button{cursor:pointer;border:1px solid var(--border);border-radius:8px;padding:6px 10px;background:#0b1325;color:#e5e7eb}
+  #chat{position:fixed;left:12px;bottom:12px;width:min(460px,95vw);background:var(--panel);border:1px solid var(--border);border-radius:12px;display:grid;grid-template-rows:1fr auto;overflow:hidden;z-index:20}
+  #log{height:180px;overflow:auto;padding:10px;scrollbar-width:thin}
+  #log .sys{color:#94a3b8}
+  #chat form{display:flex;gap:8px;border-top:1px solid var(--border);padding:10px}
+  #chat input{flex:1;background:#0b1220;border:1px solid var(--border);color:#e5e7eb;border-radius:10px;padding:10px}
+  #chat button{background:#60a5fa;border:none;color:#041322;font-weight:800;border-radius:10px;padding:10px 12px;cursor:pointer}
+  #join{position:fixed;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);z-index:50}
+  #join .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:18px;min-width:280px}
+  #join input{width:100%;margin-top:8px;background:#0b1220;border:1px solid var(--border);color:#e5e7eb;border-radius:10px;padding:10px}
+  #join button{margin-top:10px;width:100%;background:#60a5fa;border:none;color:#041322;font-weight:800;border-radius:10px;padding:10px;cursor:pointer}
+  #crosshair{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:12;opacity:0;transition:opacity .15s ease}
+  #crosshair .dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,0.9);box-shadow:0 0 0 2px rgba(0,0,0,0.35) inset}
+  .group{display:flex;align-items:center;gap:6px}
+  .group label{font-size:12px;color:#94a3b8}
+  .group input[type="range"]{width:110px}
+</style>
+</head>
+<body>
+<header>
+  <div><strong>3D Multiplayer</strong> • <span id="meId">—</span> <span id="connLed" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f87171;margin-left:8px;vertical-align:middle"></span></div>
+  <div class="tip">WASD move • Shift sprint • Space hop • Click canvas to lock mouse • RMB/E to draw • H spam = punch • Scroll = reach</div>
+</header>
+
+<div id="hud">
+  <div class="stat">Players: <span id="pcount">0</span></div>
+  <div class="stat">Ping: <span id="ping">—</span> ms</div>
+  <div class="stat">FPS: <span id="fps">—</span></div>
+  <button id="toggleHandBtn">Hand: Right</button>
+  <button id="drawModeBtn" title="Toggle draw source">Draw: Hand</button>
+  <button id="clearBtn" title="Clear your drawings (broadcast)">Clear Drawings</button>
+  <button id="chatToggleBtn" title="Hide/Show chat">Hide Chat</button>
+  <div class="group">
+    <label for="sat">Sat</label>
+    <input id="sat" type="range" min="0" max="100" value="60" />
+  </div>
+</div>
+
+<div id="crosshair"><div class="dot"></div></div>
+
+<div id="chat">
+  <div id="log"></div>
+  <form id="chatForm" autocomplete="off">
+    <input id="msg" placeholder="Type message… (Enter to send)" maxlength="300"/>
+    <button type="submit">Send</button>
+  </form>
+  <button id="chatShowFab"
+    style="position:fixed;left:12px;bottom:12px;z-index:19;display:none;background:#60a5fa;border:none;color:#041322;font-weight:800;border-radius:9999px;padding:10px 14px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.35)">
+    Chat
+  </button>
+</div>
+
+<div id="join">
+  <div class="card">
+    <h3>Join the world</h3>
+    <input id="name" placeholder="Display name" maxlength="18"/>
+    <button id="go">Enter</button>
+    <div class="tip">Your name appears above your avatar.</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ---------- Supabase ---------- */
+const SUPABASE_URL = 'https://wsmqgzzshyswzoatcrxw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzbXFnenpzaHlzd3pvYXRjcnh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg0MTc1NjksImV4cCI6MjA3Mzk5MzU2OX0.e9elRwALRq9NCnGqo7eJCWqjS785NhUyKSceSPllUVs';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ---------- State ---------- */
+const state = {
+  myId: crypto.randomUUID(),
+  myName: '',
+  yaw: 0, pitch: 0,
+  activeHand: 'right',
+  drawing: false,
+  strokeSeq: 0,
+  handReach: 0.45,
+  drawMode: 'hand',
+  sat: 0.60,
+  punchUntil: 0,
+};
+const REACH_MIN = 0.35, REACH_MAX = 1.20;
+const PUNCH_THRESHOLD = 3, PUNCH_WINDOW_MS = 900;
+const PUNCH_DURATION = 1000;
+
+const channel = sb.channel('world', { config: { presence: { key: state.myId } } });
+
+/* ===== subscribe to server-authoritative punches ===== */
+sb.channel('realtime:punches')
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'punches' }, (msg) => {
+    const { actor_id, ox, oy, oz, dx, dy, dz, radius, force } = msg.new;
+    const origin = new THREE.Vector3(ox, oy, oz);
+    const dir    = new THREE.Vector3(dx, dy, dz);
+
+    if (actor_id !== state.myId) applyPunchToMe(origin, dir, radius, force);
+
+    // cosmetic nudge for remotes so you see them react
+    for (const [pid, p] of players) {
+      if (pid === actor_id) continue;
+      const toP = p.mesh.position.clone().sub(origin);
+      if (toP.length() <= radius && toP.normalize().dot(dir) > 0.05) {
+        p.nudge.add(toP.multiplyScalar(force * 0.25));
+      }
+    }
+  })
+  .subscribe();
+
+/* ---------- UI ---------- */
+const $ = s => document.querySelector(s);
+const logEl = $('#log'), meIdEl = $('#meId'), pcountEl = $('#pcount'),
+      pingEl = $('#ping'), fpsEl = $('#fps'), connLed = $('#connLed'),
+      crosshair = $('#crosshair'), toggleHandBtn = $('#toggleHandBtn'),
+      drawModeBtn = $('#drawModeBtn'), clearBtn = $('#clearBtn'),
+      msgInput = $('#msg'), nameInput = $('#name'), goBtn = $('#go'),
+      satSlider = $('#sat');
+const chatPanel = document.getElementById('chat');
+const chatToggleBtn = document.getElementById('chatToggleBtn');
+const chatShowFab = document.getElementById('chatShowFab');
+
+drawModeBtn.addEventListener('mousedown', (e)=>{ e.stopPropagation(); });
+drawModeBtn.addEventListener('pointerdown', (e)=>{ e.stopPropagation(); });
+document.getElementById('hud').addEventListener('click', (e)=>{
+  const btn = e.target.closest('#drawModeBtn');
+  if(!btn) return;
+  e.preventDefault(); e.stopPropagation();
+  state.drawMode = (state.drawMode === 'hand') ? 'crosshair' : 'hand';
+  btn.textContent = 'Draw: ' + (state.drawMode === 'hand' ? 'Hand' : 'Crosshair');
+  addLog(`<span class="sys">Draw source: <strong>${state.drawMode}</strong></span>`, 'sys');
+});
+
+function addLog(h, cls=''){ const d=document.createElement('div'); if(cls) d.className=cls; d.innerHTML=h; logEl.appendChild(d); logEl.scrollTop=logEl.scrollHeight; }
+function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+meIdEl.textContent = state.myId.slice(0,8);
+const statusEl = Object.assign(document.createElement('div'), {textContent:'Connecting…'});
+statusEl.style.cssText='position:fixed;right:12px;bottom:12px;background:#0f172a;border:1px solid #1f2a44;border-radius:10px;padding:8px 12px;color:#e5e7eb;z-index:30;font:12px system-ui';
+document.body.appendChild(statusEl);
+
+/* ---------- THREE ---------- */
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0b1220);
+const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 2000);
+camera.position.set(0, 1.6, 5); camera.rotation.order = 'YXZ';
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight); renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+scene.add(new THREE.AmbientLight(0xffffff,0.65));
+const sun=new THREE.DirectionalLight(0xffffff,0.8); sun.position.set(20,30,10); scene.add(sun);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(1000,1000), new THREE.MeshStandardMaterial({color:0x223045,metalness:0.1,roughness:0.9}));
+ground.rotation.x=-Math.PI/2; scene.add(ground);
+scene.add(new THREE.GridHelper(200,200,0x234,0x123));
+const controls=new OrbitControls(camera,renderer.domElement); controls.enabled=false;
+
+/* ---------- Color helpers ---------- */
+function hueFromId(id){ let h=0; for(let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))>>>0; return (h%360)/360; }
+const myHue = hueFromId(state.myId);
+function colorFrom(h, s=state.sat, l=0.6){ const c=new THREE.Color(); c.setHSL(h, Math.max(0,Math.min(1,s)), l); return c; }
+
+/* ---------- Player + hands ---------- */
+function createPlayer(hue, name='', opts={showTag:true}) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.33, 1.10, 10, 18),
+    new THREE.MeshStandardMaterial({ color: colorFrom(hue, state.sat, 0.55), metalness:0.15, roughness:0.65 })
+  );
+  body.position.set(0, 0.6, 0); g.add(body);
+
+  const canvas=document.createElement('canvas'); canvas.width=256; canvas.height=64;
+  const ctx=canvas.getContext('2d'); const tex=new THREE.CanvasTexture(canvas);
+  const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:true}));
+  sprite.scale.set(2.5,0.6,1); sprite.position.set(0,2.2,0); sprite.visible=!!opts.showTag; g.add(sprite);
+  function tag(t=''){ ctx.clearRect(0,0,256,64); ctx.fillStyle='rgba(15,23,42,0.7)'; ctx.fillRect(0,0,256,64); ctx.font='28px Inter, system-ui, sans-serif'; ctx.fillStyle='#e5e7eb'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(t,128,32); sprite.material.map.needsUpdate=true; }
+  tag(name);
+
+  return { mesh:g, body, setName:(n)=>tag(n), nameSprite:sprite, lastUpdate:performance.now(), hands:null, strokes:{}, nudge:new THREE.Vector3(), hue };
+}
+
+const players=new Map();
+let me = createPlayer(myHue, '', { showTag:false }); players.set(state.myId, me); scene.add(me.mesh);
+
+const handGeom = new THREE.SphereGeometry(0.08,16,16);
+const leftHand  = new THREE.Mesh(handGeom, new THREE.MeshStandardMaterial({color: colorFrom(myHue, state.sat, 0.70), roughness:0.6, metalness:0.1}));
+const rightHand = new THREE.Mesh(handGeom, new THREE.MeshStandardMaterial({color: colorFrom(myHue, state.sat, 0.60), roughness:0.6, metalness:0.1}));
+me.mesh.add(leftHand,rightHand);
+leftHand.position.set(-0.18,1.45,0.45);
+rightHand.position.set(0.18,1.45,0.45);
+
+function createRemoteHands(hue){
+  const l=new THREE.Mesh(handGeom,new THREE.MeshStandardMaterial({color: colorFrom(hue, 0.65, 0.70), roughness:0.6, metalness:0.1}));
+  const r=new THREE.Mesh(handGeom,new THREE.MeshStandardMaterial({color: colorFrom(hue, 0.65, 0.60), roughness:0.6, metalness:0.1}));
+  scene.add(l,r); return {left:l,right:r};
+}
+function ensurePlayer(id){
+  if(players.has(id)) return players.get(id);
+  const hue = hueFromId(id);
+  const p = createPlayer(hue);
+  p.hands = createRemoteHands(hue);
+  players.set(id, p);
+  scene.add(p.mesh);
+  return p;
+}
+function applyMyColors(){
+  me.body.material.color.copy(colorFrom(myHue, state.sat, 0.55));
+  leftHand.material.color.copy(colorFrom(myHue, state.sat, 0.70));
+  rightHand.material.color.copy(colorFrom(myHue, state.sat, 0.60));
+}
+$('#sat').addEventListener('input', ()=>{ state.sat = +satSlider.value/100; applyMyColors(); addLog(`<span class="sys">Saturation: ${(state.sat*100)|0}%</span>`,'sys'); });
+
+/* ---------- Drawing ---------- */
+const aimPlane=new THREE.Plane(new THREE.Vector3(0,0,-1), -2.0);
+const raycaster=new THREE.Raycaster();
+const mouseNDC=new THREE.Vector2(0,0);
+
+let currentStroke=null; const myStrokes=[];
+function lineMat(h){ return new THREE.LineBasicMaterial({ color: colorFrom(h, Math.max(0.35, state.sat), 0.62), linewidth:2 }); }
+function beginStroke(startVec3, strokeId=null, hue=myHue){
+  const maxPoints=10000, positions=new Float32Array(maxPoints*3); positions.set([startVec3.x,startVec3.y,startVec3.z],0);
+  const geom=new THREE.BufferGeometry(); geom.setAttribute('position',new THREE.BufferAttribute(positions,3)); geom.setDrawRange(0,1);
+  const line=new THREE.Line(geom, lineMat(hue)); line.frustumCulled=false; scene.add(line);
+  return {positions,geom,line,count:1,id:strokeId??`${state.myId}:${++state.strokeSeq}`};
+}
+function addPoint(st,v){ if(!st) return; const i=st.count*3; if(i+2>=st.positions.length) return; st.positions[i]=v.x; st.positions[i+1]=v.y; st.positions[i+2]=v.z; st.count++; st.geom.attributes.position.needsUpdate=true; st.geom.setDrawRange(0,st.count);}
+function disposeStroke(st){ if(!st) return; scene.remove(st.line); st.geom.dispose(); st.line.material?.dispose?.();}
+function localBeginStroke(p){ currentStroke=beginStroke(p,null,myHue); myStrokes.push(currentStroke.line);
+  channel.send({type:'broadcast',event:'drawStart',payload:{id:state.myId,sid:currentStroke.id,hue:myHue,x:p.x,y:p.y,z:p.z}}); }
+function localEndStroke(){ if(!currentStroke) return; channel.send({type:'broadcast',event:'drawEnd',payload:{id:state.myId,sid:currentStroke.id}}); currentStroke=null; }
+function clearMyDrawings(){ for(const line of myStrokes){ scene.remove(line); line.geometry.dispose(); line.material?.dispose?.(); } myStrokes.length=0;
+  channel.send({type:'broadcast',event:'drawClear',payload:{id:state.myId}}); }
+clearBtn.addEventListener('click', clearMyDrawings);
+
+/* ---------- Input ---------- */
+const keys={};
+addEventListener('keydown', e => { keys[e.code]=true; if(e.code==='KeyH' && !e.repeat && document.activeElement!==msgInput){ toggleActiveHand(true); }});
+addEventListener('keyup',   e => { keys[e.code]=false; });
+
+renderer.domElement.addEventListener('click', ()=>{ if(document.activeElement===msgInput||document.activeElement===nameInput) return; renderer.domElement.requestPointerLock?.(); });
+
+let dragging=false,lastX=0,lastY=0;
+const SENS_LOCK=0.0025,SENS_DRAG=0.0016;
+function isInUI(t){ return !!t.closest('#chat, #join, header, #hud, button, input'); }
+
+document.addEventListener('mousedown', (e)=>{
+  if(isInUI(e.target)) return;
+  const locked=document.pointerLockElement===renderer.domElement;
+  if(e.button===2 && locked){ const p=sampleDrawPoint(); if(p){ state.drawing=true; localBeginStroke(p); } }
+  if(e.button===0 && !locked){ dragging=true; lastX=e.clientX; lastY=e.clientY; crosshair.style.opacity='1'; }
+});
+document.addEventListener('mouseup', (e)=>{
+  const locked=document.pointerLockElement===renderer.domElement;
+  if(e.button===2 && locked){ state.drawing=false; localEndStroke(); }
+  if(e.button===0){ dragging=false; updateCrosshairVisibility(); }
+});
+document.addEventListener('contextmenu', e=>{ if(!isInUI(e.target)) e.preventDefault(); });
+
+document.addEventListener('mousemove', (e)=>{
+  const locked=document.pointerLockElement===renderer.domElement;
+  if(locked){ state.yaw-=e.movementX*SENS_LOCK; state.pitch-=e.movementY*SENS_LOCK; }
+  else if(dragging){ const dx=e.clientX-lastX,dy=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY; state.yaw-=dx*SENS_DRAG; state.pitch-=dy*SENS_DRAG; }
+  state.pitch=Math.max(-1.2,Math.min(1.2,state.pitch));
+  mouseNDC.x=(e.clientX/innerWidth)*2-1; mouseNDC.y=-(e.clientY/innerHeight)*2+1;
+});
+
+/* Keyboard E = draw */
+addEventListener('keydown', e=>{ if(e.code==='KeyE' && !e.repeat && document.pointerLockElement===renderer.domElement){ const p=sampleDrawPoint(); if(p){ state.drawing=true; localBeginStroke(p); } } });
+addEventListener('keyup', e=>{ if(e.code==='KeyE' && document.pointerLockElement===renderer.domElement){ state.drawing=false; localEndStroke(); } });
+
+/* Scroll = reach */
+renderer.domElement.addEventListener('wheel', (e)=>{ if(isInUI(e.target)) return; e.preventDefault(); const d=-e.deltaY*0.0015; state.handReach=Math.min(REACH_MAX,Math.max(REACH_MIN,state.handReach+d)); }, {passive:false});
+
+/* ---------- Hand swap + Punch ---------- */
+const swapTimes = [];
+function toggleActiveHand(fromKey=false){
+  state.activeHand = (state.activeHand==='left') ? 'right' : 'left';
+  toggleHandBtn.textContent = 'Hand: ' + (state.activeHand==='left'?'Left':'Right');
+
+  if(fromKey){
+    const now=performance.now();
+    swapTimes.push(now);
+    while(swapTimes.length && now - swapTimes[0] > PUNCH_WINDOW_MS) swapTimes.shift();
+    if(swapTimes.length >= PUNCH_THRESHOLD){
+      enterPunchMode();
+      swapTimes.length = 0;
+    }
+  }
+}
+toggleHandBtn.addEventListener('click', ()=>toggleActiveHand(false));
+
+function enterPunchMode(){
+  state.punchUntil = performance.now() + PUNCH_DURATION;
+  addLog('<span class="sys">Punch!</span>','sys');
+  doPunch();
+}
+
+/* ===== your new server-authoritative doPunch() ===== */
+async function doPunch(){
+  // small jab animation
+  const save = state.handReach;
+  state.handReach = Math.min(REACH_MAX, save + 0.25);
+  setTimeout(() => state.handReach = save, 120);
+
+  // compute origin/dir in world space
+  const origin = camera.position.clone();
+  const dir    = new THREE.Vector3(0,0,-1).applyEuler(camera.rotation).normalize();
+
+  // slightly more generous defaults to make it easier to land hits
+  const radius = 2.4;
+  const force  = 26;
+
+  // INSERT -> Realtime row appears -> every client handles knockback
+  const { error } = await sb.from('punches').insert({
+    actor_id: state.myId,
+    ox: origin.x, oy: origin.y, oz: origin.z,
+    dx: dir.x,    dy: dir.y,    dz: dir.z,
+    radius, force
+  });
+  if (error) {
+    console.warn('Punch insert failed', error);
+    addLog(`<span class="sys">Punch insert failed: ${escapeHtml(error.message)}</span>`, 'sys');
+  } else {
+    addLog('<span class="sys">Punch!</span>', 'sys');
+  }
+}
+
+/* ---------- Movement ---------- */
+const vel=new THREE.Vector3(); let onGround=true, verticalVel=0;
+const GRAVITY=26, JUMP_VELOCITY=8;
+function getBasisVectors(){ const f=new THREE.Vector3(Math.sin(state.yaw),0,Math.cos(state.yaw)).normalize(); const r=new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0),f).normalize(); return {f,r}; }
+function updateLocal(dt){
+  const {f,r}=getBasisVectors();
+  let forward=0,strafe=0;
+  if(keys['KeyW']||keys['ArrowUp'])forward+=1;
+  if(keys['KeyS']||keys['ArrowDown'])forward-=1;
+  if(keys['KeyD']||keys['ArrowRight'])strafe+=1;
+  if(keys['KeyA']||keys['ArrowLeft'])strafe-=1;
+  const m=Math.hypot(forward,strafe); if(m>1){forward/=m;strafe/=m;}
+  const accel=(keys['ShiftLeft']||keys['ShiftRight'])?35:20;
+  vel.addScaledVector(f,forward*accel*dt); vel.addScaledVector(r,strafe*accel*dt); vel.multiplyScalar(0.88);
+  if((keys['Space']||keys['KeyJ'])&&onGround){verticalVel=JUMP_VELOCITY; onGround=false;}
+  verticalVel-=GRAVITY*dt;
+
+  if(updateLocal.knockback){ vel.addScaledVector(updateLocal.knockback,1); updateLocal.knockback.multiplyScalar(0.86); if(updateLocal.knockback.lengthSq()<1e-4) updateLocal.knockback.set(0,0,0); }
+
+  me.mesh.position.addScaledVector(vel,dt);
+  me.mesh.position.y+=verticalVel*dt;
+  if(me.mesh.position.y<=0){ me.mesh.position.y=0; verticalVel=0; onGround=true; }
+
+  camera.position.copy(me.mesh.position).add(new THREE.Vector3(0,1.6,0));
+  camera.rotation.set(state.pitch,state.yaw,0);
+
+  if(state.punchUntil > performance.now() && document.pointerLockElement===renderer.domElement){
+    if(!doPunch._cooldown || performance.now() - doPunch._cooldown > 220){
+      doPunch._cooldown = performance.now();
+      doPunch();
+    }
+  }
+
+  updateHands();
+}
+
+/* victim-side knockback (wider FOV) */
+function applyPunchToMe(origin, dir, r, f){
+  const toMe = me.mesh.position.clone().sub(origin);
+  const dist = toMe.length();
+  if(dist > r) return;
+  const facing = toMe.normalize().dot(dir) > 0.05; // wider than before
+  if(!facing) return;
+  const kb = toMe.multiplyScalar(f);
+  if(!updateLocal.knockback) updateLocal.knockback = new THREE.Vector3();
+  updateLocal.knockback.add(kb);
+  verticalVel = Math.max(verticalVel, 1.8);
+}
+
+/* ---------- Hands & draw sampling ---------- */
+function getCursorHitPoint(){
+  const forward=new THREE.Vector3(0,0,-1).applyEuler(camera.rotation).normalize();
+  aimPlane.setFromNormalAndCoplanarPoint(forward.clone().negate(), camera.position.clone().add(forward.multiplyScalar(2)));
+  raycaster.setFromCamera(mouseNDC,camera);
+  const hit=new THREE.Vector3(); if(raycaster.ray.intersectPlane(aimPlane,hit)) return hit; return null;
+}
+function updateHands(){
+  const locked=document.pointerLockElement===renderer.domElement;
+  const baseZ=locked?-0.6:-1.2;
+  const fwd=new THREE.Vector3(0,0,-1).applyEuler(camera.rotation);
+  const right=new THREE.Vector3(1,0,0).applyEuler(camera.rotation);
+  const baseWS=me.mesh.position.clone().add(new THREE.Vector3(0,1.45,0));
+  const LtargetWS=baseWS.clone().addScaledVector(fwd,state.handReach).addScaledVector(right,-0.18);
+  const RtargetWS=baseWS.clone().addScaledVector(fwd,state.handReach).addScaledVector(right, 0.18);
+  const eye=camera.position.clone();
+  const LidleWS=eye.clone().add(new THREE.Vector3(-0.25,-0.2,baseZ).applyEuler(camera.rotation));
+  const RidleWS=eye.clone().add(new THREE.Vector3( 0.25,-0.2,baseZ).applyEuler(camera.rotation));
+  const LtargetLS=me.mesh.worldToLocal(LtargetWS.clone());
+  const RtargetLS=me.mesh.worldToLocal(RtargetWS.clone());
+  const LidleLS=me.mesh.worldToLocal(LidleWS.clone());
+  const RidleLS=me.mesh.worldToLocal(RidleWS.clone());
+  if(!locked){ leftHand.position.lerp(LidleLS,0.25); rightHand.position.lerp(RidleLS,0.25); return; }
+  const active=(state.activeHand==='right')?rightHand:leftHand;
+  const idle=(state.activeHand==='right')?leftHand:rightHand;
+  const activeT=(active===rightHand)?RtargetLS:LtargetLS;
+  const idleT=(idle===rightHand)?RidleLS:LidleLS;
+  active.position.lerp(activeT,0.35); idle.position.lerp(idleT,0.25);
+}
+
+/* pick draw point (hand or crosshair) */
+function sampleDrawPoint(){
+  if(document.pointerLockElement!==renderer.domElement) return null;
+  if(state.drawMode==='crosshair'){
+    const dir=new THREE.Vector3(0,0,-1).applyEuler(camera.rotation).normalize();
+    return camera.position.clone().add(dir.multiplyScalar(state.handReach));
+  }else{
+    const active=(state.activeHand==='right')?rightHand:leftHand;
+    const wp=new THREE.Vector3(); active.getWorldPosition(wp); return wp;
+  }
+}
+
+/* add points while drawing (~20Hz) */
+function tickDrawing(){
+  if(!state.drawing || !currentStroke) return;
+  const p=sampleDrawPoint(); if(!p) return;
+  addPoint(currentStroke,p);
+  const now=performance.now();
+  if(!tickDrawing._t || now-tickDrawing._t>50){
+    tickDrawing._t=now;
+    channel.send({type:'broadcast',event:'drawPoint',payload:{id:state.myId,sid:currentStroke.id,x:p.x,y:p.y,z:p.z}});
+  }
+}
+
+/* ---------- Realtime (presence/chat/draw) ---------- */
+channel
+  .on('presence',{event:'sync'},()=>{
+    const s=channel.presenceState(); const ids=Object.keys(s); pcountEl.textContent=ids.length;
+    ids.forEach(id=>{
+      const meta=s[id]?.[0]||{};
+      const p = ensurePlayer(id);
+      p.setName(meta.name||id.slice(0,8));
+    });
+  })
+  .on('broadcast',{event:'state'},({payload})=>{
+    const {id,x,y,z,qy,lhx,lhy,lhz,rhx,rhy,rhz}=payload;
+    if(id===state.myId) return;
+    const p=ensurePlayer(id);
+    p.lastUpdate=performance.now();
+    p.mesh.position.lerp(new THREE.Vector3(x,y,z),0.6);
+    p.mesh.rotation.y=qy;
+    if(p.hands&&Number.isFinite(lhx)){ p.hands.left.position.lerp(new THREE.Vector3(lhx,lhy,lhz),0.6); p.hands.right.position.lerp(new THREE.Vector3(rhx,rhy,rhz),0.6); }
+  })
+  .on('broadcast',{event:'drawStart'},({payload})=>{
+    const {id,sid,hue,x,y,z}=payload; if(id===state.myId) return; const p=ensurePlayer(id);
+    p.strokes[sid]=beginStroke(new THREE.Vector3(x,y,z),sid,hue);
+  })
+  .on('broadcast',{event:'drawPoint'},({payload})=>{
+    const {id,sid,x,y,z}=payload; if(id===state.myId) return; const p=ensurePlayer(id);
+    const st=p.strokes[sid]; if(!st) return; addPoint(st,new THREE.Vector3(x,y,z));
+  })
+  .on('broadcast',{event:'drawEnd'},()=>{})
+  .on('broadcast',{event:'drawClear'},({payload})=>{
+    const {id}=payload; if(id===state.myId) return; const p=players.get(id); if(!p||!p.strokes) return;
+    for(const sid in p.strokes){ disposeStroke(p.strokes[sid]); } p.strokes={};
+  })
+  .on('broadcast',{event:'chat'},({payload})=>{
+    addLog(`<strong>${escapeHtml(payload.name)}:</strong> ${escapeHtml(payload.text)}`);
+  })
+  .on('broadcast',{event:'ping'},({payload})=>{
+    if(payload.k===state.myId){ pingEl.textContent=Math.round(performance.now()-payload.t); }
+  })
+  .subscribe(async (status)=>{
+    statusEl.textContent = status==='SUBSCRIBED' ? 'Connected' : `Status: ${status}`;
+    setInterval(()=>{ const s=channel?.socket?.connectionState?.(); connLed.style.background=(s==='open')?'#34d399':(s==='connecting'?'#fbbf24':'#f87171'); },500);
+    if(status!=='SUBSCRIBED') return;
+    try{ await channel.track({name: state.myName || state.myId.slice(0,8)}); }catch(e){ console.warn('track() failed:',e); }
+    addLog(`<span class="sys">Connected. Your id is ${state.myId.slice(0,8)}.</span>`,'sys');
+    setInterval(()=>channel.send({type:'broadcast',event:'ping',payload:{k:state.myId,t:performance.now()}}),4000);
+  });
+
+  /* ------ punches also -------- */
+
+  sb.channel('punches-feed')
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'punches' }, (msg) => {
+    const { actor_id, ox, oy, oz, dx, dy, dz, radius, force } = msg.new;
+    const origin = new THREE.Vector3(ox, oy, oz);
+    const dir    = new THREE.Vector3(dx, dy, dz);
+    if (actor_id !== state.myId) applyPunchToMe(origin, dir, radius, force);
+    // cosmetic nudges for remotes ... (keep the rest of your handler)
+  })
+  .subscribe();
+
+
+/* ---------- Send state ---------- */
+let accum=0;
+function sendState(){
+  const lhW=new THREE.Vector3(); leftHand.getWorldPosition(lhW);
+  const rhW=new THREE.Vector3(); rightHand.getWorldPosition(rhW);
+  channel.send({type:'broadcast',event:'state',payload:{
+    id:state.myId,x:me.mesh.position.x,y:me.mesh.position.y,z:me.mesh.position.z,qy:me.mesh.rotation.y,
+    lhx:lhW.x,lhy:lhW.y,lhz:lhW.z,rhx:rhW.x,rhy:rhW.y,rhz:rhW.z,t:performance.now()
+  }});
+}
+
+/* ---------- Chat ---------- */
+$('#chatForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  const text=msgInput.value.trim(); if(!text) return;
+  msgInput.value='';
+  channel.send({type:'broadcast',event:'chat',payload:{name: state.myName||state.myId.slice(0,8), text}});
+});
+
+/* ---------- Join ---------- */
+goBtn.addEventListener('click', ()=>{
+  state.myName=(nameInput.value.trim()||'').slice(0,18)||state.myId.slice(0,8);
+  me.setName(state.myName);
+  me.nameSprite.visible=false;
+  channel.track({name: state.myName}).catch(()=>{});
+  $('#join').style.display='none';
+  addLog(`<span class="sys">You joined as <strong>${escapeHtml(state.myName)}</strong>.</span>`,'sys');
+});
+nameInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); goBtn.click(); } });
+
+/* ---------- Loop ---------- */
+let last=performance.now(); let fpsSamples=[];
+function loop(){
+  requestAnimationFrame(loop);
+  const now=performance.now(); const dt=Math.min(0.05,(now-last)/1000); last=now;
+  updateLocal(dt);
+  tickDrawing();
+
+  // apply/decay nudge for remotes (visual only)
+  for(const [id,p] of players){ if(id===state.myId) continue; if(p.nudge.lengthSq()>1e-6){ p.mesh.position.addScaledVector(p.nudge,dt); p.nudge.multiplyScalar(0.86); } }
+
+  accum+=dt; if(accum>=0.1){ accum=0; sendState(); }
+
+  fpsSamples.push(1/dt); if(fpsSamples.length>20){ const avg=fpsSamples.reduce((a,b)=>a+b,0)/fpsSamples.length; fpsEl.textContent=Math.round(avg); fpsSamples=[]; }
+  renderer.render(scene,camera);
+}
+loop();
+
+addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+
+/* ---------- Chat visibility ---------- */
+const CHAT_LS_KEY='chat_visible';
+function setChatVisible(show){
+  if(show){ chatPanel.style.display='grid'; chatShowFab.style.display='none'; chatToggleBtn.textContent='Hide Chat'; }
+  else { chatPanel.style.display='none'; chatShowFab.style.display='block'; chatToggleBtn.textContent='Show Chat'; }
+  try{ localStorage.setItem(CHAT_LS_KEY, show?'1':'0'); }catch{}
+}
+setChatVisible(localStorage.getItem(CHAT_LS_KEY)!=='0');
+chatToggleBtn.addEventListener('click', ()=> setChatVisible(!(chatPanel.style.display!=='none')));
+chatShowFab.addEventListener('click', ()=> setChatVisible(true));
+
+/* ---------- Crosshair visibility ---------- */
+function updateCrosshairVisibility(){ const locked=document.pointerLockElement===renderer.domElement; crosshair.style.opacity=locked?'1':(dragging?'1':'0'); }
+document.addEventListener('pointerlockchange', updateCrosshairVisibility);
+crosshair.style.opacity='0';
+</script>
+</body>
+</html>
