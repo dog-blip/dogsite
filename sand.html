@@ -989,7 +989,7 @@ a.texticon:hover, a.texticon:active, a.texticon:hover:active {
 
 	<script>
 		console.log("%c WELCOME TO DOGBLIP SANDBOXE, NOTHING BEATS A JETSU HOLIDAY! ","position: absolute; top: 50%; right: 50%; transform: translate(50%,-50%); font-family: Arial; font-size: 3em; font-weight: 700; color: #00ffff; text-shadow: 1px 1px 1px #14c9c9, 1px 2px 1px #14c9c9, 1px 3px 1px #14c9c9, 1px 4px 1px #14c9c9, 1px 5px 1px #14c9c9, 1px 13px 6px rgba(16,16,16,0.4), 1px 22px 10px rgba(16,16,16,0.2), 1px 25px 35px rgba(16,16,16,0.2), 1px 30px 60px rgba(16,16,16,0.4);padding:10px");
-    isOnSite = location.hostname === "https://sandboxels.r74n.com/";
+    isOnSite = location.hostname === "https://sandboxels.r74n.com/"; //fuck i had to use theirs D:
 
 		// If settings is in localStorage, load it. If not, create an empty object.
 		settings = localStorage.getItem("settings") ? JSON.parse(localStorage.getItem("settings")) : {};
@@ -18674,6 +18674,12 @@ for (var k = 0; k < b0.split(" AND ").length; k++) {
 				savesParent.style.display = "none";
 				showingMenu = false;
 			}
+			else if (showingMenu == "rooms") {
+				var roomsParent = document.getElementById("roomsParent");
+				roomsParent.style.display = "none";
+				showingMenu = false;
+			}
+
 			else if (showingMenu == "savePrompt") {
 				var savePrompt = document.getElementById("savePromptParent");
 				savePrompt.style.display = "none";
@@ -20486,7 +20492,7 @@ window.onload = function() {
 			}
 		</script>
 		<div id="canvasDiv" style="display:none">
-			<canvas id="game" width="800" height="600">
+			<div style="position:relative;display:inline-block;"><canvas id="game" width="800" height="600">
 				Your browser does not support the HTML5 canvas tag.<br>
 				Please update your browser to the latest version.<br>
 				<a href="https://www.google.com/chrome/" tabindex="-1">Chrome</a> 4.0+<br>
@@ -20494,7 +20500,7 @@ window.onload = function() {
 				<a href="http://www.apple.com/safari/" tabindex="-1">Safari</a> 3.1+<br>
 				<a href="http://www.opera.com/" tabindex="-1">Opera</a> 9.0+<br>
 				<a href="https://www.microsoft.com/edge" tabindex="-1">Microsoft Edge</a> 12.0+<br>
-			</canvas>
+			</canvas><canvas id="mpCursors" style="position:absolute;left:0;top:0;pointer-events:none;"></canvas></div>
 			<input id="colorSelector" type="color" value="#ff0000" onchange="currentColorMap[currentElement]=this.value;
 			document.getElementById('elementButton-'+currentElement).style.removeProperty('background-image');
 			document.getElementById('elementButton-'+currentElement).style.background = currentColorMap[currentElement];" oninput="currentColorMap[currentElement]=this.value;
@@ -20526,7 +20532,7 @@ window.onload = function() {
 					}
 				</script>
         <div id="toolControls">
-					<button id="shiftButton" title="Toggle Shift key" class="controlButton" onclick='toggleShift();focusGame();' on="false" style="display:none">↑</button><button id="pauseButton" title="Pause/play the simulation" class="controlButton" onclick='togglePause();focusGame();' on="false">Pause</button><button id="frameButton" title="Pause and play one frame" class="controlButton" onclick='doFrame();focusGame();' on="false">&gt;</button><button id="sizeDownButton" title="Decrease the brush size" class="controlButton" onclick="mouseSize -= shiftDown?mouseSize-1:2;checkMouseSize(true);centerMouse();focusGame();">-</button><button id="sizeUpButton" title="Increase the brush size" class="controlButton" onclick="mouseSize += shiftDown?14:2;checkMouseSize(true);centerMouse();focusGame();">+</button><button id="resetButton" title="Clear the entire scene" class="controlButton" onclick="resetPrompt();">Reset</button><button id="replaceButton" title="Override existing pixels when placing" class="controlButton" onclick='if (mode == "replace") {mode = null;this.setAttribute("on","false");}else {mode = "replace";this.setAttribute("on","true");};focusGame();' on="false">Replace</button><button id="elemSelectButton" title="Select an element by name" class="controlButton" onclick='chooseElementPrompt();'>E</button><button id="tpsButton" title="Change the simulation Ticks Per Second (TPS)" class="controlButton" onclick='tpsPrompt()'>Tps</button><!--<button id="hideButton" title="Stops updating the scene to allow more resources towards simulation" class="controlButton" onclick='if (hiding) {hiding = false;this.setAttribute("on","false");}else {hiding = true;this.setAttribute("on","true");};focusGame();' on="false">Hide</button>--><button id="infoButton" title="Brings up the element info screen" class="controlButton" onclick='if (showingMenu!="info"){closeMenu();showInfo("")}else{closeMenu()};' on="false">Info</button><button id="savesButton" title="Brings up the Save & Load menu" class="controlButton" onclick='if (showingMenu!="saves"){closeMenu();showSaves()}else{closeMenu()};' on="false">Saves</button><button id="modsButton" title="Brings up the Mod Manager" class="controlButton" onclick='if (showingMenu!="mods"){closeMenu();showModManager()}else{closeMenu()};' on="false">Mods</button><button id="settingsButton" title="Brings up the settings screen" class="controlButton" onclick='if (showingMenu!="settings"){closeMenu();showSettings()}else{closeMenu()};' on="false">Settings</button>
+					<button id="shiftButton" title="Toggle Shift key" class="controlButton" onclick='toggleShift();focusGame();' on="false" style="display:none">↑</button><button id="pauseButton" title="Pause/play the simulation" class="controlButton" onclick='togglePause();focusGame();' on="false">Pause</button><button id="frameButton" title="Pause and play one frame" class="controlButton" onclick='doFrame();focusGame();' on="false">&gt;</button><button id="sizeDownButton" title="Decrease the brush size" class="controlButton" onclick="mouseSize -= shiftDown?mouseSize-1:2;checkMouseSize(true);centerMouse();focusGame();">-</button><button id="sizeUpButton" title="Increase the brush size" class="controlButton" onclick="mouseSize += shiftDown?14:2;checkMouseSize(true);centerMouse();focusGame();">+</button><button id="resetButton" title="Clear the entire scene" class="controlButton" onclick="resetPrompt();">Reset</button><button id="replaceButton" title="Override existing pixels when placing" class="controlButton" onclick='if (mode == "replace") {mode = null;this.setAttribute("on","false");}else {mode = "replace";this.setAttribute("on","true");};focusGame();' on="false">Replace</button><button id="elemSelectButton" title="Select an element by name" class="controlButton" onclick='chooseElementPrompt();'>E</button><button id="tpsButton" title="Change the simulation Ticks Per Second (TPS)" class="controlButton" onclick='tpsPrompt()'>Tps</button><!--<button id="hideButton" title="Stops updating the scene to allow more resources towards simulation" class="controlButton" onclick='if (hiding) {hiding = false;this.setAttribute("on","false");}else {hiding = true;this.setAttribute("on","true");};focusGame();' on="false">Hide</button>--><button id="infoButton" title="Brings up the element info screen" class="controlButton" onclick='if (showingMenu!="info"){closeMenu();showInfo("")}else{closeMenu()};' on="false">Info</button><button id="roomsButton" title="Create or join a multiplayer room" class="controlButton" onclick='if (showingMenu!="rooms"){closeMenu();openRoomsMenu();}else{closeMenu()};' on="false">Rooms</button><button id="modsButton" title="Brings up the Mod Manager" class="controlButton" onclick='if (showingMenu!="mods"){closeMenu();showModManager()}else{closeMenu()};' on="false">Mods</button><button id="settingsButton" title="Brings up the settings screen" class="controlButton" onclick='if (showingMenu!="settings"){closeMenu();showSettings()}else{closeMenu()};' on="false">Settings</button>
 				</div>
 				<div id="category-tools" category="tools" style="display: flex;"></div>
 				<div id="categoryControls"></div>
@@ -20636,6 +20642,54 @@ window.onload = function() {
 				</div>
 				</div>
 			</div>
+		<div id="roomsParent" class="menuParent" style="display:none">
+			<div id="roomsMenu" class="menuScreen">
+				<button class="XButton" onclick="closeMenu();">-</button>
+				<span class="menuTitle">Multiplayer Rooms</span>
+				<div class="menuText" style="padding-top:0.75em">
+					<div style="margin-bottom:0.5em">
+						<label>Display name:</label>
+						<input id="mpDisplayName" type="text" placeholder="Your name">
+					</div>
+					<div style="margin-bottom:0.5em">
+						<label>Room code:</label>
+						<input id="mpRoomCode" type="text" placeholder="e.g. cozy-fox-123">
+					
+					</div>
+					<div style="margin-bottom:0.5em">
+						<label>Room password (optional):</label>
+						<input id="mpRoomPassHost" type="password" placeholder="Leave blank for no password">
+					</div>
+					<div style="margin:0.75em 0">
+
+						<span class="button" onclick="MP.createRoom()">Create</span>
+						<span class="button" onclick="MP.joinRoom()">Join</span>
+						<span class="button" onclick="MP.leaveRoom()">Leave</span>
+					</div>
+
+					<hr style="border:1px solid var(--theme);opacity:0.5">
+
+					<div id="mpStatus" style="margin:0.5em 0">Status: Not connected</div>
+
+					<div>
+						<div><b>Members</b> <small id="mpRoleBadge"></small></div>
+						<ul id="mpMemberList"></ul>
+					</div>
+
+					<div id="mpHostControls" style="display:none;margin-top:0.5em">
+						<div><b>Host tools</b>
+        <div id="mpPasswordRow" style="display:none;margin-top:0.5em">
+          <span class="button" onclick="MP.showPassword()">Show password</span>
+          <span id="mpPasswordValue" style="margin-left:0.5em;opacity:0.9"></span>
+        </div>
+    
+</div>
+						<div style="font-size:0.9em;opacity:0.9"><em>Click a name above to kick/ban</em></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		</div>
 		<div id="savePromptParent" class="menuParent">
 			<div id="savePromptMenu" class="menuScreen">
@@ -20926,5 +20980,447 @@ Cancer, Landmine, Grenade, Smoke Grenade">?</span>
     <tr><td style="text-align:right; padding-right:1em;">Capture screenshot</td>   <td><kbd>C</kbd></td></tr>
   </table>
 </div> --->
+
+<!-- Supabase client -->
+<script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+
+<script>
+// ======= MULTIPLAYER (Supabase Realtime) — CLEAN BUILD =======
+// Fill in your Supabase credentials:
+const SUPABASE_URL = "https://duwdxzrdyqlzrjqcnnuk.supabase.co";   
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1d2R4enJkeXFsenJqcWNubnVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MDUyNDgsImV4cCI6MjA3Mjk4MTI0OH0.SXRIwgyCSsS7yd9DS-5-cNCKdqRMwwYQ2GtAguOUYgk";                                         // TODO
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function openRoomsMenu() {
+  showingMenu = "rooms";
+  const roomsParent = document.getElementById("roomsParent");
+  roomsParent.style.display = "block";
+  const st = document.getElementById("mpStatus");
+  if (st) st.textContent = MP.status();
+  MP.refreshMembersUI();
+  setRoleBadge();
+
+  try {
+    // Show the password row if host; value shown after clicking the button
+    if (MP.isHost) { var r=document.getElementById('mpPasswordRow'); if (r) r.style.display='block'; }
+  } catch(e) {}
+}
+function setRoleBadge() {
+  const badge = document.getElementById('mpRoleBadge');
+  if (badge) badge.textContent = MP.isHost ? "— You are host" : "";
+}
+
+const MP = {
+  // runtime
+  q: [],
+  flushTimer: null,
+  orig: { create:null, delete:null, reset:null },
+  channel: null,
+  roomCode: null,
+  userId: (self.crypto && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)),
+  name: null,
+  isHost: false,
+  members: new Map(),
+  cursors: new Map(),
+  cursorColor: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6,'0'),
+  _cursorDirty: false,
+  _cursorLast: {x:0, y:0, s:1},
+
+  status() { return this.roomCode ? `Connected to "${this.roomCode}" as ${this.name || 'Player'}` : "Not connected"; },
+  uiVals() {
+    return {
+      roomCode: (document.getElementById('mpRoomCode').value || "").trim(),
+      name: (document.getElementById('mpDisplayName').value || "").trim() || "Player",
+    };
+  },
+
+  async createRoom() {
+    const {roomCode, name} = this.uiVals();
+    if (!roomCode) { alert("Enter a room code"); return; }
+    this.name = name;
+
+    // ensure not exists
+    const { data: existing, error: selErr } = await sb.from('rooms').select('code').eq('code', roomCode).maybeSingle();
+    if (selErr) { alert("Create failed: " + selErr.message); return; }
+    if (existing) { alert("Room already exists. Use Join instead, or choose a different code."); return; }
+
+    // host token + optional password
+    const hostToken = (self.crypto && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+    try { localStorage.setItem(`room:${roomCode}:hostToken`, hostToken); } catch(e) {}
+    const roomPass = (document.getElementById('mpRoomPassHost')?.value || '').trim();
+
+    const { error } = await sb.from('rooms').insert({
+      code: roomCode, host_id: this.userId, host_token: hostToken, room_password: roomPass || null
+    });
+    if (error) { alert("Create failed: " + error.message); return; }
+    await this._connect(roomCode, true);
+  },
+
+  async joinRoom() {
+    const {roomCode, name} = this.uiVals();
+    if (!roomCode) { alert("Enter a room code"); return; }
+    this.name = name;
+
+    const { data, error } = await sb.from('rooms').select('banned_ids, has_password').eq('code', roomCode).maybeSingle();
+    if (error) { alert("Join failed: " + error.message); return; }
+    if (!data) { alert("No such room. Check the code."); return; }
+
+    if (Array.isArray(data.banned_ids) && data.banned_ids.includes(this.userId)) {
+      alert("You are banned from this room."); return;
+    }
+    if (data.has_password) {
+      const pw = prompt("This room is protected. Enter password:");
+      if (pw === null) return;
+      const { data: ok, error: perr } = await sb.rpc('verify_room_password', { p_code: roomCode, p_password: pw });
+      if (perr) { alert("Password check failed: " + perr.message); return; }
+      if (!ok) { alert("Wrong password."); return; }
+    }
+    await this._connect(roomCode, false);
+  },
+
+  async leaveRoom() {
+    if (this.channel) {
+      try { this.channel.unsubscribe(); } catch(e) {}
+      try { await sb.removeChannel(this.channel); } catch(e) {}
+    }
+    this.channel = null;
+    this.isHost = false;
+    this.roomCode = null;
+    this.members.clear();
+    this.cursors.clear();
+    this.refreshMembersUI();
+    const st = document.getElementById("mpStatus");
+    if (st) st.textContent = this.status();
+    setRoleBadge();
+  },
+
+  async _connect(roomCode, host) {
+    this.isHost = !!host;
+    this.roomCode = roomCode;
+    this.channel = sb.channel(`room:${roomCode}`, { config: { broadcast: { ack: false }, presence: { key: this.userId } } });
+
+    // Presence
+    this.channel.on('presence', { event: 'sync' }, () => {
+      const state = this.channel.presenceState();
+      this.members.clear();
+      Object.values(state).forEach(arr => arr.forEach(({ user_id, name, color }) => {
+        this.members.set(user_id, { name, color });
+      }));
+      this.refreshMembersUI();
+    });
+
+    // Moderation (kick/ban)
+    this.channel.on('broadcast', { event: 'moderation' }, (payload) => {
+      const d = payload.payload || {};
+      if ((d.action === 'kick' || d.action === 'ban') && d.targetId === this.userId) {
+        alert(d.action === 'kick' ? "You were kicked by the host." : "You were banned by the host.");
+        this.leaveRoom();
+      }
+    });
+
+    // Pixel batch stream
+    this.channel.on('broadcast', { event: 'pixel' }, (payload) => {
+      MP._applyPixelBatch(payload.payload);
+    });
+
+    // Cursor updates
+    this.channel.on('broadcast', { event: 'cursor' }, (payload) => {
+      const d = payload.payload || {};
+      if (!d || d.id === MP.userId) return;
+      MP.cursors.set(d.id, d);
+    });
+
+    // Late-join sync protocol
+    this.channel.on('broadcast', { event: 'sync_req' }, (payload) => {
+      const d = payload.payload || {};
+      if (!MP.isHost || !d || !d.requester) return;
+      MP._sendSnapshot(d.requester);
+    });
+    this.channel.on('broadcast', { event: 'sync_begin' }, (payload) => {
+      const d = payload.payload || {};
+      if (d.target !== MP.userId) return;
+      try { if (typeof resetGame === 'function') resetGame(); } catch(e){}
+      MP._applyingSnapshot = true;
+    });
+    this.channel.on('broadcast', { event: 'sync_chunk' }, (payload) => {
+      const d = payload.payload || {};
+      if (d.target !== MP.userId) return;
+      const arr = d.data || [];
+      for (const p of arr) {
+        try { if (typeof MP.orig.create === 'function') MP.orig.create(p.e, p.x, p.y); } catch(e){}
+      }
+    });
+    this.channel.on('broadcast', { event: 'sync_done' }, (payload) => {
+      const d = payload.payload || {};
+      if (d.target !== MP.userId) return;
+      MP._applyingSnapshot = false;
+    });
+
+    await this.channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        this.channel.track({ user_id: this.userId, name: this.name, color: this.cursorColor });
+        try { await sb.from('room_members').upsert({ room_code: this.roomCode, user_id: this.userId, name: this.name }); } catch(e) {}
+        const st = document.getElementById("mpStatus");
+        if (st) st.textContent = this.status();
+        setRoleBadge();
+        if (!MP.isHost) { MP.requestSync(); }
+      }
+    });
+  },
+
+  refreshMembersUI() {
+    const ul = document.getElementById('mpMemberList');
+    if (!ul) return;
+    ul.innerHTML = '';
+    const hostControls = document.getElementById('mpHostControls');
+    if (hostControls) hostControls.style.display = this.isHost ? 'block' : 'none';
+    const selfId = this.userId;
+    this.members.forEach(({name}, uid) => {
+      const li = document.createElement('li');
+      li.textContent = `${name}${uid===selfId?' (you)':''}`;
+      if (this.isHost && uid !== selfId) {
+        li.style.cursor = 'pointer';
+        li.title = 'Click to Kick / Ban';
+        li.onclick = () => this._memberActionMenu(uid, name);
+      }
+      ul.appendChild(li);
+    });
+  },
+
+  _memberActionMenu(targetId, targetName) {
+    const choice = prompt(`Host action for ${targetName}:\n- Type "kick" to remove\n- Type "ban" to ban`, "kick");
+    if (choice === 'kick') this._hostKick(targetId);
+    else if (choice === 'ban') this._hostBan(targetId);
+  },
+  async _hostKick(targetId) {
+    if (!this.isHost) return;
+    this.channel.send({ type: 'broadcast', event: 'moderation', payload: { action: 'kick', targetId } });
+  },
+  async _hostBan(targetId) {
+    if (!this.isHost) return;
+    await MP._rpcBan(targetId);
+    this.channel.send({ type: 'broadcast', event: 'moderation', payload: { action: 'ban', targetId } });
+  },
+
+  
+  async showPassword() {
+    if (!this.isHost) return;
+    const row = document.getElementById('mpPasswordRow');
+    const val = document.getElementById('mpPasswordValue');
+    // Try to fetch securely via RPC that checks host_token
+    const token = this._getHostToken();
+    if (!token) { alert("Missing host token. You might not be the creator on this device."); return; }
+    try {
+      const { data, error } = await sb.rpc('get_room_password', { p_code: this.roomCode, p_token: token });
+      if (error) { alert("Couldn't fetch password: " + error.message); return; }
+      if (row) row.style.display = 'block';
+      if (val) val.textContent = data || "(no password set)";
+    } catch(e) {
+      alert("Couldn't fetch password.");
+    }
+  },
+_getHostToken() {
+    try { return localStorage.getItem(`room:${this.roomCode}:hostToken`) || ""; } catch(e) { return ""; }
+  },
+  async _rpcBan(targetId){
+    const token = this._getHostToken();
+    if (!token) { alert("Missing host token. You might not be the creator on this device."); return; }
+    await sb.rpc('append_to_banned', { p_code: this.roomCode, p_user_id: targetId, p_token: token });
+  },
+
+  // Cursor send (throttled)
+  sendCursor(x, y, size) {
+    this._cursorLast = { x, y, s: size || (typeof mouseSize !== 'undefined' ? mouseSize : 1) };
+    if (this._cursorDirty) return;
+    this._cursorDirty = true;
+    setTimeout(() => {
+      if (!MP.channel || !MP.roomCode) { MP._cursorDirty = false; return; }
+      MP.channel.send({ type: 'broadcast', event: 'cursor', payload: { x: MP._cursorLast.x, y: MP._cursorLast.y, s: MP._cursorLast.s, id: MP.userId, name: MP.name, color: MP.cursorColor } });
+      MP._cursorDirty = false;
+    }, 30);
+  },
+
+  // Snapshot request/sender
+  requestSync() { if (this.channel) this.channel.send({ type: 'broadcast', event: 'sync_req', payload: { requester: this.userId } }); },
+  async _sendSnapshot(targetId){
+    try {
+      const w = (typeof width !== 'undefined' ? width : (pixelMap ? pixelMap.length : 0));
+      const h = (typeof height !== 'undefined' ? height : (pixelMap ? pixelMap[0].length : 0));
+      this.channel.send({ type: 'broadcast', event: 'sync_begin', payload: { target: targetId, w, h } });
+      const CHUNK_SIZE = 1200;
+      let chunk = [];
+      for (let y = 0; y <= h; y++) {
+        for (let x = 0; x <= w; x++) {
+          try {
+            const has = (typeof isEmpty === 'function') ? !isEmpty(x, y, true) : (pixelMap && pixelMap[x] && pixelMap[x][y]);
+            if (has) {
+              const p = pixelMap ? pixelMap[x][y] : null;
+              const e = p && p.element ? p.element : (pixelMap && pixelMap[x][y] ? pixelMap[x][y].element : null);
+              if (e) {
+                chunk.push({ e, x, y });
+                if (chunk.length >= CHUNK_SIZE) {
+                  this.channel.send({ type: 'broadcast', event: 'sync_chunk', payload: { target: targetId, data: chunk } });
+                  chunk = [];
+                }
+              }
+            }
+          } catch(e){}
+        }
+      }
+      if (chunk.length) this.channel.send({ type: 'broadcast', event: 'sync_chunk', payload: { target: targetId, data: chunk } });
+      this.channel.send({ type: 'broadcast', event: 'sync_done', payload: { target: targetId } });
+    } catch(e) { console.warn("Snapshot failed", e); }
+  },
+
+  // Batching for pixel ops
+  _queue(evt, immediateReset=false) {
+    if (!MP.channel || !MP.roomCode) return;
+    if (immediateReset) { MP._flush(); MP.channel.send({ type:'broadcast', event:'pixel', payload:{ batch:[evt] } }); return; }
+    MP.q.push(evt);
+    if (!MP.flushTimer) MP.flushTimer = setTimeout(MP._flush, 30);
+  },
+  _flush() {
+    if (!MP.channel || MP.q.length === 0) { MP.flushTimer = null; return; }
+    const payload = { batch: MP.q.splice(0, MP.q.length) };
+    MP.channel.send({ type:'broadcast', event:'pixel', payload });
+    MP.flushTimer = null;
+  },
+  _applyPixelBatch(payload) {
+    const batch = payload && payload.batch ? payload.batch : (payload ? [payload] : []);
+    for (const p of batch) {
+      if (!p) continue;
+      if (p.s && p.s === MP.userId) continue; // ignore own echo
+      MP._applyPixelAction(p);
+    }
+  },
+
+  _log(msg) { console.log("[MP]", msg); }
+};
+
+// Wrap game mutators once so receiver replays originals (no re-broadcast)
+(function setupGamePatches(){
+  function ready(){
+    return typeof window.createPixel === 'function' && typeof window.deletePixel === 'function';
+  }
+  (function wait(){ if(!ready()) return setTimeout(wait,200);
+    const _create = window.createPixel;
+    const _delete = window.deletePixel;
+    const _reset  = window.resetGame || window.reset;
+    MP.orig.create = _create;
+    MP.orig.delete = _delete;
+    MP.orig.reset  = _reset;
+
+    window.createPixel = function(element, x, y){
+      const r = _create.apply(this, arguments);
+      if (MP.channel && MP.roomCode) MP._queue({ t:'c', e:element, x, y, s: MP.userId });
+      return r;
+    };
+    window.deletePixel = function(x, y){
+      const r = _delete.apply(this, arguments);
+      if (MP.channel && MP.roomCode) MP._queue({ t:'d', x, y, s: MP.userId });
+      return r;
+    };
+    if (_reset) {
+      window.resetGame = function(){
+        const r = _reset.apply(this, arguments);
+        if (MP.channel && MP.roomCode) MP._queue({ t:'R', s: MP.userId }, true);
+        return r;
+      };
+    }
+    MP._applyPixelAction = function(p){
+      if (!p) return;
+      if (p.t === 'c') { if (typeof MP.orig.create === 'function') MP.orig.create(p.e, p.x, p.y); }
+      else if (p.t === 'd') { if (typeof MP.orig.delete === 'function') MP.orig.delete(p.x, p.y); }
+      else if (p.t === 'R') { if (typeof MP.orig.reset === 'function') MP.orig.reset(); }
+    };
+    console.log("[MP] Game patches installed.");
+  })();
+})();
+
+// Resilience on tab resume
+document.addEventListener('visibilitychange', ()=>{
+  if (!document.hidden) {
+    try {
+      if (MP.channel && MP.channel.state !== 'joined') MP.channel.subscribe();
+    } catch(e){}
+  }
+});
+</script>
+
+
+<!--
+Run once in Supabase SQL editor (adds password support):
+
+alter table public.rooms add column if not exists room_password text;
+alter table public.rooms add column if not exists has_password boolean
+generated always as (coalesce(length(room_password),0) > 0) stored;
+
+create or replace function public.verify_room_password(p_code text, p_password text)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select coalesce((select room_password from public.rooms where code = p_code) = p_password, false);
+$$;
+
+grant execute on function public.verify_room_password(text, text) to anon, authenticated;
+-->
+
+<script>
+(function setupCursorOverlay(){
+  const game = document.getElementById('game');
+  const overlay = document.getElementById('mpCursors');
+  if (!game || !overlay) return;
+  function resize(){
+    overlay.width = game.width;
+    overlay.height = game.height;
+    const gp = game.getBoundingClientRect();
+    overlay.style.width = gp.width + "px";
+    overlay.style.height = gp.height + "px";
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  let lastRender = 0;
+  function render(ts){
+    if (ts - lastRender > 30) {
+      const ctx = overlay.getContext('2d');
+      ctx.clearRect(0,0,overlay.width, overlay.height);
+      MP.cursors.forEach(c=>{
+        if (!c) return;
+        const s = Math.max(1, c.s|0);
+        ctx.save();
+        ctx.strokeStyle = c.color || '#00ffff';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(c.x - Math.floor(s/2), c.y - Math.floor(s/2), s, s);
+        ctx.fillStyle = c.color || '#00ffff';
+        ctx.font = '10px monospace';
+        ctx.fillText(c.name || 'Player', c.x + Math.floor(s/2) + 2, c.y - Math.floor(s/2) - 2);
+        ctx.restore();
+      });
+      lastRender = ts;
+    }
+    requestAnimationFrame(render);
+  }
+  requestAnimationFrame(render);
+
+  function rel(ev){
+    const rect = game.getBoundingClientRect();
+    const scaleX = game.width / rect.width;
+    const scaleY = game.height / rect.height;
+    const x = Math.round((ev.clientX - rect.left) * scaleX);
+    const y = Math.round((ev.clientY - rect.top) * scaleY);
+    return {x,y};
+  }
+  ['mousemove','pointermove'].forEach(evt=>{
+    game.addEventListener(evt, (e)=>{
+      if (!MP.roomCode) return;
+      const {x,y} = rel(e);
+      const s = (typeof mouseSize!=='undefined'? mouseSize : 1);
+      MP.sendCursor(x,y,s);
+    }, {passive:true});
+  });
+})();
+</script>
 </body>
 </html>
