@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Blooket‑style Quiz • Shareable Play Tab • Persist Progress</title>
+<style>
+  :root{
+    /* Light theme */
+    --bg1:#f6f7fb; --bg2:#ffffff; --fg:#0f1221; --muted:#5b6175; --card:#ffffff; --border:rgba(20,24,45,.12);
+    --primary:#5b8cff; --secondary:#8b5cff; --accent:#ff6fb1; --success:#3ac27b; --danger:#ef5350; --warn:#ffb74d;
+    --grad:linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
+    --softgrad:linear-gradient(135deg, rgba(91,140,255,.08), rgba(139,92,255,.08), rgba(255,111,177,.08));
+    --shadow:0 12px 28px rgba(20,24,45,.15);
+    --radius:18px;
+  }
+  html[data-theme="dark"]{
+    /* Dark theme */
+    --bg1:#0e0f1a; --bg2:#0c0e19; --fg:#f4f7ff; --muted:#a2a9c5; --card:#15172b; --border:rgba(255,255,255,.1);
+    --primary:#6ba3ff; --secondary:#9b7bff; --accent:#ff89c5; --success:#54e28b; --danger:#ff6b6b; --warn:#ffd37a;
+    --grad:linear-gradient(135deg, #6ba3ff, #9b7bff, #ff89c5);
+    --softgrad:linear-gradient(135deg, rgba(107,163,255,.12), rgba(155,123,255,.10), rgba(255,137,197,.08));
+    --shadow:0 12px 28px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; color:var(--fg);
+       background: radial-gradient(1200px 700px at 100% -10%, rgba(139,92,255,.18), transparent),
+                   radial-gradient(1200px 700px at -10% 120%, rgba(91,140,255,.18), transparent), var(--bg1);}  
+  .container{max-width:1100px; margin:0 auto; padding:24px}
+  header{position:sticky; top:0; z-index:10; backdrop-filter: blur(8px); background:color-mix(in oklab, var(--bg1) 70%, transparent); border-bottom:1px solid var(--border)}
+  .nav{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 24px}
+  .brand{display:flex; gap:12px; align-items:center; font-weight:800}
+  .brand .em{background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .btn{cursor:pointer; border:0; border-radius:14px; padding:10px 14px; font-weight:700; color:white; background:var(--grad); box-shadow:var(--shadow); transition: transform .12s ease, box-shadow .2s ease}
+  .btn:hover{transform:translateY(-1px)}
+  .btn:active{transform:translateY(0) scale(.98)}
+  .btn.ghost{background:transparent; color:var(--fg); border:1px solid var(--border); box-shadow:none}
+  .btn.warn{background:linear-gradient(180deg, #ff9b9b, #ef5350)}
+  .btn.success{background:linear-gradient(180deg, #6ee7a8, #34d399)}
+  .grid{display:grid; gap:16px}
+  @media(min-width:900px){ .grid{grid-template-columns:1fr 1fr} }
+  .card{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); animation: fadeUp .35s ease both}
+  .head{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px; border-bottom:1px solid var(--border)}
+  .body{padding:18px}
+  input[type="text"],input[type="password"],input[type="number"],textarea{width:100%; background:var(--bg2); color:var(--fg); border:1px solid var(--border); border-radius:12px; padding:10px 12px; outline:none; transition: box-shadow .2s ease, border-color .2s ease}
+  input:focus, textarea:focus{box-shadow:0 0 0 4px color-mix(in oklab, var(--primary) 25%, transparent); border-color: color-mix(in oklab, var(--primary) 60%, var(--border))}
+  textarea{min-height:80px}
+  .muted{color:var(--muted)}
+  .pill{display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border:1px solid var(--border); border-radius:999px; background:var(--softgrad)}
+  .list{display:grid; gap:12px}
+  .quiz-item{padding:14px; border:1px solid var(--border); border-radius:16px; background:var(--softgrad); transition: transform .15s ease}
+  .quiz-item:hover{transform: translateY(-2px)}
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .space{height:12px}
+  .progress{height:10px; background:var(--bg2); border:1px solid var(--border); border-radius:999px; overflow:hidden}
+  .progress>div{height:100%; width:0%; background:var(--grad); transition: width .35s ease}
+  .center{display:flex; align-items:center; justify-content:center}
+  .hidden{display:none}
+
+  /* Animations */
+  @keyframes fadeUp { from{opacity:0; transform: translateY(6px)} to{opacity:1; transform:none} }
+  @keyframes pulsePop { 0%{transform:scale(1)} 50%{transform:scale(1.03)} 100%{transform:scale(1)} }
+  .answerBtn{width:100%; padding:14px; border-radius:14px; color:#fff; font-weight:800; background:var(--grad); box-shadow:var(--shadow); transition: transform .12s ease, filter .2s ease}
+  .answerBtn:hover{transform: translateY(-1px)}
+  .answerBtn:active{transform: translateY(0) scale(.98)}
+  .answerBtn.correct{background:linear-gradient(135deg, var(--success), #4ad58f)}
+  .answerBtn.wrong{background:linear-gradient(135deg, var(--danger), #ff8a8a)}
+  .bounce{animation: pulsePop .4s ease}
+  .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--card); border:1px solid var(--border); padding:10px 14px; border-radius:999px; box-shadow:var(--shadow)}
+  .badge{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px dashed var(--border)}
+  .table{width:100%; border-collapse:collapse}
+  .table th,.table td{border-bottom:1px solid var(--border); padding:8px 10px; text-align:left}
+  .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace}
+</style>
+</head>
+<body>
+  <header>
+    <div class="nav container">
+      <div class="brand">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l2.39 4.84L20 8l-4 3.89.95 5.53L12 15.77 7.05 17.42 8 11.89 4 8l5.61-1.16L12 2z" fill="url(#g)"/><defs><linearGradient id="g" x1="0" y1="0" x2="24" y2="24"><stop stop-color="#6ba3ff"/><stop offset="1" stop-color="#ff89c5"/></linearGradient></defs></svg>
+        <span><span class="em">Blook‑Quiz</span></span>
+      </div>
+      <div class="row">
+        <button id="themeBtn" class="btn ghost" title="Toggle light/dark">🌗 Theme</button>
+        <button id="exportBtn" class="btn ghost" title="Export quizzes JSON">Export</button>
+        <label class="btn ghost" for="importFile" title="Import quizzes JSON">Import</label>
+        <input id="importFile" type="file" accept="application/json" style="display:none" />
+        <button id="analyticsBtn" class="btn ghost hidden" title="Admin analytics">Analytics</button>
+        <button id="logoutBtn" class="btn ghost hidden">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- LOGIN -->
+    <section id="login" class="card">
+      <div class="head"><strong>Login</strong><span class="pill">made by dogblip</span></div>
+      <div class="body">
+        <form id="loginForm" class="list">
+          <div>
+            <label class="muted">Username</label>
+            <input id="user" type="text" placeholder="Enter username" autocomplete="username" />
+          </div>
+          <div>
+            <label class="muted">Password</label>
+            <input id="pass" type="password" placeholder="Enter password" autocomplete="current-password" />
+          </div>
+          <div id="loginError" class="muted" style="color:var(--danger)"></div>
+          <div class="row">
+            <button class="btn" type="submit">Login</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section id="dash" class="hidden">
+      <div class="card">
+        <div class="head">
+          <strong>My Quizzes</strong>
+          <button id="newQuiz" class="btn">+ Create New</button>
+        </div>
+        <div class="body">
+          <div id="quizList" class="list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- EDITOR -->
+    <section id="editor" class="hidden">
+      <div class="card">
+        <div class="head"><strong id="editorTitle">Create Quiz</strong><button id="cancelEdit" class="btn ghost">Cancel</button></div>
+        <div class="body list">
+          <div class="grid">
+            <div>
+              <label class="muted">Quiz Title</label>
+              <input id="qTitle" type="text" placeholder="Enter quiz title" />
+            </div>
+            <div style="align-self:end">
+              <label class="muted" style="display:block; margin-bottom:6px">Show answers on results</label>
+              <label class="pill" style="cursor:pointer">
+                <input id="qReveal" type="checkbox" /> Enable reveal
+              </label>
+            </div>
+          </div>
+          <div id="qWrap" class="list"></div>
+          <div class="row">
+            <button id="addQ" class="btn ghost">+ Add Question</button>
+            <button id="saveQ" class="btn">Save Quiz</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PLAY -->
+    <section id="play" class="hidden">
+      <div class="card">
+        <div class="head"><strong id="playTitle">Play</strong><button id="backDash" class="btn ghost">Back</button></div>
+        <div class="body">
+          <div id="stageLobby" class="list">
+            <div class="center"><div class="pill" id="quizMeta"></div></div>
+            <div>
+              <label class="muted">Your Name</label>
+              <input id="playerName" type="text" placeholder="Enter player name" />
+            </div>
+            <button id="startBtn" class="btn">Start Game</button>
+            <div class="mono muted" id="shareLinkWrap" style="word-break:break-all; display:none"></div>
+          </div>
+
+          <div id="stageGame" class="hidden">
+            <div class="row" style="justify-content:space-between; margin-bottom:10px">
+              <div class="row">
+                <div class="pill"><strong id="uiPlayer">Player</strong></div>
+                <div class="pill">Score: <span id="uiScore" style="margin-left:6px; font-weight:800">0</span></div>
+                <div class="pill" id="uiStreakWrap" style="display:none">Streak: <span id="uiStreak" style="margin-left:6px; font-weight:800">0</span></div>
+              </div>
+              <div class="pill">⏱️ <span id="uiTime" style="margin-left:6px; font-weight:800">15</span>s</div>
+            </div>
+            <div class="progress"><div id="bar"></div></div>
+            <div class="space"></div>
+            <div id="qText" style="font-size:1.25rem; font-weight:800"></div>
+            <div class="space"></div>
+            <div id="answers" class="grid"></div>
+            <div id="feedback" class="center muted" style="font-weight:800; margin-top:12px"></div>
+          </div>
+
+          <div id="stageResults" class="hidden center">
+            <div class="list" style="max-width:760px; width:100%">
+              <div class="center"><div style="font-size:3rem">🏆</div></div>
+              <h2 class="center" style="margin:0">Game Over!</h2>
+              <div class="card" style="padding:16px; text-align:center">
+                <div style="font-size:3rem; font-weight:900" id="finalScore">0</div>
+                <div class="muted">Total Points</div>
+              </div>
+              <div id="revealWrap" class="hidden">
+                <h3 style="margin:6px 0">Answer Breakdown</h3>
+                <div class="card" style="padding:0">
+                  <table class="table" id="revealTable">
+                    <thead><tr><th>#</th><th>Question</th><th>Your Answer</th><th>Correct</th><th>Result</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="row center">
+                <button id="againBtn" class="btn">Play Again</button>
+                <button id="backBtn" style="display: none;" class="btn ghost">Back to Dashboard</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN ANALYTICS (admin only) -->
+    <section id="admin" class="hidden">
+      <div class="card">
+        <div class="head"><strong>Analytics</strong><button id="adminBack" class="btn ghost">Back</button></div>
+        <div class="body list">
+          <div class="row">
+            <label class="muted">Select quiz</label>
+            <select id="analyticsSelect"></select>
+            <button id="exportStatsBtn" class="btn ghost">Export Stats</button>
+          </div>
+          <div id="analyticsSummary" class="row"></div>
+          <div class="card" style="padding:0">
+            <table class="table" id="attemptsTable">
+              <thead><tr><th>Date</th><th>Player</th><th>Score</th><th>Correct</th><th>Total</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div id="qStatsWrap" class="card" style="padding:0">
+            <table class="table" id="qStatsTable">
+              <thead><tr><th>#</th><th>Question</th><th>Correct %</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script>
+/**** Helpers ****/
+const qs = s=>document.querySelector(s);
+const qsa = s=>Array.from(document.querySelectorAll(s));
+const show = id => (qs('#login').classList.add('hidden'), qs('#dash').classList.add('hidden'), qs('#editor').classList.add('hidden'), qs('#play').classList.add('hidden'), qs('#admin').classList.add('hidden'), qs(id).classList.remove('hidden'));
+const download = (filename, data) => { const blob=new Blob([data],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); };
+const encodeQuiz = q => btoa(unescape(encodeURIComponent(JSON.stringify(q))));
+const decodeQuiz = str => JSON.parse(decodeURIComponent(escape(atob(str))));
+
+/**** Light/Dark Theme ****/
+(function themeInit(){
+  const saved = localStorage.getItem('blook_theme');
+  if(saved) document.documentElement.setAttribute('data-theme', saved);
+  qs('#themeBtn').addEventListener('click', ()=>{
+    const cur = document.documentElement.getAttribute('data-theme')==='dark' ? 'light':'dark';
+    document.documentElement.setAttribute('data-theme', cur);
+    localStorage.setItem('blook_theme', cur);
+  });
+})();
+
+/**** Demo Auth (UI hides creds; do not expose anywhere) ****/
+const ACCOUNTS = { teacher1: 'pass123', admin:'admin123', demo:'demo' };
+let session = { loggedIn:false, username:'' };
+
+qs('#loginForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const u = qs('#user').value.trim();
+  const p = qs('#pass').value;
+  if(ACCOUNTS[u] && ACCOUNTS[u]===p){
+    session.loggedIn = true; session.username = u; qs('#loginError').textContent='';
+    qs('#logoutBtn').classList.remove('hidden');
+    if(u==='admin') qs('#analyticsBtn').classList.remove('hidden'); else qs('#analyticsBtn').classList.add('hidden');
+    renderDash(); show('#dash');
+  } else {
+    qs('#loginError').textContent='Invalid username or password';
+  }
+});
+qs('#logoutBtn').addEventListener('click', ()=>{ session={loggedIn:false, username:''}; show('#login'); qs('#logoutBtn').classList.add('hidden'); });
+
+/**** Data ****/
+let quizzes = JSON.parse(localStorage.getItem('blook_quizzes')||'null') || [
+  { id:1, title:'Sample Quiz', reveal:true, questions:[
+    { question:'What is 2+2?', answers:['3','4','5','6'], correct:1 },
+    { question:'Capital of France?', answers:['London','Paris','Berlin','Rome'], correct:1 }
+  ]}
+];
+let stats = JSON.parse(localStorage.getItem('blook_stats')||'{}'); // { [quizId]: { plays:number, attempts:[{player, score, correct, total, answers:[], ts}] } }
+let editing = null; // {id,title,reveal,questions}
+
+function saveAll(){ localStorage.setItem('blook_quizzes', JSON.stringify(quizzes)); }
+function saveStats(){ localStorage.setItem('blook_stats', JSON.stringify(stats)); }
+
+/**** Import / Export (quizzes) ****/
+qs('#exportBtn').addEventListener('click', ()=>{
+  download('quizzes.json', JSON.stringify({quizzes}, null, 2));
+});
+qs('#importFile').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{
+    const data = JSON.parse(r.result);
+    if(!data || !Array.isArray(data.quizzes)) throw new Error('bad');
+    quizzes = data.quizzes; saveAll(); renderDash(); toast('Imported quizzes ✅');
+  }catch(err){ toast('Invalid JSON'); } }; r.readAsText(f);
+});
+
+/**** Dashboard ****/
+function shareUrlForQuiz(q){
+  // Embed quiz JSON in URL hash for easy sharing
+  const base = location.href.split('#')[0].split('?')[0];
+  return `${base}#play=${encodeQuiz({ id:q.id, title:q.title, reveal:!!q.reveal, questions:q.questions })}`;
+}
+function openSharePlay(q){
+  const url = shareUrlForQuiz(q);
+  window.open(url, '_blank');
+}
+
+function renderDash(){
+  const list = qs('#quizList'); list.innerHTML='';
+  const welcome = document.createElement('p'); welcome.className='muted'; welcome.textContent = `Welcome back, ${session.username}!`;
+  list.append(welcome);
+  quizzes.forEach(q=>{
+    const item = document.createElement('div'); item.className='quiz-item';
+    const plays = stats[q.id]?.plays||0;
+    item.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; gap:12px">
+        <div>
+          <div style="font-weight:800">${q.title}</div>
+          <div class="muted">${q.questions.length} questions</div>
+          ${session.username==='admin'?`<div class="badge">👥 ${plays} players</div>`:''}
+        </div>
+        <div class="row">
+          <button class="btn success" data-play="${q.id}">Play (New Tab)</button>
+          <button class="btn ghost" data-share="${q.id}">Copy Link</button>
+          <button class="btn ghost" data-edit="${q.id}">Edit</button>
+          ${session.username==='admin'?`<button class="btn ghost" data-ana="${q.id}">Analytics</button>`:''}
+          <button class="btn warn" data-del="${q.id}">Delete</button>
+        </div>
+      </div>`;
+    list.append(item);
+  });
+}
+
+qs('#newQuiz').addEventListener('click', ()=>{
+  editing = { id:Date.now(), title:'', reveal:true, questions:[{question:'', answers:['','','',''], correct:0}] };
+  qs('#editorTitle').textContent='Create Quiz';
+  renderEditor(); show('#editor');
+});
+
+qs('#quizList').addEventListener('click', e=>{
+  const id = e.target.getAttribute('data-edit')||e.target.getAttribute('data-del')||e.target.getAttribute('data-play')||e.target.getAttribute('data-ana')||e.target.getAttribute('data-share');
+  if(!id) return; const qid = Number(id); const q = quizzes.find(x=>x.id===qid);
+  if(e.target.hasAttribute('data-edit')){ editing = JSON.parse(JSON.stringify(q)); qs('#editorTitle').textContent='Edit Quiz'; renderEditor(); show('#editor'); }
+  if(e.target.hasAttribute('data-del')){ if(confirm('Delete this quiz?')){ quizzes = quizzes.filter(x=>x.id!==qid); saveAll(); renderDash(); } }
+  if(e.target.hasAttribute('data-play')){ openSharePlay(q); }
+  if(e.target.hasAttribute('data-ana')){ openAnalytics(qid); }
+  if(e.target.hasAttribute('data-share')){
+    const url = shareUrlForQuiz(q);
+    navigator.clipboard.writeText(url).then(()=>toast('Share link copied ✅')).catch(()=>{ prompt('Copy link:', url); });
+  }
+});
+
+/**** Editor ****/
+function renderEditor(){
+  qs('#qTitle').value = editing.title;
+  qs('#qReveal').checked = !!editing.reveal;
+  const wrap = qs('#qWrap'); wrap.innerHTML='';
+  editing.questions.forEach((qq, idx)=>{
+    const box = document.createElement('div'); box.className='card'; box.style.padding='14px'; box.style.border='1px solid var(--border)'; box.style.background='var(--bg2)'; box.style.borderRadius='14px'; box.style.boxShadow='var(--shadow)'; box.style.marginBottom='12px';
+    box.innerHTML = `
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px">
+        <strong>Question ${idx+1}</strong>
+        ${editing.questions.length>1?'<button class="btn warn" data-remove="'+idx+'">Remove</button>':''}
+      </div>
+      <input type="text" data-qtext="${idx}" placeholder="Enter question" value="${(qq.question||'').replace(/"/g,'&quot;')}" />
+      <div class="space"></div>
+      <div class="grid">
+        ${(qq.answers||['','','','']).map((a,i)=>`
+          <div class="row">
+            <input type="radio" name="correct-${idx}" ${qq.correct===i?'checked':''} data-correct="${idx}-${i}" />
+            <input type="text" data-ans="${idx}-${i}" placeholder="Answer ${i+1}" value="${(a||'').replace(/"/g,'&quot;')}" />
+          </div>
+        `).join('')}
+      </div>
+    `;
+    wrap.append(box);
+  });
+}
+qs('#qTitle').addEventListener('input', e=>{ editing.title = e.target.value; });
+qs('#qReveal').addEventListener('change', e=>{ editing.reveal = e.target.checked; });
+qs('#qWrap').addEventListener('input', e=>{
+  if(e.target.hasAttribute('data-qtext')){ const i=Number(e.target.getAttribute('data-qtext')); editing.questions[i].question=e.target.value; }
+  if(e.target.hasAttribute('data-ans')){ const [qi,ai]=e.target.getAttribute('data-ans').split('-').map(Number); editing.questions[qi].answers[ai]=e.target.value; }
+});
+qs('#qWrap').addEventListener('change', e=>{
+  if(e.target.hasAttribute('data-correct')){ const [qi,ai]=e.target.getAttribute('data-correct').split('-').map(Number); editing.questions[qi].correct=ai; }
+});
+qs('#qWrap').addEventListener('click', e=>{
+  if(e.target.hasAttribute('data-remove')){ const i=Number(e.target.getAttribute('data-remove')); editing.questions.splice(i,1); renderEditor(); }
+});
+qs('#addQ').addEventListener('click', ()=>{ editing.questions.push({question:'', answers:['','','',''], correct:0}); renderEditor(); });
+qs('#cancelEdit').addEventListener('click', ()=>{ show('#dash'); });
+qs('#saveQ').addEventListener('click', ()=>{
+  if(!editing.title || editing.questions.some(q=>!q.question || q.answers.some(a=>!a))){ alert('Please fill in all fields'); return; }
+  const ix = quizzes.findIndex(x=>x.id===editing.id);
+  if(ix>=0) quizzes[ix]=editing; else quizzes.push(editing);
+  saveAll(); editing=null; renderDash(); show('#dash'); toast('Saved ✅');
+});
+
+/**** Play (Shareable) ****/
+let play = { quiz:null, state:'lobby', player:'', idx:0, score:0, streak:0, maxStreak:0, time:15, timer:null, selected:null, answers:[] };
+const PLAY_KEY = 'blook_play';
+
+function persistPlay(){ sessionStorage.setItem(PLAY_KEY, JSON.stringify({ quiz:play.quiz, state:play.state, player:play.player, idx:play.idx, score:play.score, streak:play.streak, maxStreak:play.maxStreak, time:play.time, answers:play.answers })); }
+function restorePlay(){ try{ const s=sessionStorage.getItem(PLAY_KEY); if(!s) return false; const st=JSON.parse(s); if(!st || !st.quiz) return false; play={...play, ...st}; return true; }catch{ return false; } }
+function clearPlay(){ sessionStorage.removeItem(PLAY_KEY); }
+
+function startLobby(q){
+  play.quiz = JSON.parse(JSON.stringify(q)); play.state='lobby';
+  qs('#playTitle').textContent = q.title;
+  qs('#quizMeta').textContent = `${q.questions.length} questions • Faster answers = more points`;
+  qs('#playerName').value='';
+  // Build share link view (visible here too when opened from dashboard)
+  const link = shareUrlForQuiz(q); const wrap = qs('#shareLinkWrap'); wrap.style.display='block'; wrap.textContent = `Share this link: ${link}`;
+  persistPlay();
+  show('#play');
+  qs('#stageLobby').classList.remove('hidden');
+  qs('#stageGame').classList.add('hidden');
+  qs('#stageResults').classList.add('hidden');
+}
+
+qs('#startBtn').addEventListener('click', ()=>{
+  const name = qs('#playerName').value.trim(); if(!name) return;
+  play.player=name; play.idx=0; play.score=0; play.streak=0; play.maxStreak=0; play.time=15; play.selected=null; play.answers=[]; play.state='playing';
+  qs('#uiPlayer').textContent=name; qs('#uiScore').textContent='0'; qs('#uiStreakWrap').style.display='none';
+  qs('#stageLobby').classList.add('hidden'); qs('#stageGame').classList.remove('hidden');
+  renderQuestion(); startTimer(); persistPlay();
+});
+
+function startTimer(){ clearInterval(play.timer); qs('#uiTime').textContent=play.time; play.timer = setInterval(()=>{
+  play.time--; qs('#uiTime').textContent=play.time; if(play.time<=0){ handleAnswer(-1); } persistPlay();
+}, 1000); }
+
+function renderQuestion(){
+  const q = play.quiz.questions[play.idx];
+  qs('#qText').textContent = q.question;
+  const pct = Math.round(((play.idx)/play.quiz.questions.length)*100); qs('#bar').style.width=pct+'%';
+  const ans = qs('#answers'); ans.innerHTML='';
+  q.answers.forEach((text, i)=>{
+    const b = document.createElement('button'); b.className='answerBtn'; b.textContent = text;
+    b.addEventListener('click', ()=>handleAnswer(i, b)); ans.append(b);
+  });
+  qs('#feedback').textContent='';
+  persistPlay();
+}
+
+function handleAnswer(index, btn){
+  if(qs('#feedback').textContent) return; // ignore double
+  clearInterval(play.timer);
+  const q = play.quiz.questions[play.idx];
+  const correct = q.correct;
+  const isCorrect = index===correct;
+  play.answers.push(index);
+  if(btn){ btn.classList.add(isCorrect? 'correct':'wrong','bounce'); }
+  if(isCorrect){
+    const timeBonus = Math.max(0, play.time)*10; const streakBonus = play.streak*50; play.score += 100 + timeBonus + streakBonus;
+    play.streak++; play.maxStreak = Math.max(play.maxStreak, play.streak);
+    qs('#uiStreakWrap').style.display='inline-flex'; qs('#uiStreak').textContent=String(play.streak);
+    qs('#feedback').textContent='🎉 Correct!'; qs('#feedback').style.color='var(--success)';
+  } else {
+    play.streak = 0; qs('#uiStreakWrap').style.display='none'; qs('#feedback').textContent='❌ Wrong'; qs('#feedback').style.color='var(--danger)';
+  }
+  qs('#uiScore').textContent=String(play.score);
+  qsa('#answers .answerBtn').forEach(b=>b.disabled=true);
+  persistPlay();
+  setTimeout(()=>{
+    if(play.idx < play.quiz.questions.length-1){ play.idx++; play.time=15; renderQuestion(); startTimer(); }
+    else { showResults(); }
+  }, 900);
+}
+
+function showResults(){
+  play.state='results'; persistPlay();
+  qs('#stageGame').classList.add('hidden'); qs('#stageResults').classList.remove('hidden');
+  qs('#finalScore').textContent = String(play.score);
+  // Build reveal if enabled
+  const reveal = !!play.quiz.reveal;
+  const wrap = qs('#revealWrap');
+  if(reveal){
+    wrap.classList.remove('hidden');
+    const tb = qs('#revealTable tbody'); tb.innerHTML='';
+    play.quiz.questions.forEach((qq, i)=>{
+      const your = play.answers[i];
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${i+1}</td><td>${qq.question}</td><td>${your>=0? (qq.answers[your]||'(no answer)'):'(timeout)'}</td><td>${qq.answers[qq.correct]}</td><td>${your===qq.correct? '✅':'❌'}</td>`;
+      tb.append(tr);
+    });
+  } else { wrap.classList.add('hidden'); }
+  // Persist attempt for admin analytics (only if quiz has an id; shared links carry id)
+  const qid = play.quiz.id;
+  if(qid!=null){
+    if(!stats[qid]) stats[qid] = { plays:0, attempts:[] };
+    const correctCount = play.quiz.questions.reduce((acc,qq,i)=> acc + (play.answers[i]===qq.correct?1:0), 0);
+    stats[qid].plays += 1;
+    stats[qid].attempts.push({ player: play.player, score: play.score, correct: correctCount, total: play.quiz.questions.length, answers: play.answers, ts: Date.now() });
+    saveStats();
+  }
+}
+
+qs('#againBtn').addEventListener('click', ()=>{ clearInterval(play.timer); play.state='lobby'; persistPlay(); startLobby(play.quiz); });
+qs('#backBtn').addEventListener('click', ()=>{ clearInterval(play.timer); clearPlay(); show('#dash'); });
+qs('#backDash').addEventListener('click', ()=>{ clearInterval(play.timer); clearPlay(); show('#dash'); });
+
+/**** Admin Analytics ****/
+qs('#analyticsBtn').addEventListener('click', ()=>{ openAnalytics(); });
+qs('#adminBack').addEventListener('click', ()=>{ show('#dash'); });
+
+function openAnalytics(qid){
+  const sel = qs('#analyticsSelect'); sel.innerHTML='';
+  quizzes.forEach(q=>{ const opt=document.createElement('option'); opt.value=String(q.id); opt.textContent=q.title; sel.append(opt); });
+  if(qid){ sel.value=String(qid); }
+  renderAnalytics(); show('#admin');
+}
+
+qs('#analyticsSelect').addEventListener('change', renderAnalytics);
+
+function renderAnalytics(){
+  const id = Number(qs('#analyticsSelect').value || quizzes[0]?.id);
+  const q = quizzes.find(x=>x.id===id); const s = stats[id]||{plays:0, attempts:[]};
+  const sum = qs('#analyticsSummary'); sum.innerHTML='';
+  const avg = s.attempts.length? Math.round(s.attempts.reduce((a,b)=>a+b.score,0)/s.attempts.length) : 0;
+  sum.append(badge(`👥 Players: ${s.plays}`), badge(`📈 Attempts: ${s.attempts.length}`), badge(`⭐ Avg score: ${avg}`));
+  const tb = qs('#attemptsTable tbody'); tb.innerHTML='';
+  s.attempts.slice().reverse().forEach(a=>{
+    const d = new Date(a.ts).toLocaleString();
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${d}</td><td>${escapeHtml(a.player)}</td><td>${a.score}</td><td>${a.correct}</td><td>${a.total}</td>`;
+    tb.append(tr);
+  });
+  const qtb = qs('#qStatsTable tbody'); qtb.innerHTML='';
+  const totals = new Array(q.questions.length).fill(0);
+  const corrects = new Array(q.questions.length).fill(0);
+  (s.attempts||[]).forEach(a=>{ (a.answers||[]).forEach((ans,i)=>{ if(i<totals.length){ totals[i]++; if(ans===q.questions[i].correct) corrects[i]++; } }); });
+  q.questions.forEach((qq,i)=>{
+    const pct = totals[i]? Math.round(corrects[i]/totals[i]*100) : 0;
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${i+1}</td><td>${escapeHtml(qq.question)}</td><td>${pct}%</td>`;
+    qtb.append(tr);
+  });
+}
+
+qs('#exportStatsBtn').addEventListener('click', ()=>{
+  const id = Number(qs('#analyticsSelect').value || quizzes[0]?.id);
+  const payload = { quiz: quizzes.find(x=>x.id===id), stats: stats[id]||{plays:0, attempts:[]} };
+  download(`stats_${id}.json`, JSON.stringify(payload, null, 2));
+});
+
+function badge(t){ const b=document.createElement('div'); b.className='badge'; b.textContent=t; return b; }
+function toast(msg){
+  clearTimeout(window.__toastT);
+  let t=qs('#__toast'); if(!t){ t=document.createElement('div'); t.id='__toast'; t.className='toast'; document.body.appendChild(t); }
+  t.textContent=msg; t.style.opacity='1'; window.__toastT=setTimeout(()=>{ t.style.opacity='0'; }, 1800);
+}
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
+
+/**** Boot ****/
+(function init(){
+  // If opened via a share link (#play=...), decode and jump straight to lobby (or restore session)
+  const hash = location.hash || '';
+  if(hash.startsWith('#play=')){
+    try{
+      const data = decodeQuiz(hash.slice(6));
+      // If we have saved progress for this tab, restore; otherwise start with decoded quiz
+      if(!restorePlay()){
+        startLobby(data);
+      } else {
+        // Restore UI based on state
+        show('#play');
+        if(play.state==='lobby'){
+          qs('#playTitle').textContent = play.quiz.title; qs('#quizMeta').textContent = `${play.quiz.questions.length} questions • Faster answers = more points`;
+          qs('#stageLobby').classList.remove('hidden');
+          qs('#stageGame').classList.add('hidden');
+          qs('#stageResults').classList.add('hidden');
+        } else if(play.state==='playing'){
+          qs('#uiPlayer').textContent=play.player; qs('#uiScore').textContent=String(play.score); qs('#uiStreakWrap').style.display=play.streak>0?'inline-flex':'none';
+          qs('#stageLobby').classList.add('hidden'); qs('#stageGame').classList.remove('hidden');
+          renderQuestion(); startTimer();
+        } else if(play.state==='results'){
+          qs('#stageLobby').classList.add('hidden'); qs('#stageGame').classList.add('hidden'); qs('#stageResults').classList.remove('hidden');
+          qs('#finalScore').textContent=String(play.score);
+        }
+      }
+      return; // prevent showing login when shared
+    }catch(e){ console.warn('Failed to parse share link', e); }
+  }
+  show('#login');
+})();
+</script>
+</body>
+</html>
