@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Minecraft Skin Pack Maker</title>
+  <!-- JSZip + FileSaver -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <style>
+    :root{
+      --bg:#fafafa;
+      --card:#ffffff;
+      --ink:#1f2937;
+      --muted:#6b7280;
+      --accent:#16a34a; /* green */
+      --accent-600:#12823b;
+      --border:#e5e7eb;
+      --dash:#cbd5e1;
+      --chip:#f3f4f6;
+      --drop:#f8fafc;
+      --shadow:0 10px 20px rgba(2,6,23,.08), 0 2px 4px rgba(2,6,23,.06);
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font:16px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:var(--ink);
+      background:var(--bg);
+    }
+    .topbar{
+      background:#111827;
+      color:#fff;
+      padding:10px 18px;
+      display:flex;align-items:center;gap:12px;
+      position:sticky;top:0;z-index:10;
+      box-shadow:0 2px 8px rgba(0,0,0,.15);
+    }
+    .logo{display:flex;align-items:center;gap:10px;font-weight:700}
+    .logo span{background:#efb14a;color:#111827;border-radius:10px;padding:6px 10px;font-weight:900}
+    .container{max-width:1100px;margin:28px auto;padding:0 18px}
+
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .section{padding:22px}
+
+    h1{font-size:28px;margin:0 0 6px}
+    .subtitle{color:var(--muted);margin:0 0 18px}
+
+    /* Uploader */
+    .uploader{border:2px dashed var(--dash);border-radius:12px;padding:26px;display:flex;justify-content:center;align-items:center;gap:14px;background:var(--drop)}
+    .uploader input{display:none}
+    .btn{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
+    .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+    .btn.primary:hover{background:var(--accent-600)}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+
+    .controls{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    .input{flex:1;min-width:260px}
+    input[type="text"], .text{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:#fff}
+    input[type="number"]{padding:10px 12px;border:1px solid var(--border);border-radius:10px}
+
+    /* Skin list */
+    .list{margin-top:16px}
+    .skin-row{display:grid;grid-template-columns:110px 1fr;gap:16px;padding:14px;border-top:1px solid var(--border);align-items:center}
+    .skin-row:first-child{border-top:none}
+    .thumb{width:110px;height:110px;border-radius:12px;border:1px solid var(--border);background:#f9fafb;display:flex;align-items:center;justify-content:center;overflow:hidden}
+    .thumb img{max-width:100%;max-height:100%;image-rendering:pixelated}
+    .meta{display:grid;grid-template-columns:auto 1fr;gap:10px 12px;align-items:center}
+    .meta .chip{background:var(--chip);padding:6px 10px;border-radius:999px;color:#374151;font-weight:600;font-size:13px}
+
+    .row-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .ghost{background:transparent;border:1px dashed var(--border)}
+
+    .footer-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:18px}
+
+    .hint{font-size:13px;color:var(--muted)}
+    .muted{color:var(--muted)}
+
+    .sticky-maker{position:sticky;bottom:18px;display:flex;justify-content:flex-end;margin-top:18px}
+
+    /* Toast */
+    .toast{position:fixed;right:16px;bottom:16px;background:#111827;color:#fff;padding:12px 14px;border-radius:10px;box-shadow:var(--shadow);opacity:0;transform:translateY(6px);transition:.2s}
+    .toast.show{opacity:1;transform:translateY(0)}
+
+    @media (max-width:720px){
+      .skin-row{grid-template-columns:72px 1fr}
+      .thumb{width:72px;height:72px}
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo"><span>dogblip</span> <div>Skin Pack Maker</div></div>
+  </header>
+
+  <main class="container">
+    <div class="card section">
+      <h1>Minecraft Skin Pack Maker</h1>
+      <p class="subtitle">Create your own Bedrock <strong>.mcpack</strong>. Upload one or more <strong>.png</strong> skin files and we’ll code the rest.</p>
+
+      <label class="uploader" id="dropzone">
+        <input id="fileInput" type="file" accept="image/png" multiple />
+        <button class="btn" type="button" id="browseBtn"> CHOOSE FILES (.PNG)</button>
+        <span class="muted">or drag and drop files here</span>
+      </label>
+      <p class="hint">Up to 100 files. Recommended size ≤ 40 KB each (64×64 or 128×128). Larger files will still work but may be slow on older devices.</p>
+      <p class="hint">looking for skins? dogblip personally recommends <a href="https://skinmc.net/">skinmc.net</a> (not sponsered btw)</p>
+
+      <div class="controls" style="margin-top:18px">
+        <div class="input">
+          <input id="packName" type="text" placeholder="Skin Pack Name" />
+        </div>
+        <button id="makeBtn" class="btn primary" disabled> Make Skin Pack</button>
+      </div>
+
+      <h3 style="margin:22px 0 8px">List of Skins</h3>
+      <div id="list" class="card list ghost">
+        <div class="skin-row" id="emptyRow">
+          <div class="thumb"><span class="muted">No skins yet</span></div>
+          <div class="meta muted">Drop .png files above to start.</div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </main>
+
+
+  <div id="toast" class="toast">Ready</div>
+
+<script>
+  // helpers
+  const $ = (q)=>document.querySelector(q);
+  const $$ = (q)=>Array.from(document.querySelectorAll(q));
+  const toast = (msg)=>{const t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 1800)}
+  const uuidv4 = ()=> 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15; const v = c==='x'? r : (r & 0x3 | 0x8); return v.toString(16)
+  });
+
+  const state = { files: [], skins: [] };
+
+  function enableMake(){
+    const ok = state.files.length>0 && ($('#packName').value.trim().length>0);
+    $('#makeBtn').disabled = !ok; $('#makeBtn2').disabled = !ok;
+  }
+
+  function readableSize(bytes){
+    if(bytes<1024) return bytes+" B"; if(bytes<1024*1024) return (bytes/1024).toFixed(1)+" KB"; return (bytes/1024/1024).toFixed(1)+" MB";
+  }
+
+  function addFiles(fileList){
+    const files = Array.from(fileList).filter(f=>/\.png$/i.test(f.name));
+    if(!files.length){toast('No PNG files detected'); return}
+    files.forEach(file=>{
+      const id = crypto.randomUUID ? crypto.randomUUID() : uuidv4();
+      const skin = { id, name: file.name.replace(/\.png$/i,'').slice(0,40), file };
+      state.files.push(file); state.skins.push(skin);
+    });
+    renderList(); enableMake(); toast(`Added ${files.length} file(s)`);
+  }
+
+  function renderList(){
+    const list = $('#list');
+    list.innerHTML = '';
+    if(!state.skins.length){
+      list.innerHTML = `<div class="skin-row"><div class="thumb"><span class="muted">No skins yet</span></div><div class="meta muted">Drop .png files above to start.</div></div>`;return;
+    }
+    state.skins.forEach((s, idx)=>{
+      const row = document.createElement('div');
+      row.className = 'skin-row';
+      row.innerHTML = `
+        <div class="thumb"><img alt="skin"/></div>
+        <div class="meta">
+          <span class="chip">#${idx+1}</span>
+          <input class="text" type="text" placeholder="Skin name (optional)" value="${s.name||''}" />
+          <div></div>
+          <div class="row-actions">
+            <button class="btn" data-act="up">↑</button>
+            <button class="btn" data-act="down">↓</button>
+            <button class="btn" data-act="remove">Remove</button>
+          </div>
+        </div>`;
+      // preview
+      const img = row.querySelector('img');
+      const reader = new FileReader(); reader.onload = e => img.src = e.target.result; reader.readAsDataURL(s.file);
+      // name binding
+      row.querySelector('input').addEventListener('input', ev=>{ s.name = ev.target.value })
+      // actions
+      row.querySelectorAll('button').forEach(btn=>btn.addEventListener('click', ()=>{
+        const act = btn.dataset.act;
+        const i = idx;
+        if(act==='remove'){ state.skins.splice(i,1); state.files.splice(i,1); renderList(); enableMake(); }
+        if(act==='up' && i>0){ const tmp1 = state.skins[i-1]; state.skins[i-1]=state.skins[i]; state.skins[i]=tmp1; const tmp2=state.files[i-1]; state.files[i-1]=state.files[i]; state.files[i]=tmp2; renderList(); }
+        if(act==='down' && i<state.skins.length-1){ const tmp1 = state.skins[i+1]; state.skins[i+1]=state.skins[i]; state.skins[i]=tmp1; const tmp2=state.files[i+1]; state.files[i+1]=state.files[i]; state.files[i]=tmp2; renderList(); }
+      }))
+      list.appendChild(row);
+    })
+  }
+
+  // build .mcpack (zip with special structure)
+  async function buildPack(){
+    const packName = $('#packName').value.trim() || 'MySkinPack';
+    const zip = new JSZip();
+
+    // directory layout (flat or /skins). We'll use /skins
+    const skinsDir = zip.folder('skins');
+
+    // write image files
+    const skinEntries = [];
+    for(let i=0;i<state.files.length;i++){
+      const file = state.files[i];
+      const safe = file.name.replace(/\s+/g,'_');
+      const arrayBuf = await file.arrayBuffer();
+      skinsDir.file(safe, arrayBuf);
+      skinEntries.push({
+        localization_name: (state.skins[i].name || `Skin ${i+1}`),
+        geometry: "geometry.humanoid.custom",
+        texture: `skins/${safe}`,
+        type: "free"
+      });
+    }
+
+    // pack_icon: use first skin (not required but nice)
+    if(state.files[0]){
+      const buf = await state.files[0].arrayBuffer();
+      zip.file('pack_icon.png', buf);
+    }
+
+    // skins.json
+    const skinsJson = {
+      skins: skinEntries,
+      serialize_name: packName,
+      localization_name: packName
+    };
+    zip.file('skins.json', JSON.stringify(skinsJson, null, 2));
+
+    // manifest.json
+    const headerUUID = uuidv4();
+    const moduleUUID = uuidv4();
+    const manifest = {
+      format_version: 1,
+      header: {
+        name: packName,
+        uuid: headerUUID,
+        version: [1,0,0],
+        min_engine_version: [1,13,0]
+      },
+      modules: [
+        { type: 'skin_pack', uuid: moduleUUID, version: [1,0,0] }
+      ]
+    };
+    zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+
+    const blob = await zip.generateAsync({type:'blob'});
+    const fileName = packName.replace(/\s+/g,'_') + '.mcpack';
+    saveAs(blob, fileName);
+    toast('Your .mcpack is downloading');
+  }
+
+  // events
+  const dropzone = $('#dropzone');
+  const fileInput = $('#fileInput');
+  const browseBtn = $('#browseBtn');
+  browseBtn.addEventListener('click', ()=>fileInput.click());
+  fileInput.addEventListener('change', e=> addFiles(e.target.files));
+
+  ;['dragenter','dragover'].forEach(ev=>dropzone.addEventListener(ev, e=>{e.preventDefault(); dropzone.style.background='#eef2ff'}));
+  ;['dragleave','drop'].forEach(ev=>dropzone.addEventListener(ev, e=>{e.preventDefault(); dropzone.style.background='var(--drop)'}));
+  dropzone.addEventListener('drop', e=> addFiles(e.dataTransfer.files));
+
+  $('#packName').addEventListener('input', enableMake);
+  $('#makeBtn').addEventListener('click', buildPack);
+  $('#makeBtn2').addEventListener('click', buildPack);
+</script>
+</body>
+</html>
