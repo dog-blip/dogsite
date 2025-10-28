@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soundboard</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            height: 100vh;
+            padding-top: 40px;
+        }
+        .soundboard-buttons,
+        .custom-sounds-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .soundboard-btn {
+            font-size: 1rem;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            background: #ececec;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .soundboard-btn:hover {
+            background: #d1eaff;
+        }
+        .controls-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        form {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 0;
+        }
+        .remove-btn {
+            margin-left: 5px;
+            background: #ffb2b2;
+            color: #420000;
+            padding: 2px 7px;
+            border: none;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .remove-btn:hover {
+            background: #ff5252;
+            color: white;
+        }
+        .section-title {
+            width: 100%;
+            text-align: center;
+            font-weight: bold;
+            margin: 18px 0 5px 0;
+            font-size: 1.1em;
+            color: #337;
+            letter-spacing: 0.5px;
+        }
+        .custom-sounds-section {
+            width: 100%;
+            max-width: 650px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>music class destroyer 6000™</h1>
+    <div class="controls-row">
+      <form id="add-sound-form" autocomplete="off">
+          <input type="text" id="sound-name" placeholder="Sound Name" required maxlength="32">
+          <input type="file" id="sound-file" accept=".mp3,.ogg,audio/mp3,audio/ogg,audio/mpeg" required>
+          <button type="submit">Add Sound</button>
+      </form>
+      <button type="button" id="stop-all-btn" class="stop-all-btn">Stop All Sounds</button>
+    </div>
+
+    <div class="section-title" id="default-sounds-label">Default Sounds</div>
+    <div class="soundboard-buttons" id="soundboard-buttons">
+        <!-- Default sound buttons will be inserted here -->
+    </div>
+
+    <div class="custom-sounds-section">
+        <div class="section-title" id="custom-sounds-label" style="display:none;">Custom Sounds</div>
+        <div class="custom-sounds-buttons" id="custom-sounds-buttons">
+            <!-- Custom sound buttons will be inserted here -->
+        </div>
+    </div>
+
+    <script>
+      // Keep track of all currently playing audios
+      let playingAudios = [];
+
+      // Default sounds
+      const defaultSounds = [
+        {name: "Vine Boom", url: "https://www.myinstants.com/media/sounds/vine-boom.mp3"},
+        {name: "Airhorn", url: "https://www.myinstants.com/media/sounds/mlg-airhorn.mp3"},
+        {name: "Anime Wow", url: "https://www.myinstants.com/media/sounds/anime-wow-sound-effect.mp3"},
+        {name: "67", url: "https://www.myinstants.com/media/sounds/67_SQlv2Xv.mp3"},
+        {name: "forbidden button", url: "https://www.myinstants.com/media/sounds/i-like-femboys_6JHIoHH.mp3"},
+        {name: "oh ma gawd", url: "https://www.myinstants.com/media/sounds/oh-my-god-meme.mp3"},
+        {name: "shut", url: "https://www.myinstants.com/media/sounds/sybau.mp3"},
+        {name: "bye bye", url: "https://www.myinstants.com/media/sounds/bye-bye-mewing_fMVssQz.mp3"},
+        {name: "jet2 holiday", url: "https://www.myinstants.com/media/sounds/nothing-beats-a-jet2-holiday_IeBO1Mr.mp3"},
+        {name: "pls speed i need ts", url: "https://www.myinstants.com/media/sounds/please-speed-i-need-this.mp3"},
+        {name: "metal pipe", url: "https://www.myinstants.com/media/sounds/metal-pipe-clang.mp3"},
+        {name: "cuh", url: "https://www.myinstants.com/media/sounds/ahhhhhhhhhhhhhhhh_8axRFzx.mp3"},
+        {name: "auhhhhhh", url: "https://files.catbox.moe/ba720q.mp3"},
+        {name: "social credit", url: "https://www.myinstants.com/media/sounds/999-social-credit-siren.mp3"},
+        {name: "flashbang", url: "https://www.myinstants.com/media/sounds/flashbang-jumpscare-loud.mp3"},
+        {name: "hog rider (rory edition)", url: "https://www.myinstants.com/media/sounds/hog-rider-loud.mp3"}
+      ];
+
+      // Keys for localStorage
+      const LOCALSTORAGE_KEY = "customSoundboardSounds-v1";
+
+      // Utility: Read user sounds from localStorage
+      function getUserSounds() {
+        const stored = localStorage.getItem(LOCALSTORAGE_KEY);
+        if (!stored) return [];
+        try {
+          return JSON.parse(stored);
+        } catch(e) {
+          return [];
+        }
+      }
+
+      // Utility: Write user sounds to localStorage
+      function setUserSounds(list) {
+        localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(list));
+      }
+
+      // Render sound buttons (defaults or custom)
+      function renderButtons(container, sounds, {custom, removeBtn}={}) {
+        container.innerHTML = '';
+        sounds.forEach((sound, i) => {
+          const btn = document.createElement('button');
+          btn.type = "button";
+          btn.className = "soundboard-btn";
+          btn.textContent = sound.name;
+          btn.dataset.sound = sound.url;
+          btn.addEventListener('click', function (e) {
+            // Play sound and track for stopping
+            e.stopPropagation();
+            const audio = new Audio(btn.getAttribute('data-sound'));
+            playingAudios.push(audio);
+            audio.play();
+            // Remove audio from the list when done
+            audio.addEventListener('ended', () => {
+                playingAudios = playingAudios.filter(a => a !== audio);
+            });
+            audio.addEventListener('pause', () => {
+                playingAudios = playingAudios.filter(a => a !== audio);
+            });
+          });
+
+          // Add remove button only for user sounds
+          if (custom && removeBtn) {
+            const remBtn = document.createElement('button');
+            remBtn.type = 'button';
+            remBtn.className = 'remove-btn';
+            remBtn.title = "Delete this custom sound";
+            remBtn.textContent = '✕';
+            remBtn.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              deleteUserSound(i);
+            });
+            btn.appendChild(remBtn);
+          }
+          container.appendChild(btn);
+        });
+      }
+
+      // Remove user's custom sound at index
+      function deleteUserSound(index) {
+        const userSounds = getUserSounds();
+        userSounds.splice(index, 1);
+        setUserSounds(userSounds);
+        renderSoundboard();
+      }
+
+      // Render both sections
+      function renderSoundboard() {
+        // Defaults
+        renderButtons(document.getElementById('soundboard-buttons'), defaultSounds, {custom:false});
+        // Customs
+        const userSounds = getUserSounds();
+        const customSection = document.getElementById('custom-sounds-section');
+        const customLabel = document.getElementById('custom-sounds-label');
+        const customBtns = document.getElementById('custom-sounds-buttons');
+        renderButtons(customBtns, userSounds, {custom:true, removeBtn:true});
+        // Show/hide label based on contents
+        if (userSounds && userSounds.length > 0) {
+          customLabel.style.display = "";
+        } else {
+          customLabel.style.display = "none";
+        }
+      }
+
+      // Handle add sound form (FIXED)
+      document.getElementById('add-sound-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const nameInput = document.getElementById('sound-name');
+        const fileInput = document.getElementById('sound-file');
+        const files = fileInput.files;
+
+        if (!files || !files.length) {
+          alert("Please choose a sound file.");
+          return;
+        }
+
+        const file = files[0];
+        const allowedExts = ['mp3', 'ogg'];
+        const ext = file.name.split('.').pop().toLowerCase();
+
+        if (!allowedExts.includes(ext)) {
+          alert('Only .mp3 and .ogg files are supported.');
+          return;
+        }
+
+        // Fix: Use reader.onloadend for reliability across browsers
+        const reader = new FileReader();
+        reader.onloadend = function (evt) {
+          if (!evt.target.result) {
+            alert("Could not read file.");
+            return;
+          }
+          const dataUrl = evt.target.result;
+          const userSounds = getUserSounds();
+          userSounds.push({
+            name: nameInput.value.trim() || file.name,
+            url: dataUrl
+          });
+          setUserSounds(userSounds);
+          renderSoundboard();
+          nameInput.value = '';
+          fileInput.value = '';
+        };
+        reader.onerror = function (evt) {
+          alert("Error loading file.");
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // Stop all sounds logic
+      document.getElementById('stop-all-btn').addEventListener('click', function() {
+        playingAudios.forEach(audio => {
+          try {
+            audio.pause();
+            audio.currentTime = 0;
+          } catch(e){}
+        });
+        playingAudios = [];
+      });
+
+      // Render on page load
+      renderSoundboard();
+    </script>
+</body>
+</html>
