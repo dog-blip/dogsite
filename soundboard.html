@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Soundboard</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 72'%3E%3Ctext y='60' font-size='60'%3E%F0%9F%8E%A7%3C/text%3E%3C/svg%3E">
     <style>
         body {
             display: flex;
@@ -75,6 +76,29 @@
             flex-direction: column;
             align-items: center;
         }
+        .recorder-controls {
+            display: flex;
+            gap: 7px;
+            align-items: center;
+        }
+        #record-btn {
+            transition: background 0.2s;
+        }
+        #record-btn.recording {
+            background: #ffcccc !important;
+        }
+        #download-recording-btn {
+            display: none;
+        }
+        #download-recording-btn:active {
+            background: #63a8d7;
+            color: #fff;
+        }
+        #record-timer {
+            font-family: monospace;
+            min-width: 40px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -83,9 +107,14 @@
     <div class="controls-row">
       <form id="add-sound-form" autocomplete="off">
           <input type="text" id="sound-name" placeholder="Sound Name" required maxlength="32">
-          <input type="file" id="sound-file" accept=".mp3,.ogg,audio/mp3,audio/ogg,audio/mpeg" required>
+          <input type="file" id="sound-file" accept=".mp3,.ogg,.m4a,audio/mp3,audio/ogg,audio/mpeg,audio/x-m4a,audio/mp4" required>
           <button type="submit">Add Sound</button>
       </form>
+      <div class="recorder-controls">
+          <button type="button" id="record-btn">Record</button>
+          <span id="record-timer"></span>
+          <a id="download-recording-btn" style="display:none;">Download Recording</a>
+      </div>
       <button type="button" id="stop-all-btn" class="stop-all-btn">Stop All Sounds</button>
     </div>
 
@@ -101,6 +130,7 @@
         </div>
     </div>
 
+    <script src="https://unpkg.com/lamejs@1.2.0/lame.min.js"></script>
     <script>
       // Keep track of all currently playing audios
       let playingAudios = [];
@@ -122,7 +152,23 @@
         {name: "auhhhhhh", url: "https://files.catbox.moe/ba720q.mp3"},
         {name: "social credit", url: "https://www.myinstants.com/media/sounds/999-social-credit-siren.mp3"},
         {name: "flashbang", url: "https://www.myinstants.com/media/sounds/flashbang-jumpscare-loud.mp3"},
-        {name: "hog rider (rory edition)", url: "https://www.myinstants.com/media/sounds/hog-rider-loud.mp3"}
+        {name: "hog rider (rory edition)", url: "https://www.myinstants.com/media/sounds/hog-rider-loud.mp3"},
+        {name: "Bone Crack", url: "https://www.myinstants.com/media/sounds/bone-crack-meme.mp3"},
+        {name: "Dead Nokia", url: "https://www.myinstants.com/media/sounds/dead-nokia.mp3"},
+        {name: "Apple Pay", url: "https://www.myinstants.com/media/sounds/applepay.mp3"},
+        {name: "Tuco Get Out", url: "https://www.myinstants.com/media/sounds/tuco-get-out.mp3"},
+        {name: "big brain", url: "https://www.myinstants.com/media/sounds/galaxy-meme.mp3"},
+        {name: "Android Sound Effect", url: "https://www.myinstants.com/media/sounds/android-sound-effect-meme_tcbuori.mp3"},
+        {name: "You Are An Idiot", url: "https://www.myinstants.com/media/sounds/you-are-an-idiot.mp3"},
+        {name: "thirtydollarhaircut", url: "https://www.myinstants.com/media/sounds/dont-you-lecture-me-with-your-30-haircut_HhMrU7I.mp3"},
+        {name: "Taco Bell", url: "https://www.myinstants.com/media/sounds/taco-bell-bong-sfx.mp3"},
+        {name: "Fire In The Hole", url: "https://www.myinstants.com/media/sounds/fire-in-the-hole-loud.mp3"},
+        {name: "Water On The Hill", url: "https://www.myinstants.com/media/sounds/water-on-the-hill.mp3"},
+        {name: "Among Us Role Reveal", url: "https://www.myinstants.com/media/sounds/among-us-role-reveal-sound.mp3"},
+        {name: "that one bossfight", url: "https://www.myinstants.com/media/sounds/drip-goku-meme-song-original-dragon-ball-super-music-clash-of-gods-in-description.mp3"},
+        {name: "sigma", url: "https://www.myinstants.com/media/sounds/gigachad-phonk-house.mp3"},
+        {name: "squid game salesman", url: "https://www.myinstants.com/media/sounds/salesman-squid-game-edit-audio-blah-phonk.mp3"},
+        {name: "harry potter", url: "https://files.catbox.moe/o2v1zw.ogg"}
       ];
 
       // Keys for localStorage
@@ -211,7 +257,7 @@
         }
       }
 
-      // Handle add sound form (FIXED)
+      // Handle add sound form (with m4a support)
       document.getElementById('add-sound-form').addEventListener('submit', function (e) {
         e.preventDefault();
 
@@ -225,15 +271,15 @@
         }
 
         const file = files[0];
-        const allowedExts = ['mp3', 'ogg'];
+        const allowedExts = ['mp3', 'ogg', 'm4a'];
         const ext = file.name.split('.').pop().toLowerCase();
 
         if (!allowedExts.includes(ext)) {
-          alert('Only .mp3 and .ogg files are supported.');
+          alert('Only .mp3, .ogg, and .m4a files are supported.');
           return;
         }
 
-        // Fix: Use reader.onloadend for reliability across browsers
+        // Use reader.onloadend for reliability across browsers
         const reader = new FileReader();
         reader.onloadend = function (evt) {
           if (!evt.target.result) {
@@ -268,8 +314,194 @@
         playingAudios = [];
       });
 
+      // Audio recorder feature (downloads a file so user can import it) - now produces mp3!
+      let mediaRecorder = null;
+      let audioChunks = [];
+      let recordTimer = null;
+      let recordStartT = 0;
+      let recordStream = null;
+
+      const recordBtn = document.getElementById('record-btn');
+      const downloadBtn = document.getElementById('download-recording-btn');
+      const timerSpan = document.getElementById('record-timer');
+
+      function formatTimer(ms) {
+        const secs = Math.floor(ms/1000);
+        const min = Math.floor(secs/60);
+        const remS = secs % 60;
+        return `${String(min).padStart(2, '0')}:${String(remS).padStart(2, '0')}`;
+      }
+
+      function startRecording() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          alert("Your browser does not support microphone recording.");
+          return;
+        }
+        recordBtn.disabled = true;
+        navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(stream) {
+          audioChunks = [];
+          recordStream = stream;
+
+          // Force mimeType to audio/webm for browser compatibility
+          let mimeType = "audio/webm";
+          if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm')) {
+            mimeType = 'audio/webm';
+          }
+
+          try {
+            mediaRecorder = new MediaRecorder(stream, { mimeType });
+          } catch(e) {
+            try {
+              mediaRecorder = new MediaRecorder(stream);
+            } catch(e2) {
+              alert('Could not start audio recorder.');
+              recordBtn.disabled = false;
+              return;
+            }
+          }
+          mediaRecorder.ondataavailable = function(event) {
+            if (event.data.size > 0) {
+              audioChunks.push(event.data);
+            }
+          };
+          mediaRecorder.onstop = async function() {
+            if (recordStream) {
+              recordStream.getTracks().forEach(track => track.stop());
+              recordStream = null;
+            }
+            // Convert recorded WebM audio to mp3
+            const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+            const arrayBuffer = await blob.arrayBuffer();
+            const webmBuffer = new Uint8Array(arrayBuffer);
+
+            // We'll decode the webm in an AudioContext and encode to mp3 via lamejs
+            let mp3Blob = null;
+            try {
+              const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+              let audioBuffer = null;
+              try {
+                audioBuffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+              } catch(err) {
+                alert("Could not decode recorded audio. Browser may not support decoding WebM audio.");
+                audioCtx.close();
+                resetRecordingUI();
+                return;
+              }
+
+              const channelCount = audioBuffer.numberOfChannels;
+              const samples = audioBuffer.length;
+              const sampleRate = audioBuffer.sampleRate;
+
+              // Prepare for lamejs (16bit PCM only, single or stereo)
+              let samplesL = audioBuffer.getChannelData(0);
+              let samplesR = channelCount > 1 ? audioBuffer.getChannelData(1) : null;
+              // Convert from float ([-1,1]) to 16-bit PCM
+              function floatTo16BitPCM(input) {
+                let output = new Int16Array(input.length);
+                for (let i = 0; i < input.length; i++) {
+                  let s = Math.max(-1, Math.min(1, input[i]));
+                  output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+                return output;
+              }
+              let left = floatTo16BitPCM(samplesL);
+              let right = samplesR ? floatTo16BitPCM(samplesR) : null;
+
+              // Encode with lamejs
+              const mp3encoder = new lamejs.Mp3Encoder(channelCount, sampleRate, 128);
+              let mp3Data = [];
+              let blockSize = 1152;
+              for (let i = 0; i < left.length; i += blockSize) {
+                let leftChunk = left.subarray(i, i + blockSize);
+                let rightChunk = right ? right.subarray(i, i + blockSize) : undefined;
+                let mp3buf;
+                if (channelCount > 1 && rightChunk) {
+                  mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+                } else {
+                  mp3buf = mp3encoder.encodeBuffer(leftChunk);
+                }
+                if (mp3buf.length > 0) mp3Data.push(mp3buf);
+              }
+              let encFinal = mp3encoder.flush();
+              if (encFinal.length > 0) mp3Data.push(encFinal);
+
+              mp3Blob = new Blob(mp3Data, { type: "audio/mp3" });
+              audioCtx.close();
+
+              // Download
+              const url = URL.createObjectURL(mp3Blob);
+              downloadBtn.href = url;
+              downloadBtn.download = 'custom_sound.mp3';
+              downloadBtn.style.display = 'inline-block';
+              downloadBtn.dataset.ext = 'mp3';
+
+              setTimeout(() => {
+                downloadBtn.click();
+              }, 50);
+
+            } catch(err) {
+              alert("MP3 encoding failed: " + err.message);
+              resetRecordingUI();
+              return;
+            }
+            resetRecordingUI();
+            timerSpan.textContent = formatTimer(Date.now() - recordStartT);
+          };
+          function resetRecordingUI() {
+            recordBtn.textContent = 'Record';
+            recordBtn.disabled = false;
+            recordBtn.classList.remove('recording');
+            clearInterval(recordTimer);
+          }
+          mediaRecorder.start();
+          recordBtn.classList.add('recording');
+          recordBtn.textContent = 'Stop';
+          recordBtn.disabled = false;
+          downloadBtn.style.display = 'none';
+          recordStartT = Date.now();
+          timerSpan.textContent = '00:00';
+          recordTimer = setInterval(function() {
+            timerSpan.textContent = formatTimer(Date.now() - recordStartT);
+          }, 400);
+        })
+        .catch(function(err) {
+          alert("Could not access microphone.");
+          recordBtn.disabled = false;
+        });
+      }
+
+      function stopRecording() {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+          clearInterval(recordTimer);
+        }
+      }
+
+      recordBtn.addEventListener('click', function() {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+          stopRecording();
+          recordBtn.disabled = true; // Will be re-enabled when onstop
+        } else {
+          startRecording();
+        }
+      });
+
+      // Reset download link on click and remove URL for cleanup
+      downloadBtn.addEventListener('click', function() {
+        setTimeout(() => {
+          if (downloadBtn.href.startsWith('blob:')) {
+            URL.revokeObjectURL(downloadBtn.href);
+          }
+          downloadBtn.style.display = 'none';
+          timerSpan.textContent = '';
+        }, 400);
+      });
+
       // Render on page load
       renderSoundboard();
     </script>
+    <p><a href="https://forms.gle/Z2Yn3b8sE5wUMRJB6" target="_blank" rel="noopener">submit your dumb sounds here</a></p>
 </body>
 </html>
+
