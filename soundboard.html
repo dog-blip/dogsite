@@ -117,9 +117,289 @@
             min-width: 40px;
             text-align: center;
         }
+       
+        /* LOGOUT BUTTON STYLE */
+        #logout-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 22px;
+            z-index: 99998;
+            background: #ff4c64;
+            color: #fff;
+            border: none;
+            border-radius: 22px;
+            padding: 13px 26px 13px 22px;
+            font-size: 1.1em;
+            box-shadow: 0 3px 16px rgba(0,0,0,0.16);
+            cursor: pointer;
+            transition: background 0.16s, box-shadow 0.22s;
+            opacity: 0.85;
+            font-weight: bold;
+            letter-spacing: 0.2px;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+        #logout-btn:hover {
+            background: #cd253c;
+            box-shadow: 0 4px 16px #e6455a66, 0 1.5px 7px #0002;
+            opacity: 1;
+        }
+        #logout-btn svg {
+            width: 19px;
+            margin-right: 2px;
+            vertical-align: middle;
+            fill: #fff;
+        }
     </style>
-</head>
-<body>
+
+    <script>
+    // ---- PASSWORD GUARD ----
+    const PGUARD_PASS = '5w0ndeR';
+    const PGUARD_LOCALSTORAGE_KEY = 'pguard_sb_auth';
+    function pguard_todayDateStr() {
+        const d = new Date();
+        return d.getUTCFullYear() + "-" +
+               ("0"+(d.getUTCMonth()+1)).slice(-2) + "-" +
+               ("0"+d.getUTCDate()).slice(-2);
+    }
+    function pguard_is_authed() {
+        try {
+            const data = JSON.parse(localStorage.getItem(PGUARD_LOCALSTORAGE_KEY));
+            if (data && typeof data === 'object' && data.pass === true && data.date === pguard_todayDateStr()) {
+                return true;
+            }
+        } catch(e){}
+        return false;
+    }
+    function pguard_set_authed() {
+        const data = {pass:true, date:pguard_todayDateStr()};
+        localStorage.setItem(PGUARD_LOCALSTORAGE_KEY, JSON.stringify(data));
+    }
+    function pguard_logout_at_midnight() {
+        const now = new Date();
+        const nextMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()+1, 0,0,1,0));
+        setTimeout(() => {
+            localStorage.removeItem(PGUARD_LOCALSTORAGE_KEY);
+            location.reload();
+        }, nextMidnight.getTime() - now.getTime());
+    }
+
+    function pguard_logout_now() {
+        localStorage.removeItem(PGUARD_LOCALSTORAGE_KEY);
+        location.reload();
+    }
+
+    function pguard_show_guard(cbOnAuth) {
+        // If overlay exists, show and focus the box
+        let existing = document.getElementById('pg-guard');
+        if (existing) {
+            existing.style.display = 'flex';
+            let pf = document.getElementById('pg-pass-input');
+            if(pf) setTimeout(()=>{ pf.focus();}, 40);
+            return;
+        }
+        const guard = document.createElement('div');
+        guard.id = "pg-guard";
+        // Monochrome semi-transparent black overlay
+        document.documentElement.appendChild(guard);
+        guard.style.position = "fixed";
+        guard.style.top = 0; guard.style.left = 0;
+        guard.style.width = "100vw";
+        guard.style.height = "100vh";
+        guard.style.display = "flex";
+        guard.style.justifyContent = "center";
+        guard.style.alignItems = "center";
+        guard.style.zIndex = 999999;
+        guard.style.background = "rgba(0,0,0,0.93)";
+
+        // inner container for styles
+        const panel = document.createElement("div");
+        panel.style.display = "flex";
+        panel.style.flexDirection = "column";
+        panel.style.alignItems = "center";
+        panel.style.gap = "14px";
+        panel.style.background = "#1a1a1a";
+        panel.style.padding = "36px 32px 32px 32px";
+        panel.style.borderRadius = "14px";
+        panel.style.boxShadow = "0 8px 38px rgba(0,0,0,0.65), 0 1.5px 7px #fff1";
+        panel.style.minWidth = "280px";
+        panel.style.fontFamily = "monospace, monospace";
+        panel.innerHTML = `
+          <form id="pg-guard-form" autocomplete="off" style="display:flex;flex-direction:column;align-items:center;width:100%;font-family:monospace;">
+            <label for="pg-pass-input"
+              style="
+                color: #fff;
+                font-family: monospace, monospace;
+                font-weight: bold;
+                font-size: 1.25em;
+                margin-bottom: 4px;
+                letter-spacing: 1px;
+                text-shadow: 0 2px 16px #000, 0 1px 0 #fff3;
+              "
+            >access soundboard</label>
+            <input id="pg-pass-input" type="password" placeholder="Password" maxlength="32" required autocomplete="off"
+                style="
+                  font-size:1.08em;
+                  padding:8px 14px;
+                  border:1.5px solid #fff;
+                  border-radius:7px;
+                  background:#161616;
+                  color:#fff;
+                  width:200px;
+                  margin-bottom:10px;
+                  outline: none;
+                  box-shadow: 0 2px 0 #0003, 0 1px 0 #fff1;
+                  font-family:monospace, monospace;
+                  letter-spacing: 0.1em;
+                  transition: border 0.18s;
+                "
+                onfocus="this.style.borderColor='#fff';this.style.boxShadow='0 2px 0 #0005, 0 1px 0 #fff1';"
+                onblur="this.style.borderColor='#fff';"
+            />
+            <button type="submit"
+                style="
+                  font-family: monospace, monospace;
+                  font-size:1em;
+                  padding:8px 28px;
+                  border-radius:7px;
+                  background:#fff;
+                  color:#181818;
+                  border:none;
+                  cursor:pointer;
+                  margin-top:8px;
+                  font-weight:bold;
+                  letter-spacing:1px;
+                  box-shadow: 0 1.5px 7px #0002, 0 2px 16px #fff1;
+                  transition: background 0.17s,color 0.17s;
+                "
+                onmouseover="this.style.background='#e2e2e2';this.style.color='#000'"
+                onmouseout="this.style.background='#fff';this.style.color='#181818';"
+            >
+                ENTER
+            </button>
+            <div class="failmsg" id="pg-failmsg"
+              style="
+                color: #fff;
+                font-size: .98em;
+                font-family: monospace, monospace;
+                font-weight: bold;
+                min-height: 24px;
+                margin-top: 6px;
+                width: 100%;
+                text-align: center;
+                text-shadow: 0 2px 8px #000, 0 1px 0 #fff3;
+              "
+            ></div>
+          </form>
+        `;
+        guard.appendChild(panel);
+
+        const form = panel.querySelector('#pg-guard-form');
+        const passField = panel.querySelector('#pg-pass-input');
+        const failmsg = panel.querySelector('#pg-failmsg');
+
+        function fail(txt) {
+            failmsg.textContent = txt;
+            passField.value = '';
+            passField.focus();
+            failmsg.style.color = "#fff";
+            failmsg.style.textShadow = "0 1px 0 #fff3, 0 2px 8px #000";
+        }
+        form.addEventListener('submit', function(e){
+            e.preventDefault();
+            let v = passField.value.trim();
+            if (v === PGUARD_PASS) {
+                pguard_set_authed();
+                guard.style.opacity = "0";
+                setTimeout(() => {
+                    guard.style.display = 'none';
+                    if (typeof cbOnAuth === 'function') cbOnAuth();
+                }, 260);
+                pguard_logout_at_midnight();
+            } else {
+                fail("Incorrect code.");
+            }
+        });
+        // Make sure type box is focused, even if body is [style=visibility:hidden]
+        setTimeout(()=>{ try { passField.focus(); } catch(e){} }, 120);
+    }
+
+    // Unlock logic: show password guard if needed
+    function showGuardIfNeeded() {
+        if (!pguard_is_authed()) {
+            document.documentElement.style.overflow = 'hidden';
+            window._sb_on_auth = () => {
+                document.documentElement.style.overflow = '';
+                // Also hide the overlay if present
+                let guard = document.getElementById('pg-guard');
+                if(guard) guard.style.display = 'none';
+                // Show the body
+                document.body.style.visibility = '';
+            };
+            // Ensure DOM is ready so <body> exists before we test
+            if (document.readyState === "loading") {
+                window.addEventListener('DOMContentLoaded', function(){
+                    pguard_show_guard(window._sb_on_auth);
+                });
+            } else {
+                pguard_show_guard(window._sb_on_auth);
+            }
+        } else {
+            pguard_logout_at_midnight();
+            // Make sure body is visible if already authed
+            document.body.style.visibility = '';
+            document.documentElement.style.overflow = '';
+        }
+    }
+
+    // Run immediately when HTML is ready, as soon as possible
+    // Only execute after DOM is available to avoid body being null
+    if (document.readyState === "loading") {
+        document.addEventListener('DOMContentLoaded', showGuardIfNeeded);
+    } else {
+        showGuardIfNeeded();
+    }
+
+    // Show/hide the body depending on if password is entered
+    (function(){
+        function check() {
+            if ((function(){
+                try {
+                  var d=JSON.parse(localStorage.getItem('pguard_sb_auth'));
+                  return d&&d.pass===true&&d.date===(
+                    new Date().getUTCFullYear()+"-"+("0"+(new Date().getUTCMonth()+1)).slice(-2)+"-"+("0"+new Date().getUTCDate()).slice(-2)
+                  );
+                } catch(e){}
+                return false;
+              })()) {
+              // Defensive: ensure body exists before accessing its style!
+              if (document.body) {
+                document.body.style.visibility = '';
+              }
+              document.documentElement.style.overflow = '';
+              // Hide overlay if still present
+              let g=document.getElementById('pg-guard'); if(g) g.style.display='none';
+          } else {
+              if (document.body) {
+                document.body.style.visibility = 'hidden';
+              }
+              document.documentElement.style.overflow = 'hidden';
+              // Show overlay
+              pguard_show_guard();
+          }
+        }
+        if (document.readyState === "loading") {
+          document.addEventListener('DOMContentLoaded', check);
+        } else {
+          check();
+        }
+        window.addEventListener('storage', check);
+        window._sb_on_auth = check;
+      })();
+    </script>
+  </head>
+  <body style="visibility:hidden;">
   <script>
     (function oneko() {
 const isReducedMotion =
@@ -1030,6 +1310,12 @@ init();
 
       // Render on page load
       renderSoundboard();
+
+      // --- LOGOUT BUTTON functionality ---
+      window.pguard_logout_now = function() {
+        localStorage.removeItem('pguard_sb_auth');
+        location.reload();
+      };
     </script>
     <p><a href="https://forms.gle/Z2Yn3b8sE5wUMRJB6" target="_blank" rel="noopener">submit your dumb sounds here</a></p>
     <p>29 new sounds added 29.10.2025</p>
@@ -1038,6 +1324,9 @@ init();
       <img src="https://files.catbox.moe/irwkza.jpg" style="max-width: 290px; display: block;">
       <img src="https://files.catbox.moe/2t2nk8.png" style="max-width: 290px; display: block;">
     </div>
+    <!-- LOGOUT BUTTON (bottom right) -->
+    <button id="logout-btn" type="button" onclick="pguard_logout_now()" title="Log out and lock the soundboard" aria-label="Log out">
+      Log out
+    </button>
 </body>
 </html>
-
