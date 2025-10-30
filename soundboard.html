@@ -226,7 +226,7 @@
         panel.style.minWidth = "280px";
         panel.style.fontFamily = "monospace, monospace";
         panel.innerHTML = `
-          <form id="pg-guard-form" autocomplete="off" style="display:flex;flex-direction:column;align-items:center;width:100%;font-family:monospace;">
+          <form id="pg-guard-form" autocomplete="on" style="display:flex;flex-direction:column;align-items:center;width:100%;font-family:monospace;">
             <label for="pg-pass-input"
               style="
                 color: #fff;
@@ -238,7 +238,12 @@
                 text-shadow: 0 2px 16px #000, 0 1px 0 #fff3;
               "
             >access soundboard</label>
-            <input id="pg-pass-input" type="password" placeholder="Password" maxlength="32" required autocomplete="off"
+            
+            <!-- Username (enables browser password saving) -->
+            <input id="pg-user-input" value="soundboard" name="username" type="text" readonly placeholder="Username (for saving)"
+              autocomplete="username"
+              style="font-size:1.08em;padding:8px 14px;border:1.5px solid #fff;border-radius:7px;background:#161616;color:#fff;width:200px;margin-bottom:8px;outline:none;box-shadow:0 2px 0 #0003,0 1px 0 #fff1;font-family:monospace, monospace;letter-spacing:.02em;transition:border .18s;position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;"  aria-hidden="true"  tabindex="-1" />
+<input id="pg-pass-input" type="password" name="password" placeholder="Password" maxlength="32" required autocomplete="current-password"
                 style="
                   font-size:1.08em;
                   padding:8px 14px;
@@ -310,7 +315,16 @@
             e.preventDefault();
             let v = passField.value.trim();
             if (v === PGUARD_PASS) {
-                pguard_set_authed();
+                
+        // Ask browser to save credentials (if supported)
+        try {
+          const userField = panel.querySelector('#pg-user-input');
+          const username = userField ? userField.value.trim() : '';
+          if (typeof pguard_maybe_save_password === 'function') {
+            pguard_maybe_save_password(username, v);
+          }
+        } catch(_) {}
+    pguard_set_authed();
                 guard.style.opacity = "0";
                 setTimeout(() => {
                     guard.style.display = 'none';
@@ -1328,5 +1342,19 @@ init();
     <button id="logout-btn" type="button" onclick="pguard_logout_now()" title="Log out and lock the soundboard" aria-label="Log out">
       Log out
     </button>
+
+<script>
+// Minimal, safe: store credentials when supported (requires HTTPS or localhost)
+async function pguard_maybe_save_password(username, password) {
+  try {
+    if ('credentials' in navigator && window.PasswordCredential) {
+      const id = (username && username.trim()) || (location.hostname || 'soundboard');
+      const cred = new PasswordCredential({ id, name: 'Soundboard', password });
+      await navigator.credentials.store(cred);
+    }
+  } catch (e) { /* ignore */ }
+}
+</script>
+
 </body>
 </html>
