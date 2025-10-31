@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>dogboard yapper</title>
+  <!-- Load SDK BEFORE our script -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.47.4/dist/umd/supabase.js"></script>
+</head>
+<body>
+  <script>
+    const SUPABASE_URL = "https://acuknvkcrwxxkkwgpikh.supabase.co"; 
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjdWtudmtjcnd4eGtrd2dwaWtoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5MTgxNjYsImV4cCI6MjA3NzQ5NDE2Nn0.qMWmi6nEBCJQxJfmZJ1qpmU7Sjoyyra9H1v2HhU8xA0";
+  </script>
+
+  <!-- Username setup (no auth) -->
+  <div id="nameSetup">
+    <h2>Enter a username</h2>
+    <label>Username <input id="displayName" type="text" placeholder="enter a username"></label>
+    <button id="startBtn">Start chatting</button>
+    <p id="authMsg" style="color:#c00;"></p>
+  </div>
+
+  <!-- App -->
+  <div id="app" hidden>
+    <h2>dogyap™</h2>
+    <div>
+      <span id="me"></span>
+      <button id="changeNameBtn">Change name</button>
+    </div>
+    <hr>
+    <div id="messages" style="height:60vh; overflow:auto; border:1px solid #ccc; padding:8px;"></div>
+    <div id="status" style="margin-top:6px; font-family:monospace; font-size:12px; white-space:pre-wrap;"></div>
+    <form id="sendForm">
+      <input id="message" placeholder="annoy people…" autocomplete="off" style="width:80%;">
+      <button type="submit">Send</button>
+    </form>
+  </div>
+
+  <script>
+    // ========= Helpers =========
+    const $ = (id) => document.getElementById(id);
+    function setStatus(msg) {
+      const el = $('status');
+      if (!el) return;
+      const t = new Date().toLocaleTimeString();
+      el.textContent = `[${t}] ${msg}`;
+    }
+
+    // ========= State =========
+    let supabaseClient;
+    let channel = null;           // keep one channel only
+    let clientId = null;
+    let displayName = null;
+    const renderedIds = new Set(); // de-dupe by row id
+
+    function ensureIdentity() {
+      clientId = localStorage.getItem('chat_client_id');
+      if (!clientId) {
+        clientId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Math.random()).slice(2);
+        localStorage.setItem('chat_client_id', clientId);
+      }
+      displayName = localStorage.getItem('chat_name');
+    }
+
+    function renderMessage(m) {
+      // De-dup on id (history + realtime)
+      if (m.id && renderedIds.has(m.id)) return;
+      if (m.id) renderedIds.add(m.id);
+
+      const line = document.createElement('div');
+      const time = new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      const mine = m.sender_id === clientId;
+      const name = mine ? `${m.sender_name} (You)` : m.sender_name;
+      line.textContent = `[${time}] ${name}: ${m.content}`;
+      const box = $('messages');
+      box.appendChild(line);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    async function loadMessages() {
+      $('messages').innerHTML = '';
+      renderedIds.clear();
+      const { data, error } = await supabaseClient
+        .from('messages')
+        .select('*')
+        .eq('room', 'general')
+        .order('created_at', { ascending: true })
+        .limit(200);
+      if (error) {
+        console.error('select error', error);
+        setStatus('Select error: ' + (error.message || JSON.stringify(error)));
+        return;
+      }
+      data.forEach(renderMessage);
+      setStatus(`Loaded ${data.length} messages.`);
+    }
+
+    async function bindRealtime() {
+      // Clean any previous subscription
+      if (channel) await supabaseClient.removeChannel(channel);
+
+      channel = supabaseClient.channel('room:general');
+      channel.on('postgres_changes',
+        { event:'INSERT', schema:'public', table:'messages', filter:'room=eq.general' },
+        (payload) => { renderMessage(payload.new); }
+      );
+
+      const st = await channel.subscribe();
+      setStatus('Realtime subscribed: ' + st);
+    }
+
+    async function boot() {
+      if (!window.supabase) {
+        setStatus('❌ supabase SDK not loaded.');
+        return;
+      }
+      if (!SUPABASE_URL.includes('supabase.co') || SUPABASE_ANON_KEY === 'YOUR-ANON-KEY') {
+        setStatus('⚠️ supabase url and anon key not loaded pmo');
+      }
+      supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      ensureIdentity();
+
+      if (displayName) {
+        $('nameSetup').hidden = true;
+        $('app').hidden = false;
+        $('me').textContent = `You are: ${displayName}`;
+        await loadMessages();
+        await bindRealtime();
+      }
+    }
+
+    // ======== UI events ========
+    $('startBtn').onclick = async () => {
+      const name = $('displayName').value.trim();
+      if (!name) { $('authMsg').textContent = 'Please enter a username'; return; }
+      localStorage.setItem('chat_name', name);
+      displayName = name;
+      $('nameSetup').hidden = true;
+      $('app').hidden = false;
+      $('me').textContent = `You are: ${displayName}`;
+      await loadMessages();
+      await bindRealtime();
+    };
+
+    $('changeNameBtn').onclick = () => {
+      const name = prompt('Choose a new name', displayName || '')?.trim();
+      if (!name) return;
+      displayName = name;
+      localStorage.setItem('chat_name', name);
+      $('me').textContent = `You are: ${displayName}`;
+    };
+
+    $('sendForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = $('message');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      const payload = { room: 'general', sender_id: clientId, sender_name: displayName || 'Guest', content: text };
+      // IMPORTANT: do NOT render here — rely on realtime to avoid duplicates
+      const { error } = await supabaseClient.from('messages').insert(payload);
+      if (error) {
+        console.error('insert error', error);
+        setStatus('Insert error: ' + (error.message || JSON.stringify(error)));
+        return;
+      }
+      setStatus('Message sent (awaiting realtime)…');
+    });
+
+    boot();
+  </script>
+<button id="soundboardBtn" onclick="window.open('https://dogblip.site/soundboard', '_blank')">
+  Soundboard
+</button>
+</body>
+</html>
