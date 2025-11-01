@@ -53,6 +53,26 @@
             background: #ececec;
             cursor: pointer;
             transition: background 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        .soundboard-btn::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 0%;
+            background: rgba(255, 68, 68, 0.55);
+            z-index: 0;
+        }
+        .soundboard-btn.playing::before {
+            width: var(--progress-width, 0%);
+            transition: width var(--progress-duration, 0s) linear;
+        }
+        .soundboard-btn span {
+            position: relative;
+            z-index: 1;
         }
         .soundboard-btn:hover {
             background: #d1eaff;
@@ -998,6 +1018,18 @@ init();
       {name: "censored beep", url: "https://www.myinstants.com/media/sounds/unbenannt_M7OcDIp.mp3"},
       {name: "w speed", url: "https://files.catbox.moe/zls2w4.mp3"},
       {name: "tidal wave reaction (zoink)", url: "https://files.catbox.moe/g3rqwi.mp3"},
+      // 10 sounds 1.11.2025
+      {name: "dun dun dunn", url: "https://www.myinstants.com/media/sounds/dun-dun-dun-sound-effect-brass_8nFBccR.mp3"},
+      {name: "fortnite death", url: "https://www.myinstants.com/media/sounds/tmp_7901-951678082.mp3"},
+      {name: "run", url: "https://www.myinstants.com/media/sounds/1-108.mp3"},
+      {name: "what is vro aiming at", url: "https://www.myinstants.com/media/sounds/steel_tv-what-are-you-aiming-at.mp3"},
+      {name: "outro", url: "https://www.myinstants.com/media/sounds/outro-songg.mp3"},
+      {name: "whopper", url: "https://www.myinstants.com/media/sounds/whopper-911.mp3"},
+      {name: "suspense", url: "https://www.myinstants.com/media/sounds/kai-cenat-suspense.mp3"},
+      {name: "he hehe ha", url: "https://www.myinstants.com/media/sounds/clash-royale-he-he-he-haa.mp3"},
+      {name: "dont...", url: "https://www.myinstants.com/media/sounds/deg-deg_4M6Cojn.mp3"},,
+      {name: "a very normal alarm", url: "https://www.myinstants.com/media/sounds/italian-brainrot-ringtone-v2222332.mp3"},
+      {name: "romance", url: "https://www.myinstants.com/media/sounds/romanceeeeeeeeeeeeee.mp3"},
       ];
 
       // Keys for localStorage
@@ -1018,32 +1050,66 @@ init();
       function setUserSounds(list) {
         localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(list));
       }
-
-      // Render sound buttons (defaults or custom)
-      function renderButtons(container, sounds, {custom, removeBtn}={}) {
+      function renderButtons(container, sounds, { custom, removeBtn } = {}) {
         container.innerHTML = '';
         sounds.forEach((sound, i) => {
           const btn = document.createElement('button');
           btn.type = "button";
           btn.className = "soundboard-btn";
-          btn.textContent = sound.name;
+          const span = document.createElement('span');
+          span.textContent = sound.name;
+          btn.appendChild(span);
           btn.dataset.sound = sound.url;
+
           btn.addEventListener('click', function (e) {
-            // Play sound and track for stopping
             e.stopPropagation();
             const audio = new Audio(btn.getAttribute('data-sound'));
+            // Attempt to force instant playback (preload, play asap)
+            audio.preload = 'auto';
+            audio.currentTime = 0;
             playingAudios.push(audio);
-            audio.play();
-            // Remove audio from the list when done
+
+            // Play instantly, even before metadata (no visual duration/progress bar unless loaded)
+            const playPromise = audio.play();
+
+            // If duration available, track for progress bar
+            const updateProgress = () => {
+              const duration = audio.duration;
+              if (duration && duration > 0) {
+                btn.classList.add('playing');
+                btn.style.setProperty('--progress-duration', duration + 's');
+                requestAnimationFrame(() => {
+                  btn.style.setProperty('--progress-width', '100%');
+                });
+              }
+            };
+            if (audio.readyState >= 1) { // HAVE_METADATA
+              updateProgress();
+            } else {
+              audio.addEventListener('loadedmetadata', updateProgress, { once: true });
+            }
+
             audio.addEventListener('ended', () => {
-                playingAudios = playingAudios.filter(a => a !== audio);
+              playingAudios = playingAudios.filter(a => a !== audio);
+              btn.classList.remove('playing');
+              btn.style.setProperty('--progress-width', '0%');
+              setTimeout(() => {
+                btn.style.removeProperty('--progress-width');
+                btn.style.removeProperty('--progress-duration');
+              }, 50);
             });
+
             audio.addEventListener('pause', () => {
-                playingAudios = playingAudios.filter(a => a !== audio);
+              playingAudios = playingAudios.filter(a => a !== audio);
+              btn.classList.remove('playing');
+              btn.style.setProperty('--progress-width', '0%');
+              setTimeout(() => {
+                btn.style.removeProperty('--progress-width');
+                btn.style.removeProperty('--progress-duration');
+              }, 50);
             });
           });
 
-          // Add remove button only for user sounds
           if (custom && removeBtn) {
             const remBtn = document.createElement('button');
             remBtn.type = 'button';
@@ -1339,6 +1405,7 @@ init();
     <p><a href="https://forms.gle/Z2Yn3b8sE5wUMRJB6" target="_blank" rel="noopener">submit your dumb sounds here</a></p>
     <p>29 new sounds added 29.10.2025</p>
     <p>19 more sounds added 30.10.2025</p>
+    <p>added cool progressbar animation to buttons and 10 more sounds added 1.11.2025</p>
     <div style="display: flex; justify-content: center; gap: 20px; margin: 20px 0;">
       <img src="https://files.catbox.moe/irwkza.jpg" style="max-width: 290px; display: block;">
       <img src="https://files.catbox.moe/2t2nk8.png" style="max-width: 290px; display: block;">
