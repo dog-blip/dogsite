@@ -176,7 +176,19 @@
             vertical-align: middle;
             fill: #fff;
         }
-    </style>
+    
+/* --- Spotify embed grid --- */
+.embed-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));
+  grid-auto-rows:176px; /* two smalls = one big */
+  gap:18px;
+  align-items:stretch;
+}
+.embed-grid iframe{ width:100%; height:100%; border-radius:12px; }
+.embed-grid .embed-large{ grid-row: span 2; } /* ~352px */
+.embed-grid .embed-small{ grid-row: span 1; } /* ~176px */
+</style>
 
     <script>
     const PGUARD_PASS = '5w0ndeR';
@@ -1430,6 +1442,28 @@ async function pguard_maybe_save_password(username, password) {
   } catch (e) { /* ignore */ }
 }
 </script>
+<button id="toggle-section-btn" type="button" style="margin: 18px 0;">
+  cool button
+</button>
+<div id="extra-section" style="display: none;">
+  <div class="embed-grid"><iframe class="embed-large" data-testid="embed-iframe" src="https://open.spotify.com/embed/album/2wE4xtNzYPjSEv4Q2wfMV6?utm_source=generator" width="100%" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+    <iframe class="embed-large" data-testid="embed-iframe" src="https://open.spotify.com/embed/album/6vGcDMKtOa0Mx9kfHIhlpj?utm_source=generator" width="100%" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+    <iframe class="embed-small" data-testid="embed-iframe" src="https://open.spotify.com/embed/track/1lOe9qE0vR9zwWQAOk6CoO?utm_source=generator" width="100%" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+    <iframe class="embed-small" data-testid="embed-iframe" src="https://open.spotify.com/embed/track/7IHPd4eNBC32TypcewoxMl?utm_source=generator" width="100%" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+  </div>
+  <h3>YOUTUBE EMBEDS DECIDED TO SAY SYBAU TO ME SO WE ARE USING SPOTIFY. VOICES FROM THE TRUE WORLD VIII IS KINDA FIRE NGL</h3>
+</div>
+<script>
+  const toggleBtn = document.getElementById('toggle-section-btn');
+  const extraSection = document.getElementById('extra-section');
+
+  toggleBtn.addEventListener('click', function() {
+    const shown = extraSection.style.display !== 'none';
+    extraSection.style.display = shown ? 'none' : 'block';
+    toggleBtn.textContent = shown ? 'cool button' : 'hide ts';
+  });
+</script>
+
 
 </body>
 </html>
