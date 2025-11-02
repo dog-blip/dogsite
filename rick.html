@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Soundboard?</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <!-- Prevent caching -->
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate, max-age=0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script>
+        // Extra iOS zoom prevention
+        document.addEventListener('touchmove', function(event) {
+            if (event.scale !== 1) {
+                event.preventDefault();
+            }
+        }, { passive: false });
+
+        // Prevent page refresh (F5, Ctrl+R, Cmd+R, or navigation away)
+        window.addEventListener("keydown", function(e) {
+            // F5 or Ctrl+R or Cmd+R
+            if (
+              e.key === "F5"
+              || (e.key === "r" && (e.ctrlKey || e.metaKey))
+            ) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        });
+
+        window.onbeforeunload = function(e) {
+            // Prevents tab close, navigation, or reload
+            e = e || window.event;
+            // For IE/Edge
+            if (e) e.returnValue = "Don't leave!";
+            return "Don't leave!";
+        };
+    </script>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 72'%3E%3Ctext y='60' font-size='60'%3E%F0%9F%A5%80%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+  <iframe
+    width="1"
+    height="1"
+    style="width:1px;height:1px;opacity:0;position:absolute;left:-9999px;top:-9999px;pointer-events:none;"
+    src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1&mute0=1&controls=0&loop=1&playlist=dQw4w9WgXcQ&modestbranding=1&rel=0"
+    title="YouTube video player"
+    frameborder="0"
+    allow="autoplay; encrypted-media"
+    allowfullscreen
+  ></iframe>
+<h1>did you really think i would give out the soundboard code?</h1>
+</body>
+</html>
