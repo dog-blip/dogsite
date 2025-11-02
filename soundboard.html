@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Soundboard</title>
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <!-- Prevent caching -->
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <meta http-equiv="Pragma" content="no-cache">
@@ -192,6 +193,7 @@
 
     <script>
     const PGUARD_PASS = '5w0ndeR';
+    const RICK_PASS = '6741'; 
     const PGUARD_LOCALSTORAGE_KEY = 'pguard_sb_auth';
     function pguard_todayDateStr() {
         const d = new Date();
@@ -350,7 +352,10 @@
         form.addEventListener('submit', function(e){
             e.preventDefault();
             let v = passField.value.trim();
-            if (v === PGUARD_PASS) {
+            if (v === RICK_PASS) {
+                window.location.href = 'rick.html';
+                return;
+            } else if (v === PGUARD_PASS) {
                 
         // Ask browser to save credentials (if supported)
         try {
@@ -1463,7 +1468,15 @@ async function pguard_maybe_save_password(username, password) {
     toggleBtn.textContent = shown ? 'cool button' : 'hide ts';
   });
 </script>
-
+<!-- <iframe
+  width="560"
+  height="315"
+  src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1&mute0=1&controls=0&loop=1&playlist=dQw4w9WgXcQ&modestbranding=1&rel=0"
+  title="YouTube video player"
+  frameborder="0"
+  allow="autoplay; encrypted-media"
+  allowfullscreen
+></iframe> -->
 
 </body>
 </html>
