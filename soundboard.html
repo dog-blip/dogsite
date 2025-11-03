@@ -1427,7 +1427,7 @@ init();
       <img src="https://files.catbox.moe/irwkza.jpg" style="max-width: 290px; display: block;">
       <img src="https://files.catbox.moe/2t2nk8.png" style="max-width: 290px; display: block;">
     </div>
-      <button onclick="window.open('https://dogblip.site/chat', '_blank')">
+      <button onclick="window.open('https://dogblip.site/chat', '_blank')" style="font-size: 1.1em; ">
         chat
       </button>
     <!-- LOGOUT BUTTON (bottom right) -->
@@ -1447,16 +1447,255 @@ async function pguard_maybe_save_password(username, password) {
   } catch (e) { /* ignore */ }
 }
 </script>
-<button id="toggle-section-btn" type="button" style="margin: 18px 0;">
+<button id="toggle-section-btn" type="button" style="font-size: 1.1em; ">
   cool button
 </button>
 <div id="extra-section" style="display: none;">
-  <div class="embed-grid"><iframe class="embed-large" data-testid="embed-iframe" src="https://open.spotify.com/embed/album/2wE4xtNzYPjSEv4Q2wfMV6?utm_source=generator" width="100%" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
-    <iframe class="embed-large" data-testid="embed-iframe" src="https://open.spotify.com/embed/album/6vGcDMKtOa0Mx9kfHIhlpj?utm_source=generator" width="100%" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
-    <iframe class="embed-small" data-testid="embed-iframe" src="https://open.spotify.com/embed/track/1lOe9qE0vR9zwWQAOk6CoO?utm_source=generator" width="100%" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
-    <iframe class="embed-small" data-testid="embed-iframe" src="https://open.spotify.com/embed/track/7IHPd4eNBC32TypcewoxMl?utm_source=generator" width="100%" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+  
+  <style>
+    .mp3-embed{--bg:#0f1115;--muted:#9aa3ad;--accent:#1db954;color:#e9eef3;
+      font-family:Inter,system-ui,Arial;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,.35);max-width:820px;margin:16px auto}
+    .mp3-player{display:flex;gap:14px;align-items:center}
+    .mp3-cover{width:84px;height:84px;border-radius:10px;overflow:hidden;background:#222;flex:0 0 84px}
+    .mp3-cover img{width:100%;height:100%;object-fit:cover}
+    .mp3-title{margin:0 0 6px;font-size:16px;font-weight:700}
+    .mp3-artist{margin:0;color:var(--muted);font-size:13px}
+    .mp3-ctrls{display:flex;align-items:center;gap:8px;margin-top:10px}
+    .mp3-btn{width:44px;height:44px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);display:grid;place-items:center;cursor:pointer}
+    .mp3-btn svg{width:20px;height:20px;fill:#fff}
+    .mp3-progress{display:flex;align-items:center;gap:8px;margin-top:10px}
+    .mp3-time{font-size:12px;color:var(--muted);min-width:38px;text-align:center}
+    .mp3-seek{position:relative;height:6px;flex:1;border-radius:6px;background:rgba(255,255,255,.1);cursor:pointer}
+    .mp3-bar{position:absolute;inset:0 0 0 0;width:0%;background:linear-gradient(90deg,var(--accent),#2fe07a);border-radius:6px}
+    .mp3-list{margin-top:12px;border-top:1px solid rgba(255,255,255,.07);
+
+      /* show max 4 rows, scroll for more */
+      max-height: 280px;           /* ~4 items */
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    .mp3-item{display:flex;gap:12px;align-items:center;padding:10px 6px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer}
+    .mp3-item:hover{background:rgba(255,255,255,.04)}
+    .mp3-item.active{background:rgba(29,185,84,.12)}
+    .mp3-item .thumb{width:42px;height:42px;border-radius:6px;overflow:hidden;background:#222;flex:0 0 42px}
+    .mp3-item .thumb img{width:100%;height:100%;object-fit:cover}
+    .mp3-item .t{font-size:14px;font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .mp3-item .a{font-size:12px;color:var(--muted);margin:2px 0 0}
+    .mp3-spacer{flex:1}
+    .mp3-pill{font-size:11px;padding:4px 8px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1)}
+    .mp3-embed { background:#151515; color:#f0f0f0; }
+  </style>
+
+  <script>
+  (function(){
+    const svg = {
+      play:'<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
+      pause:'<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>',
+      prev:'<svg viewBox="0 0 24 24"><path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z"/></svg>',
+      next:'<svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2V6zM6 6v12l8.5-6L6 6z"/></svg>',
+      loop:'<svg viewBox="0 0 24 24"><path d="M7 7h7v2H7a3 3 0 000 6h3v-2l3 3-3 3v-2H7a5 5 0 010-10zm10 10h-7v-2h7a3 3 0 000-6h-3V7l-3 3 3 3v-2h3a5 5 0 010 10z"/></svg>',
+      shuffle:'<svg viewBox="0 0 24 24"><path d="M17 3h4v4h-2V6h-1.59l-2.7 2.7-1.41-1.41L15.59 4H17V3zM3 7h4.59l12.7 12.7-1.41 1.41L5.59 8H3V7zm12.7 6.3l1.41-1.41L21 15.8V13h2v6h-6v-2h2.8l-4.1-3.7zM3 17h2.59l2.7-2.7 1.41 1.41L6.41 19H3v-2z"/></svg>'
+    };
+    function fmt(t){ if(isNaN(t)) return "0:00"; const m=Math.floor(t/60); const s=Math.floor(t%60).toString().padStart(2,'0'); return `${m}:${s}`; }
+    function coreUI(first){
+      const el=document.createElement('div');
+      el.className='mp3-player';
+      el.innerHTML=`
+        <div class="mp3-cover"><img alt="" src="${first.cover||''}"></div>
+        <div style="flex:1">
+          <h4 class="mp3-title">${first.title||'Untitled'}</h4>
+          <p class="mp3-artist">${first.artist||''}</p>
+          <div class="mp3-ctrls">
+            <button class="mp3-btn mp3-prev" title="Previous">${svg.prev}</button>
+            <button class="mp3-btn mp3-play" title="Play">${svg.play}</button>
+            <button class="mp3-btn mp3-next" title="Next">${svg.next}</button>
+            <span class="mp3-spacer"></span>
+            <button class="mp3-btn mp3-shuffle" title="Shuffle">${svg.shuffle}</button>
+            <button class="mp3-btn mp3-loop" title="Loop">${svg.loop}</button>
+          </div>
+          <div class="mp3-progress">
+            <span class="mp3-time mp3-cur">0:00</span>
+            <div class="mp3-seek"><div class="mp3-bar"></div></div>
+            <span class="mp3-time mp3-dur">0:00</span>
+          </div>
+        </div>`;
+      return el;
+    }
+
+    /* ===== SINGLE TRACK EMBED ===== */
+    document.addEventListener('DOMContentLoaded', ()=>{
+      document.querySelectorAll('.mp3-embed.mp3-track').forEach(host=>{
+        const audio=new Audio(); audio.preload='metadata';
+        const meta={
+          title:host.dataset.title||'Placeholder Track',
+          artist:host.dataset.artist||'Unknown Artist',
+          cover:host.dataset.cover||'https://picsum.photos/seed/placeholder/200/200',
+          src:host.dataset.src||'https://example.com/audio/placeholder.mp3'
+        };
+        const ui=coreUI(meta);
+        // hide prev/next/shuffle for single track
+        ui.querySelector('.mp3-prev').style.display='none';
+        ui.querySelector('.mp3-next').style.display='none';
+        ui.querySelector('.mp3-shuffle').style.display='none';
+        host.appendChild(ui);
+
+        const playBtn=ui.querySelector('.mp3-play');
+        const durEl=ui.querySelector('.mp3-dur');
+        const curEl=ui.querySelector('.mp3-cur');
+        const bar=ui.querySelector('.mp3-bar');
+        const seek=ui.querySelector('.mp3-seek');
+        const loopBtn=ui.querySelector('.mp3-loop');
+
+        audio.src=meta.src;
+        audio.addEventListener('loadedmetadata', ()=> durEl.textContent=fmt(audio.duration));
+        audio.addEventListener('timeupdate', ()=>{ curEl.textContent=fmt(audio.currentTime); bar.style.width=`${(audio.currentTime/(audio.duration||1))*100}%`; });
+        audio.addEventListener('ended', ()=>{ playBtn.innerHTML=svg.play; });
+
+        // Patch: Try to ensure play happens instantly and reliably on user click
+        playBtn.addEventListener('mousedown', async()=>{
+          if(audio.paused){
+            try {
+              await audio.play();
+              playBtn.innerHTML=svg.pause;
+            } catch(e) {}
+          }
+        });
+
+        playBtn.addEventListener('click', async()=>{
+          if(!audio.paused){
+            audio.pause(); playBtn.innerHTML=svg.play;
+          }
+        });
+        seek.addEventListener('click', e=>{ const r=seek.getBoundingClientRect(); const p=(e.clientX-r.left)/r.width; audio.currentTime=p*(audio.duration||0); });
+        loopBtn.addEventListener('click', ()=>{ audio.loop=!audio.loop; loopBtn.style.outline=audio.loop?'2px solid var(--accent)':'none'; });
+      });
+    });
+
+    /* ===== PLAYLIST EMBED ===== */
+    document.addEventListener('DOMContentLoaded', ()=>{
+      document.querySelectorAll('.mp3-embed.mp3-playlist').forEach(host=>{
+        const dataNode = document.getElementById(host.id + '-data');
+        let tracks=[]; try{ tracks=JSON.parse(dataNode.textContent); }catch(e){ tracks=[]; }
+        if(!tracks.length){ host.innerHTML='<div>No tracks.</div>'; return; }
+
+        const ui=coreUI(tracks[0]); host.appendChild(ui);
+        const list=document.createElement('div'); list.className='mp3-list';
+        tracks.forEach((t,i)=>{
+          const row=document.createElement('div'); row.className='mp3-item'+(i===0?' active':''); row.dataset.index=i;
+          row.innerHTML=`<div class="thumb"><img alt="" src="${t.cover||''}"></div>
+            <div class="info"><p class="t">${t.title||'Untitled'}</p><p class="a">${t.artist||''}</p></div>
+            <span class="mp3-spacer"></span><span class="mp3-pill">Track ${i+1}</span>`;
+          list.appendChild(row);
+        });
+        host.appendChild(list);
+
+        const playBtn=ui.querySelector('.mp3-play'), prevBtn=ui.querySelector('.mp3-prev'), nextBtn=ui.querySelector('.mp3-next');
+        const durEl=ui.querySelector('.mp3-dur'), curEl=ui.querySelector('.mp3-cur'), bar=ui.querySelector('.mp3-bar'), seek=ui.querySelector('.mp3-seek');
+        const shuffleBtn=ui.querySelector('.mp3-shuffle'), loopBtn=ui.querySelector('.mp3-loop');
+        const titleEl=ui.querySelector('.mp3-title'), artistEl=ui.querySelector('.mp3-artist'), coverEl=ui.querySelector('.mp3-cover img');
+
+        const audio=new Audio(); audio.preload='metadata';
+        let index=0, isLoop=false, isShuffle=false;
+
+        function setActive(i){ [...host.querySelectorAll('.mp3-item')].forEach(n=>n.classList.remove('active')); const r=host.querySelector(`.mp3-item[data-index="${i}"]`); if(r) r.classList.add('active'); }
+        function load(i){
+          index=(i+tracks.length)%tracks.length; const t=tracks[index];
+          titleEl.textContent=t.title||'Untitled'; artistEl.textContent=t.artist||''; coverEl.src=t.cover||''; audio.src=t.src||''; setActive(index);
+        }
+        function next(){
+          if(isShuffle){ let ni=Math.floor(Math.random()*tracks.length); if(tracks.length>1 && ni===index) ni=(ni+1)%tracks.length; load(ni); }
+          else load(index+1);
+          audio.play(); playBtn.innerHTML=svg.pause;
+        }
+        function prev(){ load(index-1); audio.play(); playBtn.innerHTML=svg.pause; }
+
+        load(0);
+        audio.addEventListener('loadedmetadata', ()=> durEl.textContent=fmt(audio.duration));
+        audio.addEventListener('timeupdate', ()=>{ curEl.textContent=fmt(audio.currentTime); bar.style.width=`${(audio.currentTime/(audio.duration||1))*100}%`; });
+        audio.addEventListener('ended', ()=>{ if(isLoop){ audio.currentTime=0; audio.play(); } else next(); });
+
+        // Patch: Prioritize fast play on mousedown
+        playBtn.addEventListener('mousedown', async()=>{
+          if(audio.paused){
+            try {
+              await audio.play();
+              playBtn.innerHTML=svg.pause;
+            } catch(e) {}
+          }
+        });
+
+        playBtn.addEventListener('click', async()=>{
+          if(!audio.paused){
+            audio.pause(); playBtn.innerHTML=svg.play;
+          }
+        });
+        prevBtn.addEventListener('click', prev);
+        nextBtn.addEventListener('click', next);
+        seek.addEventListener('click', e=>{ const r=seek.getBoundingClientRect(); const p=(e.clientX-r.left)/r.width; audio.currentTime=p*(audio.duration||0); });
+        loopBtn.addEventListener('click', ()=>{ isLoop=!isLoop; audio.loop=isLoop; loopBtn.style.outline=isLoop?'2px solid var(--accent)':'none'; });
+        shuffleBtn.addEventListener('click', ()=>{ isShuffle=!isShuffle; shuffleBtn.style.outline=isShuffle?'2px solid var(--accent)':'none'; });
+
+        list.addEventListener('mousedown', e=>{
+          const row=e.target.closest('.mp3-item'); if(!row) return;
+          load(parseInt(row.dataset.index,10)); 
+          try {
+            audio.play();
+            playBtn.innerHTML=svg.pause;
+          } catch(e){}
+        });
+      });
+    });
+  })();
+  </script>
+</head>
+<body>
+
+  <!-- Single Track Embed (placeholder you can replace later) -->
+  <div class="mp3-embed mp3-track"
+       data-title="THE 67 SONG"
+       data-artist="Lil Godd"
+       data-cover="https://t2.genius.com/unsafe/689x689/https%3A%2F%2Fimages.genius.com%2Fd9da3ae4bf1134f5999f62477ec74cc1.1000x1000x1.png"
+       data-src="https://files.catbox.moe/rrwkq8.mp3">
   </div>
-  <h3>YOUTUBE EMBEDS DECIDED TO SAY SYBAU TO ME SO WE ARE USING SPOTIFY. VOICES FROM THE TRUE WORLD VIII IS KINDA FIRE NGL</h3>
+
+  <div class="mp3-embed mp3-playlist" id="wemmPlaylist"></div>
+  <script type="application/json" id="wemmPlaylist-data">
+  [
+    {"title":"BATTLE UNDER A BROKEN SKY","artist":"AZALI","cover":"https://i.scdn.co/image/ab67616d0000b27309fa558cc6cf8b858c4739d3","src":"https://files.catbox.moe/1az2ch.mp3"},
+    {"title":"CHAOS CONSTRUCT","artist":"AZALI","cover":"https://i.scdn.co/image/ab67616d0000b27309fa558cc6cf8b858c4739d3","src":"https://files.catbox.moe/75zl6j.mp3"},
+    {"title":"CHAOS CONTROL","artist":"AZALI","cover":"https://i.scdn.co/image/ab67616d0000b27309fa558cc6cf8b858c4739d3","src":"https://files.catbox.moe/9hjypt.mp3"},
+    {"title":"DECISIVE BATTLE","artist":"AZALI","cover":"https://i.scdn.co/image/ab67616d0000b27309fa558cc6cf8b858c4739d3","src":"https://files.catbox.moe/hq8pyk.mp3"},
+    {"title":"PLAYFUL MASSACRE","artist":"AZALI","cover":"https://i.scdn.co/image/ab67616d0000b27309fa558cc6cf8b858c4739d3","src":"https://files.catbox.moe/wuk93l.mp3"},
+    {"title":"PLAYING WITH FIRE","artist":"AZALI","cover":"https://i.scdn.co/image/ab67616d0000b27309fa558cc6cf8b858c4739d3","src":"https://files.catbox.moe/8ks37n.mp3"},
+    {"title":"show me the sky, show me how to live","artist":"AZALI","cover":"https://i.scdn.co/image/ab67616d0000b27309fa558cc6cf8b858c4739d3","src":"https://files.catbox.moe/radmbw.mp3"},
+    {"title":"VOIDSIDE SWORDFIGHT","artist":"AZALI","cover":"https://i.scdn.co/image/ab67616d0000b27309fa558cc6cf8b858c4739d3","src":"https://files.catbox.moe/u2s4lx.mp3"}
+  ]
+  </script>
+  
+  <!-- Spotify-like MP3 Playlist Embed -->
+  <div class="mp3-embed mp3-playlist" id="goonPlaylist"></div>
+  <script type="application/json" id="goonPlaylist-data">
+  [
+    {"title":"Barks (IShowSpeed)","artist":"SecretAsian6","cover":"https://i.scdn.co/image/ab67616d0000b273d4258cf8726a5e24ce6eead4","src":"https://files.catbox.moe/kexc88.mp3"},
+    {"title":"Clipfarming Ya","artist":"SecretAsian6","cover":"https://i.scdn.co/image/ab67616d0000b273d4258cf8726a5e24ce6eead4","src":"https://files.catbox.moe/4aa7ek.mp3"},
+    {"title":"Goon Me Not","artist":"SecretAsian6","cover":"https://i.scdn.co/image/ab67616d0000b273d4258cf8726a5e24ce6eead4","src":"https://files.catbox.moe/r638w1.mp3"},
+    {"title":"Goonet","artist":"SecretAsian6","cover":"https://i.scdn.co/image/ab67616d0000b273d4258cf8726a5e24ce6eead4","src":"https://files.catbox.moe/5lou6z.mp3"},
+    {"title":"Gyatutation","artist":"SecretAsian6","cover":"https://i.scdn.co/image/ab67616d0000b273d4258cf8726a5e24ce6eead4","src":"https://files.catbox.moe/3wk9gn.mp3"},
+    {"title":"I'm A Gooner","artist":"SecretAsian6","cover":"https://i.scdn.co/image/ab67616d0000b273d4258cf8726a5e24ce6eead4","src":"https://files.catbox.moe/jmzga9.mp3"},
+    {"title":"IGyat","artist":"SecretAsian6","cover":"https://i.scdn.co/image/ab67616d0000b273d4258cf8726a5e24ce6eead4","src":"https://files.catbox.moe/8zdwqj.mp3"},
+    {"title":"Old Brainrot","artist":"SecretAsian6","cover":"https://i.scdn.co/image/ab67616d0000b273d4258cf8726a5e24ce6eead4","src":"https://files.catbox.moe/ldjhtn.mp3"},
+    {"title":"Sybau Bed","artist":"SecretAsian6","cover":"https://i.scdn.co/image/ab67616d0000b273d4258cf8726a5e24ce6eead4","src":"https://files.catbox.moe/xmb68y.mp3"},
+    {"title":"Taste of Goon","artist":"SecretAsian6","cover":"https://i.scdn.co/image/ab67616d0000b273d4258cf8726a5e24ce6eead4","src":"https://files.catbox.moe/xifrpj.mp3"},
+    {"title":"The Bops","artist":"SecretAsian6","cover":"https://i.scdn.co/image/ab67616d0000b273d4258cf8726a5e24ce6eead4","src":"https://files.catbox.moe/u0u90q.mp3"},
+    {"title":"The Less I Goon The Better","artist":"SecretAsian6","cover":"https://i.scdn.co/image/ab67616d0000b273d4258cf8726a5e24ce6eead4","src":"https://files.catbox.moe/0n3j5q.mp3"},
+    {"title":"Those Gyatts","artist":"SecretAsian6","cover":"https://i.scdn.co/image/ab67616d0000b273d4258cf8726a5e24ce6eead4","src":"https://files.catbox.moe/y9nosd.mp3"},
+    {"title":"Until I Mog You","artist":"SecretAsian6","cover":"https://i.scdn.co/image/ab67616d0000b273d4258cf8726a5e24ce6eead4","src":"https://files.catbox.moe/blpvd4.mp3"},
+    {"title":"W Speed","artist":"SecretAsian6","cover":"https://i.scdn.co/image/ab67616d0000b273d4258cf8726a5e24ce6eead4","src":"https://files.catbox.moe/clwmd1.mp3"}
+  ]
+  </script>
+  <h3><s>YOUTUBE EMBEDS DECIDED TO SAY SYBAU TO ME SO WE ARE USING SPOTIFY.</s> I HATE SPOTIFY AND YOUTUBE EMBEDS</h3>
 </div>
 <script>
   const toggleBtn = document.getElementById('toggle-section-btn');
@@ -1468,15 +1707,6 @@ async function pguard_maybe_save_password(username, password) {
     toggleBtn.textContent = shown ? 'cool button' : 'hide ts';
   });
 </script>
-<!-- <iframe
-  width="560"
-  height="315"
-  src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1&mute0=1&controls=0&loop=1&playlist=dQw4w9WgXcQ&modestbranding=1&rel=0"
-  title="YouTube video player"
-  frameborder="0"
-  allow="autoplay; encrypted-media"
-  allowfullscreen
-></iframe> -->
-
+<!-- CUSTOM MUSIC EMBEDS-->
 </body>
 </html>
