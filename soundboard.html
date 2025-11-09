@@ -1496,6 +1496,7 @@ init();
     <div style="display: flex; justify-content: center; gap: 20px; margin: 20px 0;">
       <img src="https://files.catbox.moe/irwkza.jpg" style="max-width: 290px; display: block;">
       <img src="https://files.catbox.moe/2t2nk8.png" style="max-width: 290px; display: block;">
+      <img src="https://files.catbox.moe/b1qaka.png" style="max-width: 290px; display: block;">
     </div>
       <button onclick="window.open('https://dogblip.site/chat', '_blank')" style="font-size: 1.1em; ">
         chat
@@ -1729,7 +1730,12 @@ async function pguard_maybe_save_password(username, password) {
        data-cover="https://t2.genius.com/unsafe/689x689/https%3A%2F%2Fimages.genius.com%2Fd9da3ae4bf1134f5999f62477ec74cc1.1000x1000x1.png"
        data-src="https://files.catbox.moe/rrwkq8.mp3">
   </div>
-
+  <div class="mp3-embed mp3-track"
+  data-title="This is gas, bring in the condenser"
+  data-artist="dogblip"
+  data-cover="https://files.catbox.moe/pnh8pi.png"
+  data-src="https://files.catbox.moe/mgf2rs.mp3">
+</div>
   <div class="mp3-embed mp3-playlist" id="wemmPlaylist"></div>
   <script type="application/json" id="wemmPlaylist-data">
   [
@@ -1744,7 +1750,6 @@ async function pguard_maybe_save_password(username, password) {
   ]
   </script>
   
-  <!-- Spotify-like MP3 Playlist Embed -->
   <div class="mp3-embed mp3-playlist" id="goonPlaylist"></div>
   <script type="application/json" id="goonPlaylist-data">
   [
@@ -1764,6 +1769,65 @@ async function pguard_maybe_save_password(username, password) {
     {"title":"Until I Mog You","artist":"SecretAsian6","cover":"https://i.scdn.co/image/ab67616d0000b273d4258cf8726a5e24ce6eead4","src":"https://files.catbox.moe/blpvd4.mp3"},
     {"title":"W Speed","artist":"SecretAsian6","cover":"https://i.scdn.co/image/ab67616d0000b273d4258cf8726a5e24ce6eead4","src":"https://files.catbox.moe/clwmd1.mp3"}
   ]
+  </script>
+  <script>
+  // Super-fast preload: Use fetch() with HEAD, then aggressively buffer via hidden Audio
+  (function() {
+    function getTrackList(jsonId) {
+      try {
+        const el = document.getElementById(jsonId);
+        if (!el) return [];
+        return JSON.parse(el.textContent || el.innerText || "[]");
+      } catch(e) { return []; }
+    }
+
+    // First, prime the browser cache with HEAD fetches (starts TCP/TLS early)
+    async function primeFetch(trackSrc) {
+      try {
+        await fetch(trackSrc, { method: 'HEAD', mode: 'no-cors', cache: 'force-cache' });
+      } catch(e) {}
+    }
+
+    // Then, aggressively buffer MIDI/buffer of each audio file
+    function quickPreloadAudio(tracks) {
+      tracks.forEach(track => {
+        if (track && track.src) {
+          window._PRELOADED_AUDIOS = window._PRELOADED_AUDIOS || {};
+          if (!window._PRELOADED_AUDIOS[track.src]) {
+            // Fire & forget: start fetch, then buffer
+            primeFetch(track.src);
+            const audio = new Audio(track.src);
+            // Use 'auto' - some browsers may ignore, so use play then pause for block-load
+            audio.preload = 'auto';
+            // The fastest trick: play (muted, not in dom, promise-catch for blocking)
+            audio.muted = true;
+            // For Safari & Chrome: Trigger actual buffering ASAP:
+            const startBuffering = () => {
+              // Some mobile browsers require play to start network loading
+              const p = audio.play();
+              if (p && typeof p.then === "function") {
+                p.then(() => {
+                  setTimeout(() => audio.pause(), 250); // Pause after a brief prebuffer
+                }).catch(() => {});
+              }
+            };
+            // Add event in case audio cannot be loaded immediately
+            audio.addEventListener("canplaythrough", () => { audio.pause(); });
+            // Begin buffering right away
+            startBuffering();
+
+            window._PRELOADED_AUDIOS[track.src] = audio;
+          }
+        }
+      });
+    }
+
+    // Preload both playlists as soon as DOM is parsed for max speed
+    document.addEventListener("DOMContentLoaded", function() {
+      quickPreloadAudio(getTrackList("wemmPlaylist-data"));
+      quickPreloadAudio(getTrackList("goonPlaylist-data"));
+    });
+  })();
   </script>
   <h3><s>YOUTUBE EMBEDS DECIDED TO SAY SYBAU TO ME SO WE ARE USING SPOTIFY.</s> I HATE SPOTIFY AND YOUTUBE EMBEDS</h3>
 </div>
