@@ -72,12 +72,24 @@
     const renderedIds = new Set();   // message de-dupe
     const rankMap = new Map();       // sender_id -> {rank,color}
 
+    // ✅ Force-UUID identity: repairs missing/invalid/old numeric IDs
     function ensureIdentity() {
-      clientId = localStorage.getItem('chat_client_id');
-      if (!clientId) {
-        clientId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Math.random()).slice(2);
-        localStorage.setItem('chat_client_id', clientId);
+      let id = localStorage.getItem('chat_client_id');
+
+      const isValidUUID = (str) =>
+        typeof str === "string" &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+      if (!isValidUUID(id)) {
+        console.warn("⚠ repairing client_id (was:", id, ")");
+        id = (crypto && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : String(Math.random()).slice(2); // extreme fallback
+        localStorage.setItem('chat_client_id', id);
+        console.info("✅ client_id set to", id);
       }
+
+      clientId = id;
       displayName = localStorage.getItem('chat_name');
     }
 
@@ -198,7 +210,7 @@
       const parts = text.trim().split(/\s+/);
       const cmd = parts[0].toLowerCase();
 
-      // --- /who (DB sees which id/rank for this browser) ---
+      // --- /who ---
       if (cmd === '/who') {
         const { data, error } = await supabaseClient.rpc('whoami');
         if (error) return showRpcError('who failed', error);
@@ -207,7 +219,7 @@
         return true;
       }
 
-      // --- /ids (show recent unique sender IDs from history; no RPC needed) ---
+      // --- /ids ---
       if (cmd === '/ids') {
         const { data, error } = await supabaseClient
           .from('messages')
@@ -326,6 +338,7 @@
       const text = input.value.trim();
       if (!text) return;
 
+      // ✅ intercept commands BEFORE inserting a normal message
       if (text.startsWith('/')) {
         input.value = '';
         const handled = await runCommand(text);
