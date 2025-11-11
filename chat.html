@@ -4,16 +4,27 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>dogboard yapper</title>
-  <!-- Load SDK BEFORE our script -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.47.4/dist/umd/supabase.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; padding: 16px; }
+    #messages { height:60vh; overflow:auto; border:1px solid #ccc; padding:8px; border-radius:8px; background:#fafafa; }
+    #status { margin-top:6px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; white-space:pre-wrap; color:#555; }
+    .tag { display:inline-block; padding:0 6px; border-radius:6px; margin-right:6px; font-weight:700; background:#0001; }
+    .name-copy { cursor:pointer; text-decoration:none; }
+    .name-copy:hover { opacity:0.85; }
+    .mine { font-weight:600; }
+    .sys { color:#666; font-style:italic; }
+    form { display:flex; gap:8px; margin-top:8px; }
+    #message { flex:1; }
+  </style>
 </head>
 <body>
   <script>
-    const SUPABASE_URL = "https://acuknvkcrwxxkkwgpikh.supabase.co"; 
+    const SUPABASE_URL = "https://acuknvkcrwxxkkwgpikh.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjdWtudmtjcnd4eGtrd2dwaWtoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5MTgxNjYsImV4cCI6MjA3NzQ5NDE2Nn0.qMWmi6nEBCJQxJfmZJ1qpmU7Sjoyyra9H1v2HhU8xA0";
   </script>
 
-  <!-- Username setup (no auth) -->
+  <!-- Username setup -->
   <div id="nameSetup">
     <h2>Enter a username</h2>
     <label>Username <input id="displayName" type="text" placeholder="enter a username"></label>
@@ -29,30 +40,37 @@
       <button id="changeNameBtn">Change name</button>
     </div>
     <hr>
-    <div id="messages" style="height:60vh; overflow:auto; border:1px solid #ccc; padding:8px;"></div>
-    <div id="status" style="margin-top:6px; font-family:monospace; font-size:12px; white-space:pre-wrap;"></div>
-    <form id="sendForm">
-      <input id="message" placeholder="annoy people…" autocomplete="off" style="width:80%;">
+    <div id="messages"></div>
+    <div id="status"></div>
+    <form id="sendForm" autocomplete="off">
+      <input id="message" placeholder="message…  (admin: /who | /ids | /clear | /mute <id> [min] [reason] | /rank <id> <Owner|VIP|User> [#color])">
       <button type="submit">Send</button>
     </form>
   </div>
 
   <script>
-    // ========= Helpers =========
+    // ===== Helpers =====
     const $ = (id) => document.getElementById(id);
+    const ROOM = 'general';
     function setStatus(msg) {
-      const el = $('status');
-      if (!el) return;
       const t = new Date().toLocaleTimeString();
-      el.textContent = `[${t}] ${msg}`;
+      $('status').textContent = `[${t}] ${msg}`;
+    }
+    function showRpcError(prefix, error) {
+      console.error(prefix, error);
+      const msg = (error && (error.message || error.error || error.details || error.hint || JSON.stringify(error))) || 'unknown error';
+      setStatus(`${prefix}: ${msg}`);
     }
 
-    // ========= State =========
+    // ===== State =====
     let supabaseClient;
-    let channel = null;           // keep one channel only
+    let channelMsgs = null;
+    let channelRanks = null;
     let clientId = null;
     let displayName = null;
-    const renderedIds = new Set(); // de-dupe by row id
+
+    const renderedIds = new Set();   // message de-dupe
+    const rankMap = new Map();       // sender_id -> {rank,color}
 
     function ensureIdentity() {
       clientId = localStorage.getItem('chat_client_id');
@@ -63,74 +81,226 @@
       displayName = localStorage.getItem('chat_name');
     }
 
+    // ===== Ranks =====
+    function rankBadge(sender_id) {
+      const rc = rankMap.get(sender_id) || { rank: 'User', color: '#777' };
+      const span = document.createElement('span');
+      span.className = 'tag';
+      span.style.color = rc.color;
+      span.textContent = `[${rc.rank}]`;
+      return span;
+    }
+
+    async function loadRanks() {
+      const { data, error } = await supabaseClient.from('user_ranks').select('*');
+      if (error) return showRpcError('Rank load error', error);
+      rankMap.clear();
+      (data || []).forEach(r => rankMap.set(r.sender_id, { rank: r.rank, color: r.color }));
+    }
+
+    async function bindRankRealtime() {
+      if (channelRanks) await supabaseClient.removeChannel(channelRanks);
+      channelRanks = supabaseClient.channel('ranks');
+      channelRanks.on('postgres_changes',
+        { event:'INSERT', schema:'public', table:'user_ranks' },
+        (p) => rankMap.set(p.new.sender_id, { rank: p.new.rank, color: p.new.color })
+      );
+      channelRanks.on('postgres_changes',
+        { event:'UPDATE', schema:'public', table:'user_ranks' },
+        (p) => rankMap.set(p.new.sender_id, { rank: p.new.rank, color: p.new.color })
+      );
+      await channelRanks.subscribe();
+    }
+
+    // ===== Rendering =====
     function renderMessage(m) {
-      // De-dup on id (history + realtime)
+      if (!m) return;
       if (m.id && renderedIds.has(m.id)) return;
       if (m.id) renderedIds.add(m.id);
 
       const line = document.createElement('div');
       const time = new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
       const mine = m.sender_id === clientId;
-      const name = mine ? `${m.sender_name} (You)` : m.sender_name;
-      line.textContent = `[${time}] ${name}: ${m.content}`;
+
+      const timeSpan = document.createElement('span');
+      timeSpan.textContent = `[${time}] `;
+
+      const tag = rankBadge(m.sender_id);
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'name-copy';
+      nameSpan.dataset.uid = m.sender_id;
+      nameSpan.title = 'Click to copy user ID';
+      nameSpan.textContent = mine ? `${m.sender_name} (You)` : m.sender_name;
+
+      const sep = document.createTextNode(': ');
+      const msgSpan = document.createElement('span');
+      msgSpan.textContent = m.content;
+
+      if (mine) line.classList.add('mine');
+
+      line.appendChild(timeSpan);
+      line.appendChild(tag);
+      line.appendChild(document.createTextNode(' '));
+      line.appendChild(nameSpan);
+      line.appendChild(sep);
+      line.appendChild(msgSpan);
+
       const box = $('messages');
       box.appendChild(line);
       box.scrollTop = box.scrollHeight;
     }
 
+    // click-to-copy user id
+    $('messages').addEventListener('click', async (e) => {
+      const target = e.target.closest('.name-copy');
+      if (!target) return;
+      const uid = target.dataset.uid || '';
+      if (!uid) return;
+      try {
+        await navigator.clipboard.writeText(uid);
+        setStatus(`Copied user ID: ${uid}`);
+      } catch {
+        const ta = document.createElement('textarea');
+        ta.value = uid; document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+        setStatus(`Copied user ID: ${uid}`);
+      }
+    });
+
+    // ===== Data =====
     async function loadMessages() {
       $('messages').innerHTML = '';
       renderedIds.clear();
       const { data, error } = await supabaseClient
         .from('messages')
         .select('*')
-        .eq('room', 'general')
+        .eq('room', ROOM)
         .order('created_at', { ascending: true })
         .limit(200);
-      if (error) {
-        console.error('select error', error);
-        setStatus('Select error: ' + (error.message || JSON.stringify(error)));
-        return;
-      }
-      data.forEach(renderMessage);
-      setStatus(`Loaded ${data.length} messages.`);
+      if (error) return showRpcError('Select error', error);
+      (data || []).forEach(renderMessage);
+      setStatus(`Loaded ${data?.length ?? 0} messages.`);
     }
 
     async function bindRealtime() {
-      // Clean any previous subscription
-      if (channel) await supabaseClient.removeChannel(channel);
-
-      channel = supabaseClient.channel('room:general');
-      channel.on('postgres_changes',
+      if (channelMsgs) await supabaseClient.removeChannel(channelMsgs);
+      channelMsgs = supabaseClient.channel('room:general');
+      channelMsgs.on('postgres_changes',
         { event:'INSERT', schema:'public', table:'messages', filter:'room=eq.general' },
         (payload) => { renderMessage(payload.new); }
       );
-
-      const st = await channel.subscribe();
-      setStatus('Realtime subscribed: ' + st);
+      await channelMsgs.subscribe();
     }
 
+    // ===== Commands =====
+    async function runCommand(text) {
+      const parts = text.trim().split(/\s+/);
+      const cmd = parts[0].toLowerCase();
+
+      // --- /who (DB sees which id/rank for this browser) ---
+      if (cmd === '/who') {
+        const { data, error } = await supabaseClient.rpc('whoami');
+        if (error) return showRpcError('who failed', error);
+        const row = (data && data[0]) || {};
+        setStatus(`who: id=${row.header_client_id || 'null'} rank=${row.my_rank || 'none'} color=${row.my_color || '-'}`);
+        return true;
+      }
+
+      // --- /ids (show recent unique sender IDs from history; no RPC needed) ---
+      if (cmd === '/ids') {
+        const { data, error } = await supabaseClient
+          .from('messages')
+          .select('sender_id,sender_name,created_at')
+          .eq('room', ROOM)
+          .order('created_at', { ascending: false })
+          .limit(200);
+        if (error) return showRpcError('ids failed', error);
+
+        const seen = new Set();
+        const list = [];
+        for (const row of data || []) {
+          if (seen.has(row.sender_id)) continue;
+          seen.add(row.sender_id);
+          list.push(`${row.sender_name} → ${row.sender_id}`);
+          if (list.length >= 10) break;
+        }
+        setStatus(list.length ? ('ids:\n' + list.join('\n')) : 'ids: (none)');
+        return true;
+      }
+
+      // --- /clear ---
+      if (cmd === '/clear') {
+        const { error } = await supabaseClient.rpc('clear_room', { p_room: ROOM });
+        if (error) return showRpcError('clear failed', error);
+        setStatus('room cleared.');
+        await loadMessages();
+        return true;
+      }
+
+      // --- /mute <id> [minutes] [reason] ---
+      if (cmd === '/mute') {
+        if (parts.length < 2) { setStatus('usage: /mute <id> [minutes] [reason]'); return true; }
+        const targetId = parts[1];
+        const minutes = parts[2] ? parseInt(parts[2], 10) : null;
+        const reason = parts.slice(3).join(' ') || null;
+
+        const { error } = await supabaseClient.rpc('mute_user', {
+          p_room: ROOM,
+          p_target_id: targetId,
+          p_minutes: isNaN(minutes) ? null : minutes,
+          p_reason: reason
+        });
+        if (error) return showRpcError('mute failed', error);
+        setStatus(`muted ${targetId}${minutes ? ' for '+minutes+' min' : ' indefinitely'}.`);
+        return true;
+      }
+
+      // --- /rank <id> <Owner|VIP|User> [#color] ---
+      if (cmd === '/rank') {
+        if (parts.length < 3) { setStatus('usage: /rank <id> <Owner|VIP|User> [#color]'); return true; }
+        const targetId = parts[1];
+        const r = parts[2];
+        const color = parts[3] || null;
+
+        const { error } = await supabaseClient.rpc('set_rank', {
+          p_target_id: targetId,
+          p_rank: r,
+          p_color: color
+        });
+        if (error) return showRpcError('rank failed', error);
+        setStatus(`rank set: ${targetId} -> ${r}`);
+        await loadRanks();
+        return true;
+      }
+
+      return false;
+    }
+
+    // ===== Boot & UI =====
     async function boot() {
-      if (!window.supabase) {
-        setStatus('❌ supabase SDK not loaded.');
-        return;
-      }
-      if (!SUPABASE_URL.includes('supabase.co') || SUPABASE_ANON_KEY === 'YOUR-ANON-KEY') {
-        setStatus('⚠️ supabase url and anon key not loaded pmo');
-      }
-      supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      if (!window.supabase) { setStatus('❌ supabase SDK not loaded.'); return; }
+
+      // 1) identity first (so we can attach header)
       ensureIdentity();
+
+      // 2) create client WITH header DB needs
+      supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        global: { headers: { 'x-client-id': clientId } },
+      });
 
       if (displayName) {
         $('nameSetup').hidden = true;
         $('app').hidden = false;
-        $('me').textContent = `You are: ${displayName}`;
+        $('me').textContent = `You are: ${displayName} (${clientId.slice(0,8)})`;
+
+        await loadRanks();
+        await bindRankRealtime();
         await loadMessages();
         await bindRealtime();
       }
     }
 
-    // ======== UI events ========
     $('startBtn').onclick = async () => {
       const name = $('displayName').value.trim();
       if (!name) { $('authMsg').textContent = 'Please enter a username'; return; }
@@ -138,9 +308,8 @@
       displayName = name;
       $('nameSetup').hidden = true;
       $('app').hidden = false;
-      $('me').textContent = `You are: ${displayName}`;
-      await loadMessages();
-      await bindRealtime();
+      $('me').textContent = `You are: ${displayName} (${clientId.slice(0,8)})`;
+      await boot();
     };
 
     $('changeNameBtn').onclick = () => {
@@ -148,7 +317,7 @@
       if (!name) return;
       displayName = name;
       localStorage.setItem('chat_name', name);
-      $('me').textContent = `You are: ${displayName}`;
+      $('me').textContent = `You are: ${displayName} (${clientId.slice(0,8)})`;
     };
 
     $('sendForm').addEventListener('submit', async (e) => {
@@ -156,26 +325,23 @@
       const input = $('message');
       const text = input.value.trim();
       if (!text) return;
-      input.value = '';
-      const payload = { room: 'general', sender_id: clientId, sender_name: displayName || 'Guest', content: text };
-      // IMPORTANT: do NOT render here — rely on realtime to avoid duplicates
-      const { error } = await supabaseClient.from('messages').insert(payload);
-      if (error) {
-        console.error('insert error', error);
-        setStatus('Insert error: ' + (error.message || JSON.stringify(error)));
-        return;
+
+      if (text.startsWith('/')) {
+        input.value = '';
+        const handled = await runCommand(text);
+        if (handled) return;
       }
+
+      input.value = '';
+      const payload = { room: ROOM, sender_id: clientId, sender_name: displayName || 'Guest', content: text };
+      const { error } = await supabaseClient.from('messages').insert(payload);
+      if (error) return showRpcError('Insert error', error);
       setStatus('Message sent (awaiting realtime)…');
     });
 
-    boot();
+    // auto boot if we already have a name
+    ensureIdentity();
+    if (localStorage.getItem('chat_name')) boot();
   </script>
-<button id="soundboardBtn" onclick="window.open('https://dogblip.site/soundboard', '_blank')">
-  Soundboard
-</button>
-<div style="display: flex; justify-content: center; gap: 20px; margin: 20px 0;">
-  <img src="https://files.catbox.moe/1ucwmt.gif" style="max-width: 290px; display: block;">
-  <img src="https://files.catbox.moe/8do594.jpg" style="max-width: 290px; display: block;">
-</div>
 </body>
 </html>
