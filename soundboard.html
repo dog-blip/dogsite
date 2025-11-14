@@ -1806,18 +1806,29 @@ async function pguard_maybe_save_password(username, password) {
 <body>
 
   <!-- Single Track Embed (placeholder you can replace later) -->
-  <div class="mp3-embed mp3-track"
-       data-title="THE 67 SONG"
-       data-artist="Lil Godd"
-       data-cover="https://t2.genius.com/unsafe/689x689/https%3A%2F%2Fimages.genius.com%2Fd9da3ae4bf1134f5999f62477ec74cc1.1000x1000x1.png"
-       data-src="https://files.catbox.moe/rrwkq8.mp3">
-  </div>
-  <div class="mp3-embed mp3-track"
-  data-title="This is gas, bring in the condenser"
-  data-artist="dogblip"
-  data-cover="https://files.catbox.moe/pnh8pi.png"
-  data-src="https://files.catbox.moe/mgf2rs.mp3">
-</div>
+  <div class="mp3-embed mp3-playlist" id="singleTrackPlaylist"></div>
+  <script type="application/json" id="singleTrackPlaylist-data">
+  [
+    {
+      "title": "THE 67 SONG",
+      "artist": "Lil Godd",
+      "cover": "https://t2.genius.com/unsafe/689x689/https%3A%2F%2Fimages.genius.com%2Fd9da3ae4bf1134f5999f62477ec74cc1.1000x1000x1.png",
+      "src": "https://files.catbox.moe/rrwkq8.mp3"
+    },
+    {
+      "title": "This is gas, bring in the condenser",
+      "artist": "dogblip",
+      "cover": "https://files.catbox.moe/pnh8pi.png",
+      "src": "https://files.catbox.moe/mgf2rs.mp3"
+    },
+    {
+      "title": "all i want for christmas but each chord is a metal pipe",
+      "artist": "dawgblip",
+      "cover": "https://i.postimg.cc/HsmDZh2v/image.png",
+      "src": "https://files.catbox.moe/zgoo5k.mp3"
+    }
+  ]
+  </script>
   <div class="mp3-embed mp3-playlist" id="wemmPlaylist"></div>
   <script type="application/json" id="wemmPlaylist-data">
   [
@@ -1908,6 +1919,7 @@ async function pguard_maybe_save_password(username, password) {
     document.addEventListener("DOMContentLoaded", function() {
       quickPreloadAudio(getTrackList("wemmPlaylist-data"));
       quickPreloadAudio(getTrackList("goonPlaylist-data"));
+      quickPreloadAudio(getTrackList("singleTrackPlaylist-data"));
     });
   })();
   </script>
