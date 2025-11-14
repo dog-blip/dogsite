@@ -1132,12 +1132,30 @@ init();
       {name: "when the impostor is sus", url: "https://www.myinstants.com/media/sounds/when-the-impostor-is-sus-mememe.mp3"},
       {name: "fortnite dance", url: "https://www.myinstants.com/media/sounds/fortnite-default-dance-bass-boosted.mp3"},
       {name: "wemmbu pro yapping skills", url: "https://files.catbox.moe/csve8z.mp3"},
-          // 14.11.2025
-          {name: "freddy beatbox 1 ", url: "https://files.catbox.moe/fu2lph.mp3"},
-{name: "fortnite xd ", url: "https://files.catbox.moe/j94orf.mp3"},
-{name: "freddy beatbox 2 ", url: "https://files.catbox.moe/np9130.mp3"},
-{name: "english or spanish", url: "https://www.myinstants.com/media/sounds/english-or-spanish-button-effect.mp3"},
-      ];
+      // 4 sounds 14.11.2025
+      {name: "freddy beatbox 1 ", url: "https://files.catbox.moe/fu2lph.mp3"},
+      {name: "fortnite xd ", url: "https://files.catbox.moe/j94orf.mp3"},
+      {name: "freddy beatbox 2 ", url: "https://files.catbox.moe/np9130.mp3"},
+      {name: "english or spanish", url: "https://www.myinstants.com/media/sounds/english-or-spanish-song.mp3"},
+
+
+      {name: "nice chirstmas song ya got there", url: "https://files.catbox.moe/zgoo5k.mp3"},
+      {name: "dog whistle", url: "https://files.catbox.moe/dnmsmw.mp3"},
+      {name: "let me see what you have (a knife)", url: "https://files.catbox.moe/lrwdpi.mp3"},
+      {name: "what da dog doin", url: "https://www.myinstants.com/en/instant/what-da-dog-doin-35890/"},
+      {name: "gyatt", url: "https://www.myinstants.com/media/sounds/gyaaaaaaaaat-bass-boosted.mp3"},
+      {name: "scary scream :o", url: "https://www.myinstants.com/media/sounds/scary-horror-scream-1.mp3"},
+      {name: "screaming sheep", url: "https://www.myinstants.com/media/sounds/01-the-screaming-sheep.mp3"},
+      {name: "scary music or sm shi", url: "https://www.myinstants.com/media/sounds/scary-tiktok-music.mp3"},
+      {name: "cha ching", url: "https://www.myinstants.com/media/sounds/audiojoiner120623175716.mp3"},
+      {name: "womp womp (recorded by dawg)", url: "https://www.myinstants.com/media/sounds/womp-womp-womp-womp-womp-womp-pmow.mp3"},
+      {name: "woohoo!", url: "https://www.myinstants.com/media/sounds/homer-woohoo.mp3"},
+      {name: "nooooooo", url: "https://www.myinstants.com/media/sounds/nooo.swf.mp3"},
+      {name: "abience", url: "https://www.myinstants.com/media/sounds/fnaf2-ambience.mp3"},
+      {name: "mc anvil", url: "https://www.myinstants.com/media/sounds/minecraft-anvil.mp3"},
+      {name: "sad music", url: "https://www.myinstants.com/media/sounds/tf_nemesis.mp3"},
+
+ ];
 
       // Keys for localStorage
       const LOCALSTORAGE_KEY = "customSoundboardSounds-v1";
@@ -1888,6 +1906,77 @@ async function pguard_maybe_save_password(username, password) {
     const shown = extraSection.style.display !== 'none';
     extraSection.style.display = shown ? 'none' : 'block';
     toggleBtn.textContent = shown ? 'cool button' : 'hide ts';
+  });
+</script>
+<button id="custom-toggle-btn" style="font-size:1.5rem;">button :D</button>
+<style>
+ #nav-login {
+  display: none !important;
+ }
+</style>
+<div id="custom-extra-section" style="display: none; margin-top: 10px;">
+  <iframe
+    src="https://www.myinstants.com/?onlybuttons=1"
+    style="width:100vw; height:95vh; border:none;"
+    allowfullscreen
+    sandbox="allow-scripts allow-same-origin"
+  ></iframe>
+  <script>
+    // Hide all UI in the embedded site except buttons
+    document.querySelector('iframe').addEventListener('load', function() {
+      const iframe = this;
+      try {
+        const hideUI = () => {
+          const doc = iframe.contentDocument || iframe.contentWindow.document;
+          // Try to hide known UI selectors (header, footer, search, menus, etc.)
+          // May require updating if myinstants.com changes structure
+          const selectors = [
+            '#header',        // main header
+            '.search-box',    // search area
+            '.search-mobile',
+            '#menu',
+            'footer',
+            '.footer-misc',
+            '#app > nav',
+            '.logo',
+            'nav',
+            '.ad',            // ads
+            '[id*="ads"]',
+            '[class*="ad"]',
+            'img[alt="logo"]',
+            '.developerbanner',
+            'aside',
+            'form',
+            '#footer-app'
+          ];
+          selectors.forEach(sel => {
+            doc.querySelectorAll(sel).forEach(el => { el.style.display = 'none'; });
+          });
+          // Optionally hide any element that is not a button
+          doc.body.querySelectorAll('*').forEach(el => {
+            if (el.tagName !== 'BUTTON' && !el.querySelector('button')) {
+              // Don't hide elements that *are* buttons or contain buttons
+              if (!selectors.some(s => el.matches(s)))
+                el.style.display = 'none';
+            }
+          });
+        };
+        hideUI();
+        // Also try to re-hide every 500ms for dynamic content
+        setInterval(hideUI, 500);
+      } catch(e) {
+        // Likely CORS restrictions, nothing we can do
+      }
+    });
+  </script>
+</div>
+<script>
+  const customToggleBtn = document.getElementById('custom-toggle-btn');
+  const customExtraSection = document.getElementById('custom-extra-section');
+  customToggleBtn.addEventListener('click', function () {
+    const isShown = customExtraSection.style.display !== 'none';
+    customExtraSection.style.display = isShown ? 'none' : 'block';
+    customToggleBtn.textContent = isShown ? 'button' : 'i will f**king find you and send you to jesus';
   });
 </script>
 </body>
