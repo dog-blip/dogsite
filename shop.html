@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>kyswitch site</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style id="mainsite-style">
+    html, body {
+      background: #fff;
+      font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      color: #222;
+      font-size: 16px;
+    }
+    header {
+      text-align: center;
+      font-weight: 600;
+      font-size: 1.5rem;
+      margin-top: 2.2rem;
+      margin-bottom: 1.5rem;
+      letter-spacing: 0.5px;
+      color: #222;
+      background: none;
+      box-shadow: none;
+      padding: 0;
+    }
+    .container {
+      max-width: 420px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 0;
+      box-shadow: none;
+      padding: 0 1.4rem 2.5rem 1.4rem;
+    }
+    h2 {
+      color: #181818;
+      font-weight: 500;
+      font-size: 1.08rem;
+      margin-top: 0;
+      margin-bottom: 1.8rem;
+      letter-spacing: 0.08em;
+      text-align: left;
+      border-bottom: 1px solid #ececec;
+      padding-bottom: .7em;
+      line-height: 1.4;
+      transition: opacity 0.15s;
+    }
+    .items-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+      margin-bottom: 1.3rem;
+    }
+    .item {
+      display: flex;
+      align-items: flex-start;
+      background: none;
+      border-radius: 0;
+      box-shadow: none;
+      border-bottom: 1px solid #ececec;
+      padding: 1.1rem 0 1.1rem 0;
+      gap: 0.8rem;
+    }
+    .item img {
+      width: 40px; height: 40px;
+      object-fit: contain;
+      border-radius: 4px;
+      background: #fafafa;
+      border: 1px solid #ececec;
+      box-shadow: none;
+      margin-right: 1rem;
+      margin-top: 2px;
+    }
+    .info { flex: 1; }
+    .item-title {
+      font-weight: 500;
+      font-size: 1rem;
+      margin-bottom: .12em;
+      color: #181818;
+      letter-spacing: 0.01em;
+      line-height: 1.4;
+    }
+    .item-desc {
+      font-size: 0.97em;
+      color: #757575;
+      margin-bottom: .3em;
+      line-height: 1.5;
+    }
+    .item-options-label {
+      font-size: 0.98em;
+      color: #333;
+      margin-bottom: 0.16em;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+    }
+    .item-options {
+      margin-bottom: .32em;
+    }
+    .item select, .item input[type="text"] {
+      font-size: 1em;
+      margin-top: 0.15em;
+      margin-right: 6px;
+      margin-bottom: 0.15em;
+      border: 1px solid #dfdfdf;
+      border-radius: 3px;
+      padding: 0.25em 0.7em 0.25em 0.5em;
+      background: #fafafa;
+      color: #222;
+      outline: none;
+      appearance: none;
+      min-width: 110px;
+      box-shadow: none;
+    }
+    .item select:focus, .item input[type="text"]:focus {
+      border-color: #bababa;
+      background: #f5f5f5;
+    }
+    .item-price {
+      color: #111;
+      font-weight: 400;
+      font-size: 1em;
+      margin-bottom: 0.35em;
+      letter-spacing: 0.01em;
+    }
+    .item input[type=number] {
+      width: 56px;
+      padding: 0.16em 0.2em;
+      font-size: 0.98em;
+      border: 1px solid #dfdfdf;
+      border-radius: 3px;
+      margin-top: 0.20em;
+      background: #fafafa;
+      color: #222;
+      outline: none;
+      box-shadow: none;
+    }
+    .item input[type=number]:focus {
+      border-color: #bababa;
+      background: #f5f5f5;
+    }
+    .purchase-actions {
+      text-align: right;
+      margin: 1.7em 0 1.7em 0;
+    }
+    button, .button {
+      background: #fff;
+      color: #222;
+      border: 1.3px solid #ccc;
+      border-radius: 3px;
+      padding: 0.65em 1.36em;
+      min-width: 120px;
+      font-size: 1em;
+      font-weight: 400;
+      cursor: pointer;
+      margin: 0.7em 0 0 0;
+      transition: border-color .10s, color .10s, background .10s;
+      box-shadow: none;
+      letter-spacing: 0.08em;
+    }
+    button:hover, .button:hover {
+      border-color: #222;
+      color: #111;
+      background: #f9f9f9;
+    }
+    .receipt-section {
+      display: none;
+      margin-top: 1.5em;
+      padding: 1.6em 0.4em 1.4em 0.4em;
+      border: 1px solid #ececec;
+      background: #fff;
+      border-radius: 0;
+      word-break: break-all;
+      box-shadow: none;
+    }
+    .receipt-title {
+      font-weight: 500;
+      color: #111;
+      margin-bottom: 1.1em;
+      font-size: 1.12em;
+      text-align: left;
+      letter-spacing: 0.02em;
+      border: none;
+    }
+    .receipt-enc-label {
+      margin-top: 1em;
+      margin-bottom: 0.2em;
+      font-size: 1em;
+      font-weight: 400;
+      color: #4c4c4c;
+      text-align: left;
+      letter-spacing: .01em;
+    }
+    .enc-receipt-content {
+      display: block;
+      background: #fafafa;
+      padding: 1.1em 0.6em .6em 0.6em;
+      font-size: 0.97em;
+      border: 1px solid #dfdfdf;
+      border-radius: 3px;
+      font-family: "Menlo", "Consolas", "Courier New", monospace;
+      word-break: break-all;
+      margin: 0.8em 0 0.8em 0;
+      width: 100%;
+      text-align: left;
+      /* Remove codeblock appearance by making it plain, no monospaced font or code look */
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      font-family: inherit;
+      padding: 0;
+      margin: 0.8em 0 0.8em 0;
+      font-size: 1em;
+      color: #222;
+      white-space: pre-line;
+    }
+    .receipt-footer {
+      font-size: 0.97em;
+      color: #888;
+      text-align: left;
+      margin-top: 1.2em;
+      font-style: normal;
+      letter-spacing: .01em;
+    }
+    .receipt-footer br { display: none;}
+    @media (max-width: 600px) {
+      .container { padding: 0 .25em 2em .25em; max-width: 98vw;}
+      h2 { font-size: 1em; }
+      .item img { width: 34px; height: 34px;}
+      .item { font-size: 0.97em; gap: 0.6rem;}
+      .enc-receipt-content { font-size:1em; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    kyswitch site
+  </header>
+  <div class="container">
+    <h2 id="shopHeading">Select Your Items</h2>
+    <form id="orderForm">
+      <div class="items-list" id="itemsList">
+        <!-- Items will be inserted here -->
+      </div>
+      <div class="purchase-actions">
+        <button type="submit">Generate Order</button>
+      </div>
+    </form>
+
+    <section class="receipt-section" id="receiptSection">
+      <div class="receipt-title">Order Receipt</div>
+      <div class="receipt-enc-label">Your Receipt</div>
+      <div class="enc-receipt-content" id="encReceiptContent"></div>
+      <div class="receipt-footer">thank you for purchasing a kyswitch :-)</div>
+      <div class="purchase-actions">
+        <button onclick="location.reload()">Back to Shop</button>
+      </div>
+    </section>
+  </div>
+  <script>
+    // Items array with option definitions
+    const items = [
+      {
+        id: '1x1',
+        title: "1x1 Key Clicker",
+        desc: "1x1 key clicker.",
+        price: 5.00,
+        img: "https://files.catbox.moe/lii5cf.png", 
+        options: [
+         /* {
+            name: 'switch type',
+            label: 'Switch Type',
+            choices: [
+              { value: 'clicky switch', label: 'Clicky Switch' },
+              { value: 'silent switch', label: 'Silent Switch' },
+              { value: 'tactile switch', label: 'Tactile Switch' }
+            ]
+         }, */
+          {
+            name: 'keycap color',
+            label: 'Keycap Color (more coming soon)',
+            choices: [
+              { value: 'white', label: 'White' },
+              { value: 'black', label: 'Black' },
+            ]
+          },
+        ]
+      },
+      {
+        id: '2x1',
+        title: '2x1 Key Clicker',
+        desc: '2x1 key clicker.',
+        price: 6.00,
+        img: "https://files.catbox.moe/y6vk98.png",
+        options: [
+       /*   {
+            name: 'switch type',
+            label: 'Switch Type',
+            choices: [
+              { value: 'clicky switch', label: 'Clicky Switch' },
+              { value: 'silent switch', label: 'Silent Switch' },
+            ]
+          }, */
+          {
+            name: 'keycap color',
+            label: 'Keycap Color (more coming soon)',
+            choices: [
+              { value: 'white', label: 'White' },
+              { value: 'black', label: 'Black' },
+            ]
+          },
+        ]
+      },
+      {
+        id: '2x2',
+        title: '2x2 Key Clicker',
+        desc: '2x2 key clicker.',
+        price: 8.00,
+        img: "https://files.catbox.moe/h3nvjv.png",
+        options: [
+       /*   {
+            name: 'switch type',
+            label: 'Switch Type',
+            choices: [
+              { value: 'clicky switch', label: 'Clicky Switch' },
+              { value: 'silent switch', label: 'Silent Switch' },
+            ]
+          }, */
+          {
+            name: 'keycap color',
+            label: 'Keycap Color (more coming soon)',
+            choices: [
+              { value: 'white', label: 'White' },
+              { value: 'black', label: 'Black' },
+            ]
+          },
+        ]
+      },
+      {
+        id: '4x1',
+        title: '4x1 Key Clicker',
+        desc: '4x1 key clicker.',
+        price: 16.00,
+        img: " https://files.catbox.moe/i96bs7.png",
+        options: [
+       /*   {
+            name: 'switch type',
+            label: 'Switch Type',
+            choices: [
+              { value: 'clicky switch', label: 'Clicky Switch' },
+              { value: 'silent switch', label: 'Silent Switch' },
+            ]
+          }, */
+          {
+            name: 'keycap color',
+            label: 'Keycap Color (more coming soon)',
+            choices: [
+              { value: 'white', label: 'White' },
+              { value: 'black', label: 'Black' },
+            ]
+          },
+        ]
+      },
+      {
+        id: '3x3',
+        title: '3x3 Key Clicker',
+        desc: '3x3 key clicker.',
+        price: 11.00,
+        img: "https://files.catbox.moe/6juk5s.png",
+        options: [
+       /*   {
+            name: 'switch type',
+            label: 'Switch Type',
+            choices: [
+              { value: 'clicky switch', label: 'Clicky Switch' },
+              { value: 'silent switch', label: 'Silent Switch' },
+            ]
+          }, */
+          {
+            name: 'keycap color',
+            label: 'Keycap Color (more coming soon)',
+            choices: [
+              { value: 'white', label: 'White' },
+              { value: 'black', label: 'Black' },
+            ]
+          },
+        ]
+      },
+      {
+        id: 'wasd',
+        title: 'WASD Key Clicker',
+        desc: 'wasd key clicker.',
+        price: 16.00,
+        img: "https://files.catbox.moe/o3m4hz.png",
+        options: [
+       /*   {
+            name: 'switch type',
+            label: 'Switch Type',
+            choices: [
+              { value: 'clicky switch', label: 'Clicky Switch' },
+              { value: 'silent switch', label: 'Silent Switch' },
+            ]
+          }, */
+          {
+            name: 'keycap color',
+            label: 'Keycap Color (more coming soon)',
+            choices: [
+              { value: 'white', label: 'White' },
+              { value: 'black', label: 'Black' },
+            ]
+          },
+        ]
+      },
+      
+    ];
+    const optionState = {};
+
+    function renderItems() {
+      const list = document.getElementById('itemsList');
+      list.innerHTML = '';
+      items.forEach(item => {
+        const el = document.createElement('div');
+        el.className = 'item';
+        let optionsHTML = '';
+        optionState[item.id] = optionState[item.id] || {};
+
+        if (Array.isArray(item.options)) {
+          item.options.forEach(opt => {
+            let shouldShow = true;
+            if (typeof opt.onlyShowIf === 'function') {
+              shouldShow = opt.onlyShowIf(optionState[item.id]);
+            }
+            if (!shouldShow) return;
+
+            optionsHTML += `<div class="item-options">`;
+            optionsHTML += `<div class="item-options-label">${opt.label}</div>`;
+            if (opt.choices) {
+              optionsHTML += `<select name="opt_${item.id}_${opt.name}" data-item="${item.id}" data-optname="${opt.name}">`;
+              optionsHTML += `<option value="">Select...</option>`;
+              opt.choices.forEach(choice => {
+                const selected = (optionState[item.id][opt.name]||'') === choice.value ? 'selected' : '';
+                optionsHTML += `<option value="${choice.value}" ${selected}>${choice.label}</option>`;
+              });
+              optionsHTML += `</select>`;
+            } else {
+              const val = optionState[item.id][opt.name] || "";
+              optionsHTML += `<input type="text" name="opt_${item.id}_${opt.name}" data-item="${item.id}" data-optname="${opt.name}" value="${val.replace(/"/g,'&quot;')}" placeholder="${opt.placeholder||''}" maxlength="120" />`;
+            }
+            optionsHTML += `</div>`;
+          });
+        }
+
+        el.innerHTML = `
+          <img src="${item.img}" alt="${item.title}">
+          <div class="info">
+            <div class="item-title">${item.title}</div>
+            <div class="item-desc">${item.desc}</div>
+            ${optionsHTML}
+            <div class="item-price">S$${item.price.toFixed(2)}</div>
+            <label>
+              Quantity:
+              <input type="number" min="0" max="99" value="0" name="qty_${item.id}">
+            </label>
+          </div>
+        `;
+        list.appendChild(el);
+      });
+
+      list.querySelectorAll('select, input[type="text"]').forEach(input => {
+        input.addEventListener('change', function() {
+          const itemId = this.getAttribute('data-item');
+          const optName = this.getAttribute('data-optname');
+          optionState[itemId][optName] = this.value;
+          renderSingleItem(itemId);
+        });
+      });
+    }
+
+    function renderSingleItem(itemId) {
+      const i = items.find(x=>x.id===itemId);
+      if (!i) return;
+      const list = document.getElementById('itemsList');
+      const oldDiv = Array.from(list.children).find(div => div.querySelector(`[name="qty_${itemId}"]`));
+      if (!oldDiv) return;
+
+      let optionsHTML = '';
+      if (Array.isArray(i.options)) {
+        i.options.forEach(opt => {
+          let shouldShow = true;
+          if (typeof opt.onlyShowIf === 'function') {
+            shouldShow = opt.onlyShowIf(optionState[itemId]);
+          }
+          if (!shouldShow) return;
+
+          optionsHTML += `<div class="item-options">`;
+          optionsHTML += `<div class="item-options-label">${opt.label}</div>`;
+          if (opt.choices) {
+            optionsHTML += `<select name="opt_${itemId}_${opt.name}" data-item="${itemId}" data-optname="${opt.name}">`;
+            optionsHTML += `<option value="">Select...</option>`;
+            opt.choices.forEach(choice => {
+              const selected = (optionState[itemId][opt.name]||'') === choice.value ? 'selected' : '';
+              optionsHTML += `<option value="${choice.value}" ${selected}>${choice.label}</option>`;
+            });
+            optionsHTML += `</select>`;
+          } else {
+            const val = optionState[itemId][opt.name] || "";
+            optionsHTML += `<input type="text" name="opt_${itemId}_${opt.name}" data-item="${itemId}" data-optname="${opt.name}" value="${val.replace(/"/g,'&quot;')}" placeholder="${opt.placeholder||''}" maxlength="120" />`;
+          }
+          optionsHTML += `</div>`;
+        });
+      }
+      const qtyValue = oldDiv.querySelector(`[name="qty_${itemId}"]`).value;
+      oldDiv.innerHTML = `
+        <img src="${i.img}" alt="${i.title}">
+        <div class="info">
+          <div class="item-title">${i.title}</div>
+          <div class="item-desc">${i.desc}</div>
+          ${optionsHTML}
+          <div class="item-price">S$${i.price.toFixed(2)}</div>
+          <label>
+            Quantity:
+            <input type="number" min="0" max="99" value="${qtyValue}" name="qty_${itemId}">
+          </label>
+        </div>
+      `;
+      oldDiv.querySelectorAll('select, input[type="text"]').forEach(input => {
+        input.addEventListener('change', function() {
+          const itemIdInner = this.getAttribute('data-item');
+          const optName = this.getAttribute('data-optname');
+          optionState[itemIdInner][optName] = this.value;
+          renderSingleItem(itemIdInner);
+        });
+      });
+    }
+
+    function generateFriendlyReceiptText(order) {
+      let textLines = [];
+      let grandTotal = 0;
+      order.forEach(row => {
+        let itemLine = `${row.title}: ${row.qty}`;
+        if (row.options && row.options.length) {
+          row.options.forEach(opt => {
+            itemLine += `\n   ${opt.label}: ${opt.value}`;
+          });
+        }
+        textLines.push(itemLine);
+        grandTotal += row.qty * row.price;
+      });
+      textLines.push(`Total: S$${grandTotal.toFixed(2)}`);
+      return textLines.join('\n');
+    }
+
+    function displayReceipt(text) {
+      document.getElementById('encReceiptContent').innerText = text;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      renderItems();
+      document.getElementById('orderForm').addEventListener('submit', async function(e){
+        e.preventDefault();
+        const order = [];
+        items.forEach(item => {
+          const qty = parseInt(document.querySelector(`[name="qty_${item.id}"]`).value, 10) || 0;
+          if (qty && qty > 0) {
+            let opts = [];
+            if (Array.isArray(item.options)) {
+              item.options.forEach(opt => {
+                if (typeof opt.onlyShowIf === 'function' && !opt.onlyShowIf(optionState[item.id] || {})) return;
+                let val;
+                if (opt.choices) {
+                  const sel = document.querySelector(`[name="opt_${item.id}_${opt.name}"]`);
+                  val = sel ? sel.value : '';
+                  if (!val) return;
+                  if (opt.name==='color' && val==='custom') {
+                    const custOpt = (item.options||[]).find(o=>o.name==='customcolor');
+                    if (custOpt) {
+                      const csel = document.querySelector(`[name="opt_${item.id}_customcolor"]`);
+                      const cval = csel ? csel.value.trim() : '';
+                      if (cval)
+                        opts.push({label: (custOpt.label||'Custom Color'), value: cval});
+                    }
+                  }
+                  opts.push({label: opt.label, value: opt.choices.find(c=>c.value===val)?.label||val});
+                } else {
+                  const inp = document.querySelector(`[name="opt_${item.id}_${opt.name}"]`);
+                  val = inp ? inp.value.trim() : '';
+                  if (!!val) opts.push({label: opt.label, value: val});
+                }
+              });
+            }
+            order.push({ ...item, qty, options: opts });
+          }
+        });
+
+        if (order.length === 0) {
+          alert("Please select at least 1 item.");
+          return;
+        }
+
+        document.getElementById('orderForm').style.display = 'none';
+        document.getElementById('receiptSection').style.display = 'block';
+        // Hide the h2 heading above the order form
+        var heading = document.getElementById('shopHeading');
+        if (heading) heading.style.display = "none";
+
+        let plain = generateFriendlyReceiptText(order);
+        displayReceipt(plain);
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
+  </script>
+  <div style="position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9999;">
+    <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script><script type='text/javascript'>kofiwidget2.init('Support me on Ko-fi', '#999999', 'P5P11NWFIV');kofiwidget2.draw();</script> 
+  </div>
+</body>
+</html>
