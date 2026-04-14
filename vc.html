@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SkyWay Voice Chat Room</title>
+  <title>vc</title>
   <style>
     :root {
       --bg: #0f172a;
@@ -159,12 +159,9 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
     </div>
   </div>
 
-  <script type="module">
-    import {
-      SkyWayContext,
-      SkyWayRoom,
-      SkyWayStreamFactory
-    } from 'https://cdn.jsdelivr.net/npm/@skyway-sdk/room/dist/skyway-room.esm.js';
+  <script src="https://cdn.jsdelivr.net/npm/@skyway-sdk/room/dist/skyway_room-latest.js"></script>
+  <script>
+    const { SkyWayContext, SkyWayRoom, SkyWayStreamFactory } = skyway_room;
 
     const els = {
       nameInput: document.getElementById('nameInput'),
@@ -320,9 +317,9 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
     }
 
     async function initLocalAudio() {
-      const result = await SkyWayStreamFactory.createMicrophoneAudioStream();
-      localAudioStream = result.audio ?? result;
-      const track = localAudioStream.track || localAudioStream._track;
+      const stream = await SkyWayStreamFactory.createMicrophoneAudioStream();
+      localAudioStream = stream;
+      const track = localAudioStream.track;
       if (!track) throw new Error('Could not get microphone track from SkyWay stream.');
 
       localMediaStream = new MediaStream([track]);
@@ -339,9 +336,8 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
       const publisherId = publication.publisher.id;
       if (remoteMembers.has(publisherId)) return;
 
-      const subscriptionResult = await me.subscribe(publication.id);
-      const stream = subscriptionResult.stream ?? subscriptionResult;
-      const track = stream.track || stream._track;
+      const { stream } = await me.subscribe(publication.id);
+      const track = stream.track;
       if (!track) throw new Error('Remote publication did not include a usable audio track.');
 
       const mediaStream = new MediaStream([track]);
@@ -476,6 +472,7 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
       stopRecording();
 
       for (const disposer of roomEventDisposers) {
+        try { disposer.removeListener?.(); } catch {}
         try { disposer.dispose?.(); } catch {}
       }
       roomEventDisposers = [];
