@@ -3,103 +3,329 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>vc</title>
+  <title>StableVC</title>
   <style>
     :root {
-      --bg: #0f172a;
-      --panel: #111827;
-      --panel-2: #1f2937;
-      --text: #e5e7eb;
-      --muted: #94a3b8;
-      --danger: #ef4444;
+      --bg: #313338;
+      --bg-deep: #1e1f22;
+      --panel: #2b2d31;
+      --panel-2: #232428;
+      --panel-3: #111214;
+      --text: #f2f3f5;
+      --muted: #b5bac1;
+      --green: #23a559;
+      --blue: #5865f2;
+      --orange: #f0b232;
+      --red: #da373c;
       --border: rgba(255,255,255,0.08);
-      --shadow: 0 10px 30px rgba(0,0,0,0.35);
+      --shadow: 0 12px 32px rgba(0,0,0,0.35);
     }
+
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: linear-gradient(180deg, #020617, var(--bg));
+      font-family: gg sans, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #232428, var(--bg-deep));
       color: var(--text);
       min-height: 100vh;
     }
-    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 18px; }
+
     .hero {
-      display: flex; justify-content: space-between; gap: 20px; align-items: flex-start;
-      margin-bottom: 20px; flex-wrap: wrap;
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
     }
-    h1 { margin: 0 0 8px; font-size: 2rem; letter-spacing: -0.03em; }
-    .sub { color: var(--muted); max-width: 760px; line-height: 1.5; }
-    .grid { display: grid; grid-template-columns: 1.25fr 0.75fr; gap: 20px; }
-    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
-    .card {
-      background: rgba(17,24,39,0.88); border: 1px solid var(--border); border-radius: 20px;
-      padding: 18px; box-shadow: var(--shadow); backdrop-filter: blur(10px);
+
+    h1 { margin: 0 0 6px; font-size: 1.7rem; letter-spacing: -0.03em; }
+    .sub { color: var(--muted); max-width: 760px; line-height: 1.45; font-size: 0.96rem; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr 320px;
+      gap: 16px;
     }
-    .card h2 { margin: 0 0 14px; font-size: 1.05rem; }
-    .controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    @media (max-width: 700px) { .controls { grid-template-columns: 1fr; } }
-    label { display: block; font-size: 0.9rem; color: var(--muted); margin-bottom: 6px; }
+
+    @media (max-width: 1050px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    .sidebar-card,
+    .main-card,
+    .right-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .sidebar-card { background: var(--panel-2); }
+
+    .sidebar-header,
+    .main-topbar,
+    .right-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: #222327;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .sidebar-section,
+    .main-body,
+    .right-body { padding: 14px; }
+
+    .room-pill {
+      background: #404249;
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .room-pill strong { display: block; font-size: 1rem; }
+    .room-pill span { display: block; color: var(--muted); font-size: 0.84rem; margin-top: 3px; }
+
+    .count-badge {
+      min-width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      background: var(--blue);
+      color: white;
+    }
+
+    .invite-box,
+    .hint-box,
+    .status {
+      margin-top: 12px;
+      background: #36373d;
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: var(--muted);
+      border: 1px solid rgba(255,255,255,0.05);
+      line-height: 1.45;
+      white-space: pre-line;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    @media (max-width: 700px) {
+      .controls { grid-template-columns: 1fr; }
+    }
+
+    label {
+      display: block;
+      font-size: 0.84rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
     input {
-      width: 100%; border-radius: 14px; border: 1px solid var(--border); background: var(--panel-2);
-      color: var(--text); padding: 12px 14px; outline: none; font-size: 0.98rem;
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #1e1f22;
+      color: var(--text);
+      padding: 12px 13px;
+      outline: none;
+      font-size: 0.95rem;
     }
-    input:focus { border-color: rgba(56,189,248,0.6); box-shadow: 0 0 0 3px rgba(56,189,248,0.12); }
-    .buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+
+    input:focus {
+      border-color: rgba(88,101,242,0.7);
+      box-shadow: 0 0 0 3px rgba(88,101,242,0.15);
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
     button {
-      border: 0; border-radius: 999px; padding: 11px 16px; font-size: 0.95rem; font-weight: 700;
-      cursor: pointer; color: white; transition: transform 0.15s ease, opacity 0.15s ease;
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 15px;
+      font-size: 0.94rem;
+      font-weight: 800;
+      cursor: pointer;
+      color: white;
+      transition: transform 0.15s ease, opacity 0.15s ease;
     }
+
     button:hover { transform: translateY(-1px); }
     button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-    .primary { background: linear-gradient(135deg, #0ea5e9, #2563eb); }
-    .green { background: linear-gradient(135deg, #22c55e, #16a34a); }
-    .orange { background: linear-gradient(135deg, #f59e0b, #ea580c); }
-    .red { background: linear-gradient(135deg, #ef4444, #dc2626); }
-    .gray { background: linear-gradient(135deg, #475569, #334155); }
-    .status {
-      margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,0.04);
-      border: 1px solid var(--border); color: var(--muted); line-height: 1.45; min-height: 52px; white-space: pre-line;
+
+    .primary { background: var(--blue); }
+    .green { background: var(--green); }
+    .orange { background: var(--orange); color: #1e1f22; }
+    .red { background: var(--red); }
+    .gray { background: #4e5058; }
+
+    .voice-list {
+      display: grid;
+      gap: 10px;
     }
-    .roomline { margin-top: 12px; font-size: 0.92rem; color: var(--muted); }
-    .pill {
-      display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px;
-      background: rgba(255,255,255,0.06); border: 1px solid var(--border); font-size: 0.88rem; color: var(--text);
-    }
-    .dot {
-      width: 10px; height: 10px; border-radius: 50%; background: var(--danger);
-      box-shadow: 0 0 12px rgba(239,68,68,0.6);
-    }
-    .members { display: grid; gap: 10px; }
+
     .member {
-      display: flex; justify-content: space-between; align-items: center; padding: 12px 14px;
-      border-radius: 16px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); gap: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: #2b2d31;
+      transition: border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
     }
-    .member strong { display: block; font-size: 0.97rem; }
-    .member span { color: var(--muted); font-size: 0.84rem; }
-    .member audio { width: 210px; max-width: 100%; }
-    .small { font-size: 0.84rem; color: var(--muted); line-height: 1.45; margin-top: 12px; }
+
+    .member.speaking {
+      border-color: rgba(35,165,89,0.95);
+      box-shadow: 0 0 0 2px rgba(35,165,89,0.2) inset, 0 0 14px rgba(35,165,89,0.16);
+      background: #2d322f;
+    }
+
+    .member-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: white;
+      background: #5865f2;
+      flex: 0 0 auto;
+    }
+
+    .avatar.local { background: #f0b232; color: #1e1f22; }
+
+    .meta strong {
+      display: block;
+      font-size: 0.95rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 160px;
+    }
+
+    .meta span {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .audio-badge {
+      font-size: 0.78rem;
+      color: var(--muted);
+      border: 1px solid rgba(255,255,255,0.06);
+      background: #1f2023;
+      padding: 7px 10px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      font-size: 0.88rem;
+      color: var(--text);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--red);
+      box-shadow: 0 0 12px rgba(218,55,60,0.6);
+    }
+
     .download {
-      margin-top: 14px; display: none; padding: 12px 14px; border-radius: 14px;
-      background: rgba(34,197,94,0.09); border: 1px solid rgba(34,197,94,0.25);
+      margin-top: 12px;
+      display: none;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: rgba(35,165,89,0.12);
+      border: 1px solid rgba(35,165,89,0.24);
     }
-    .download a { color: #86efac; font-weight: 700; text-decoration: none; }
-    .log { max-height: 260px; overflow: auto; padding-right: 6px; display: grid; gap: 8px; }
+
+    .download a {
+      color: #8ce6b0;
+      text-decoration: none;
+      font-weight: 800;
+    }
+
+    .log {
+      display: grid;
+      gap: 8px;
+      max-height: 420px;
+      overflow: auto;
+    }
+
     .log-item {
-      font-size: 0.9rem; color: var(--muted); padding: 10px 12px; border-radius: 14px;
-      background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: #2b2d31;
+      border: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.4;
+      word-break: break-word;
     }
-    code { background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 8px; font-size: 0.88em; }
+
+    .tiny {
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    code {
+      background: rgba(255,255,255,0.06);
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-size: 0.88em;
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="hero">
       <div>
-        <h1>SkyWay Voice Chat Room</h1>
-        <div class="sub">
-          Join a room, talk live with people anywhere, and record the full room audio from your browser. This version is designed to use a secure backend token endpoint.
-        </div>
+        <h1>StableVC</h1>
+        <div class="sub">Discord-style voice room UI with browser-based room recording, live speaking glow, room count, and a shortcut endpoint alias.</div>
       </div>
       <div class="pill" id="recordPill" style="display:none;">
         <span class="dot"></span>
@@ -107,61 +333,92 @@
       </div>
     </div>
 
-    <div class="grid">
-      <div class="card">
-        <h2>Join a room</h2>
-        <div class="controls">
-          <div>
-            <label for="nameInput">Your name</label>
-            <input id="nameInput" placeholder="Alex" maxlength="24" />
-          </div>
-          <div>
-            <label for="roomInput">Room code</label>
-            <input id="roomInput" placeholder="study-group" maxlength="32" />
-          </div>
-          <div>
-            <label for="tokenEndpointInput">Token endpoint</label>
-            <input id="tokenEndpointInput" placeholder="/api/skyway-token" value="/api/skyway-token" />
-          </div>
-          <div>
-            <label for="roomTypeInput">Room type</label>
-            <input id="roomTypeInput" placeholder="p2p or sfu" value="sfu" />
-          </div>
+    <div class="layout">
+      <aside class="sidebar-card">
+        <div class="sidebar-header">
+          <span>🔒 • voice room</span>
+          <span class="count-badge" id="roomCountBadge">0</span>
         </div>
-
-        <div class="buttons">
-          <button class="primary" id="startBtn">Join and enable mic</button>
-          <button class="gray" id="muteBtn" disabled>Mute mic</button>
-          <button class="green" id="recordBtn" disabled>Start recording room</button>
-          <button class="orange" id="stopRecordBtn" disabled>Stop recording</button>
-          <button class="red" id="leaveBtn" disabled>Leave room</button>
+        <div class="sidebar-section">
+          <div class="room-pill">
+            <div>
+              <strong id="sidebarRoomName">staff vc</strong>
+              <span id="sidebarRoomStatus">Room not connected</span>
+            </div>
+            <div>🎙️</div>
+          </div>
+          <div class="invite-box">Invite to Voice<br><span class="tiny">Everyone in the same room code joins together.</span></div>
+          <div class="hint-box">Typing <code>stablevc</code> in the endpoint box will automatically use your Railway token server.</div>
         </div>
+      </aside>
 
-        <div class="status" id="status">Enter your name and room code, then allow microphone access.
-This page expects a backend at /api/skyway-token that returns a fresh client token.</div>
-        <div class="roomline" id="roomLine"></div>
-        <div class="download" id="downloadBox"></div>
-
-        <div class="small">
-          Keep your SkyWay secret on the server only. The browser should only receive a short-lived token.
+      <main class="main-card">
+        <div class="main-topbar">
+          <div>
+            <strong id="roomTitle">StableVC Lobby</strong><br />
+            <span id="roomSubtitle">Connect, talk, and record the room mix</span>
+          </div>
+          <div class="tiny" id="topbarCount">0 in room</div>
         </div>
-      </div>
+        <div class="main-body">
+          <div class="controls">
+            <div>
+              <label for="nameInput">Your name</label>
+              <input id="nameInput" placeholder="seal" maxlength="24" />
+            </div>
+            <div>
+              <label for="roomInput">Room code</label>
+              <input id="roomInput" placeholder="staff-vc" maxlength="32" />
+            </div>
+            <div>
+              <label for="tokenEndpointInput">Token endpoint</label>
+              <input id="tokenEndpointInput" placeholder="stablevc or full https url" value="stablevc" />
+            </div>
+            <div>
+              <label for="roomTypeInput">Room type</label>
+              <input id="roomTypeInput" placeholder="sfu" value="sfu" />
+            </div>
+          </div>
 
-      <div class="card">
-        <h2>People in the room</h2>
-        <div class="members" id="members"></div>
-      </div>
+          <div class="buttons">
+            <button class="primary" id="startBtn">Join and enable mic</button>
+            <button class="gray" id="muteBtn" disabled>Mute mic</button>
+            <button class="green" id="recordBtn" disabled>Start recording room</button>
+            <button class="orange" id="stopRecordBtn" disabled>Stop recording</button>
+            <button class="red" id="leaveBtn" disabled>Leave room</button>
+          </div>
+
+          <div class="status" id="status">Enter your name and room code, then allow microphone access.</div>
+          <div class="download" id="downloadBox"></div>
+          <div class="hint-box">Recording export stays in <code>.webm</code> because browser MediaRecorder records audio natively in WebM/Opus here. Renaming it to .mp3 would be fake unless you add a real MP3 conversion step.</div>
+        </div>
+      </main>
+
+      <section class="right-card">
+        <div class="right-header">
+          <strong>People in Voice</strong>
+          <span class="tiny" id="rightCount">0 online</span>
+        </div>
+        <div class="right-body">
+          <div class="voice-list" id="members"></div>
+        </div>
+      </section>
     </div>
 
-    <div class="card" style="margin-top: 20px;">
-      <h2>Activity</h2>
-      <div class="log" id="log"></div>
-    </div>
+    <section class="right-card" style="margin-top:16px;">
+      <div class="right-header">
+        <strong>Activity</strong>
+      </div>
+      <div class="right-body">
+        <div class="log" id="log"></div>
+      </div>
+    </section>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@skyway-sdk/room/dist/skyway_room-latest.js"></script>
   <script>
     const { SkyWayContext, SkyWayRoom, SkyWayStreamFactory } = skyway_room;
+    const STABLEVC_ENDPOINT = 'https://skyway-test-thing-production.up.railway.app/api/skyway-token';
 
     const els = {
       nameInput: document.getElementById('nameInput'),
@@ -174,11 +431,17 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
       stopRecordBtn: document.getElementById('stopRecordBtn'),
       leaveBtn: document.getElementById('leaveBtn'),
       status: document.getElementById('status'),
-      roomLine: document.getElementById('roomLine'),
       members: document.getElementById('members'),
       log: document.getElementById('log'),
       recordPill: document.getElementById('recordPill'),
-      downloadBox: document.getElementById('downloadBox')
+      downloadBox: document.getElementById('downloadBox'),
+      roomCountBadge: document.getElementById('roomCountBadge'),
+      topbarCount: document.getElementById('topbarCount'),
+      rightCount: document.getElementById('rightCount'),
+      roomTitle: document.getElementById('roomTitle'),
+      roomSubtitle: document.getElementById('roomSubtitle'),
+      sidebarRoomName: document.getElementById('sidebarRoomName'),
+      sidebarRoomStatus: document.getElementById('sidebarRoomStatus')
     };
 
     let context = null;
@@ -189,6 +452,7 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
     let roomEventDisposers = [];
 
     const remoteMembers = new Map();
+    const speakingWatchers = new Map();
 
     let audioContext = null;
     let mixDestination = null;
@@ -211,6 +475,12 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
 
     function safeId(text) {
       return String(text).trim().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 32);
+    }
+
+    function resolveEndpoint(value) {
+      const trimmed = String(value || '').trim();
+      if (!trimmed || trimmed.toLowerCase() === 'stablevc') return STABLEVC_ENDPOINT;
+      return trimmed;
     }
 
     function ensureAudioMixer() {
@@ -248,27 +518,48 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
       els.muteBtn.className = isMuted ? 'green' : 'gray';
     }
 
-    function createMemberCard({ id, name, label, stream, isLocal }) {
+    function updateRoomCount() {
+      const total = (me ? 1 : 0) + remoteMembers.size;
+      els.roomCountBadge.textContent = String(total);
+      els.topbarCount.textContent = `${total} in room`;
+      els.rightCount.textContent = `${total} online`;
+      els.sidebarRoomStatus.textContent = me ? `${total} connected` : 'Room not connected';
+    }
+
+    function initials(name) {
+      return (name || '?').trim().slice(0, 2).toUpperCase();
+    }
+
+    function createMemberCard({ id, name, label, isLocal }) {
       const row = document.createElement('div');
       row.className = 'member';
+      row.dataset.memberId = id;
 
       const left = document.createElement('div');
+      left.className = 'member-left';
+
+      const avatar = document.createElement('div');
+      avatar.className = `avatar${isLocal ? ' local' : ''}`;
+      avatar.textContent = initials(name);
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
       const strong = document.createElement('strong');
       strong.textContent = name || 'Unknown';
       const span = document.createElement('span');
-      span.textContent = `${label} • ${id || ''}`;
-      left.appendChild(strong);
-      left.appendChild(span);
+      span.textContent = label;
+      meta.appendChild(strong);
+      meta.appendChild(span);
+
+      left.appendChild(avatar);
+      left.appendChild(meta);
+
+      const badge = document.createElement('div');
+      badge.className = 'audio-badge';
+      badge.textContent = isLocal ? 'You' : 'Listening';
+
       row.appendChild(left);
-
-      const audio = document.createElement('audio');
-      audio.autoplay = true;
-      audio.controls = true;
-      audio.playsInline = true;
-      if (stream) audio.srcObject = stream;
-      if (isLocal) audio.muted = true;
-      row.appendChild(audio);
-
+      row.appendChild(badge);
       return row;
     }
 
@@ -278,8 +569,7 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
       els.members.appendChild(createMemberCard({
         id: me?.id || 'local',
         name: me?.name || els.nameInput.value.trim() || 'You',
-        label: 'You',
-        stream: localMediaStream,
+        label: isMuted ? 'Mic muted' : 'Connected',
         isLocal: true
       }));
 
@@ -288,17 +578,58 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
           id,
           name: info.name,
           label: 'Connected',
-          stream: info.stream,
           isLocal: false
         }));
       }
+
+      updateRoomCount();
+    }
+
+    function setSpeaking(memberId, speaking) {
+      const el = document.querySelector(`[data-member-id="${CSS.escape(memberId)}"]`);
+      if (!el) return;
+      el.classList.toggle('speaking', speaking);
+    }
+
+    function watchSpeaking(memberId, mediaStream) {
+      stopSpeakingWatch(memberId);
+      ensureAudioMixer();
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 512;
+      const src = audioContext.createMediaStreamSource(mediaStream);
+      src.connect(analyser);
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      let raf = 0;
+
+      const tick = () => {
+        analyser.getByteFrequencyData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) sum += data[i];
+        const avg = sum / data.length;
+        setSpeaking(memberId, avg > 18);
+        raf = requestAnimationFrame(tick);
+      };
+
+      tick();
+      speakingWatchers.set(memberId, { src, analyser, raf });
+    }
+
+    function stopSpeakingWatch(memberId) {
+      const watcher = speakingWatchers.get(memberId);
+      if (!watcher) return;
+      cancelAnimationFrame(watcher.raf);
+      try { watcher.src.disconnect(); } catch {}
+      try { watcher.analyser.disconnect(); } catch {}
+      speakingWatchers.delete(memberId);
+      setSpeaking(memberId, false);
     }
 
     async function getToken() {
-      const endpoint = els.tokenEndpointInput.value.trim();
+      const endpoint = resolveEndpoint(els.tokenEndpointInput.value);
       const roomName = safeId(els.roomInput.value.trim().toLowerCase()) || 'main-room';
       const memberName = els.nameInput.value.trim() || 'Guest';
       const roomType = (els.roomTypeInput.value.trim().toLowerCase() || 'sfu');
+      els.tokenEndpointInput.value = endpoint === STABLEVC_ENDPOINT ? 'stablevc' : endpoint;
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -326,6 +657,7 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
       ensureAudioMixer();
       addStreamToMixer('local', localMediaStream);
       renderMembers();
+      watchSpeaking(me?.id || 'local', localMediaStream);
     }
 
     async function subscribeToPublication(publication) {
@@ -334,9 +666,11 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
       if (publication.contentType !== 'audio') return;
 
       const publisherId = publication.publisher.id;
-      if (remoteMembers.has(publisherId)) return;
+      const existing = remoteMembers.get(publisherId);
+      if (existing && existing.publicationId === publication.id) return;
 
-      const { stream } = await me.subscribe(publication.id);
+      const result = await me.subscribe(publication.id);
+      const stream = result.stream;
       const track = stream.track;
       if (!track) throw new Error('Remote publication did not include a usable audio track.');
 
@@ -349,12 +683,13 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
       });
       addStreamToMixer(publisherId, mediaStream);
       renderMembers();
+      watchSpeaking(publisherId, mediaStream);
       addLog(`${publisherName} is now connected.`);
     }
 
     function removeRemoteByMemberId(memberId, reason) {
-      const info = remoteMembers.get(memberId);
-      if (!info) return;
+      if (!remoteMembers.has(memberId)) return;
+      stopSpeakingWatch(memberId);
       removeStreamFromMixer(memberId);
       remoteMembers.delete(memberId);
       renderMembers();
@@ -396,25 +731,23 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
       const memberName = els.nameInput.value.trim() || 'Guest';
       const roomType = (els.roomTypeInput.value.trim().toLowerCase() || 'sfu');
 
+      els.roomTitle.textContent = roomName;
+      els.sidebarRoomName.textContent = roomName;
+      els.roomSubtitle.textContent = `${memberName} joining ${roomType.toUpperCase()} room`;
       setStatus('Getting a fresh SkyWay token...');
       const token = await getToken();
 
       setStatus('Enabling microphone...');
-      await initLocalAudio();
-
-      setStatus('Connecting to SkyWay...');
       context = await SkyWayContext.Create(token);
-      room = await SkyWayRoom.FindOrCreate(context, {
-        type: roomType,
-        name: roomName
-      });
-
+      room = await SkyWayRoom.FindOrCreate(context, { type: roomType, name: roomName });
       me = await room.join({ name: memberName });
+
+      await initLocalAudio();
       await me.publish(localAudioStream);
       await setupRoomListeners();
 
       setStatus('Connected. Others in the same room can now hear you.');
-      els.roomLine.innerHTML = `Room: <code>${roomName}</code> • Type: <code>${roomType}</code>`;
+      els.roomSubtitle.textContent = `Connected to ${roomType.toUpperCase()} room`;
       updateButtons(true);
       updateMuteButton();
       renderMembers();
@@ -424,10 +757,9 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
     function toggleMute() {
       if (!localMediaStream) return;
       isMuted = !isMuted;
-      localMediaStream.getAudioTracks().forEach(track => {
-        track.enabled = !isMuted;
-      });
+      localMediaStream.getAudioTracks().forEach(track => { track.enabled = !isMuted; });
       updateMuteButton();
+      renderMembers();
       addLog(isMuted ? 'You muted your microphone.' : 'You unmuted your microphone.');
     }
 
@@ -435,9 +767,7 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
       if (!mixDestination) return;
       recordedChunks = [];
       mediaRecorder = new MediaRecorder(mixDestination.stream, {
-        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-          ? 'audio/webm;codecs=opus'
-          : 'audio/webm'
+        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm'
       });
 
       mediaRecorder.ondataavailable = (event) => {
@@ -447,7 +777,7 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
       mediaRecorder.onstop = () => {
         const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
         const url = URL.createObjectURL(blob);
-        const filename = `room-recording-${safeId(els.roomInput.value.trim()) || 'main-room'}-${new Date().toISOString().replace(/[:.]/g, '-')}.webm`;
+        const filename = `stablevc-recording-${safeId(els.roomInput.value.trim()) || 'main-room'}-${new Date().toISOString().replace(/[:.]/g, '-')}.webm`;
         els.downloadBox.style.display = 'block';
         els.downloadBox.innerHTML = `Recording ready: <a href="${url}" download="${filename}">${filename}</a>`;
         addLog('Recording saved and ready to download.');
@@ -482,6 +812,7 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
       }
 
       if (me) {
+        stopSpeakingWatch(me.id);
         try { await me.leave(); } catch {}
         me = null;
       }
@@ -499,8 +830,9 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
       localAudioStream = null;
       room = null;
       isMuted = false;
-      els.roomLine.textContent = '';
       els.recordPill.style.display = 'none';
+      els.sidebarRoomStatus.textContent = 'Room not connected';
+      els.roomSubtitle.textContent = 'Connect, talk, and record the room mix';
 
       for (const key of Array.from(sourceNodes.keys())) {
         removeStreamFromMixer(key);
@@ -535,6 +867,7 @@ This page expects a backend at /api/skyway-token that returns a fresh client tok
     renderMembers();
     updateButtons(false);
     updateMuteButton();
+    updateRoomCount();
     addLog('App ready.');
   </script>
 </body>
