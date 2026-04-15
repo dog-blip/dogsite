@@ -348,7 +348,7 @@
             <div>🎙️</div>
           </div>
           <div class="invite-box">Invite to Voice<br><span class="tiny">Everyone in the same room code joins together.</span></div>
-          <div class="hint-box">Typing <code>stablevc</code> in the endpoint box will automatically use your Railway token server.</div>
+          
         </div>
       </aside>
 
@@ -648,12 +648,12 @@
     }
 
     async function initLocalAudio() {
-      const stream = await SkyWayStreamFactory.createMicrophoneAudioStream();
-      localAudioStream = stream;
-      const track = localAudioStream.track;
-      if (!track) throw new Error('Could not get microphone track from SkyWay stream.');
+      const { audio } = await SkyWayStreamFactory.createMicrophoneAudioStream();
+      localAudioStream = audio;
 
+      const track = audio.track;
       localMediaStream = new MediaStream([track]);
+
       ensureAudioMixer();
       addStreamToMixer('local', localMediaStream);
       renderMembers();
@@ -669,18 +669,26 @@
       const existing = remoteMembers.get(publisherId);
       if (existing && existing.publicationId === publication.id) return;
 
-      const result = await me.subscribe(publication.id);
-      const stream = result.stream;
+      const { stream } = await me.subscribe(publication.id);
       const track = stream.track;
-      if (!track) throw new Error('Remote publication did not include a usable audio track.');
 
       const mediaStream = new MediaStream([track]);
       const publisherName = publication.publisher?.name || 'Guest';
+
       remoteMembers.set(publisherId, {
         name: publisherName,
         stream: mediaStream,
         publicationId: publication.id
       });
+
+      // IMPORTANT: attach stream to audio element so you can actually hear it
+      const audioEl = document.createElement('audio');
+      audioEl.srcObject = mediaStream;
+      audioEl.autoplay = true;
+      audioEl.playsInline = true;
+      audioEl.style.display = 'none';
+      document.body.appendChild(audioEl);
+
       addStreamToMixer(publisherId, mediaStream);
       renderMembers();
       watchSpeaking(publisherId, mediaStream);
@@ -872,3 +880,886 @@
   </script>
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StableVC</title>
+  <style>
+    :root {
+      --bg: #313338;
+      --bg-deep: #1e1f22;
+      --panel: #2b2d31;
+      --panel-2: #232428;
+      --panel-3: #111214;
+      --text: #f2f3f5;
+      --muted: #b5bac1;
+      --green: #23a559;
+      --blue: #5865f2;
+      --orange: #f0b232;
+      --red: #da373c;
+      --border: rgba(255,255,255,0.08);
+      --shadow: 0 12px 32px rgba(0,0,0,0.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: gg sans, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #232428, var(--bg-deep));
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 18px; }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    h1 { margin: 0 0 6px; font-size: 1.7rem; letter-spacing: -0.03em; }
+    .sub { color: var(--muted); max-width: 760px; line-height: 1.45; font-size: 0.96rem; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr 320px;
+      gap: 16px;
+    }
+
+    @media (max-width: 1050px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    .sidebar-card,
+    .main-card,
+    .right-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .sidebar-card { background: var(--panel-2); }
+
+    .sidebar-header,
+    .main-topbar,
+    .right-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: #222327;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .sidebar-section,
+    .main-body,
+    .right-body { padding: 14px; }
+
+    .room-pill {
+      background: #404249;
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .room-pill strong { display: block; font-size: 1rem; }
+    .room-pill span { display: block; color: var(--muted); font-size: 0.84rem; margin-top: 3px; }
+
+    .count-badge {
+      min-width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      background: var(--blue);
+      color: white;
+    }
+
+    .invite-box,
+    .hint-box,
+    .status {
+      margin-top: 12px;
+      background: #36373d;
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: var(--muted);
+      border: 1px solid rgba(255,255,255,0.05);
+      line-height: 1.45;
+      white-space: pre-line;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    @media (max-width: 700px) {
+      .controls { grid-template-columns: 1fr; }
+    }
+
+    label {
+      display: block;
+      font-size: 0.84rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    input {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #1e1f22;
+      color: var(--text);
+      padding: 12px 13px;
+      outline: none;
+      font-size: 0.95rem;
+    }
+
+    input:focus {
+      border-color: rgba(88,101,242,0.7);
+      box-shadow: 0 0 0 3px rgba(88,101,242,0.15);
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 15px;
+      font-size: 0.94rem;
+      font-weight: 800;
+      cursor: pointer;
+      color: white;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .primary { background: var(--blue); }
+    .green { background: var(--green); }
+    .orange { background: var(--orange); color: #1e1f22; }
+    .red { background: var(--red); }
+    .gray { background: #4e5058; }
+
+    .voice-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .member {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: #2b2d31;
+      transition: border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+    }
+
+    .member.speaking {
+      border-color: rgba(35,165,89,0.95);
+      box-shadow: 0 0 0 2px rgba(35,165,89,0.2) inset, 0 0 14px rgba(35,165,89,0.16);
+      background: #2d322f;
+    }
+
+    .member-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: white;
+      background: #5865f2;
+      flex: 0 0 auto;
+    }
+
+    .avatar.local { background: #f0b232; color: #1e1f22; }
+
+    .meta strong {
+      display: block;
+      font-size: 0.95rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 160px;
+    }
+
+    .meta span {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .audio-badge {
+      font-size: 0.78rem;
+      color: var(--muted);
+      border: 1px solid rgba(255,255,255,0.06);
+      background: #1f2023;
+      padding: 7px 10px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      font-size: 0.88rem;
+      color: var(--text);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--red);
+      box-shadow: 0 0 12px rgba(218,55,60,0.6);
+    }
+
+    .download {
+      margin-top: 12px;
+      display: none;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: rgba(35,165,89,0.12);
+      border: 1px solid rgba(35,165,89,0.24);
+    }
+
+    .download a {
+      color: #8ce6b0;
+      text-decoration: none;
+      font-weight: 800;
+    }
+
+    .log {
+      display: grid;
+      gap: 8px;
+      max-height: 420px;
+      overflow: auto;
+    }
+
+    .log-item {
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: #2b2d31;
+      border: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    .tiny {
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    code {
+      background: rgba(255,255,255,0.06);
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-size: 0.88em;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <h1>StableVC</h1>
+        <div class="sub">Discord-style voice room UI with browser-based room recording, live speaking glow, room count, and a shortcut endpoint alias.</div>
+      </div>
+      <div class="pill" id="recordPill" style="display:none;">
+        <span class="dot"></span>
+        Recording room audio
+      </div>
+    </div>
+
+    <div class="layout">
+      <aside class="sidebar-card">
+        <div class="sidebar-header">
+          <span>🔒 • voice room</span>
+          <span class="count-badge" id="roomCountBadge">0</span>
+        </div>
+        <div class="sidebar-section">
+          <div class="room-pill">
+            <div>
+              <strong id="sidebarRoomName">staff vc</strong>
+              <span id="sidebarRoomStatus">Room not connected</span>
+            </div>
+            <div>🎙️</div>
+          </div>
+          <div class="invite-box">Invite to Voice<br><span class="tiny">Everyone in the same room code joins together.</span></div>
+          
+        </div>
+      </aside>
+
+      <main class="main-card">
+        <div class="main-topbar">
+          <div>
+            <strong id="roomTitle">StableVC Lobby</strong><br />
+            <span id="roomSubtitle">Connect, talk, and record the room mix</span>
+          </div>
+          <div class="tiny" id="topbarCount">0 in room</div>
+        </div>
+        <div class="main-body">
+          <div class="controls">
+            <div>
+              <label for="nameInput">Your name</label>
+              <input id="nameInput" placeholder="seal" maxlength="24" />
+            </div>
+            <div>
+              <label for="roomInput">Room code</label>
+              <input id="roomInput" placeholder="staff-vc" maxlength="32" />
+            </div>
+            <div>
+              <label for="tokenEndpointInput">Token endpoint</label>
+              <input id="tokenEndpointInput" placeholder="stablevc or full https url" value="stablevc" />
+            </div>
+            <div>
+              <label for="roomTypeInput">Room type</label>
+              <input id="roomTypeInput" placeholder="sfu" value="sfu" />
+            </div>
+          </div>
+
+          <div class="buttons">
+            <button class="primary" id="startBtn">Join and enable mic</button>
+            <button class="gray" id="muteBtn" disabled>Mute mic</button>
+            <button class="green" id="recordBtn" disabled>Start recording room</button>
+            <button class="orange" id="stopRecordBtn" disabled>Stop recording</button>
+            <button class="red" id="leaveBtn" disabled>Leave room</button>
+          </div>
+
+          <div class="status" id="status">Enter your name and room code, then allow microphone access.</div>
+          <div class="download" id="downloadBox"></div>
+          <div class="hint-box">Recording export stays in <code>.webm</code> because browser MediaRecorder records audio natively in WebM/Opus here. Renaming it to .mp3 would be fake unless you add a real MP3 conversion step.</div>
+        </div>
+      </main>
+
+      <section class="right-card">
+        <div class="right-header">
+          <strong>People in Voice</strong>
+          <span class="tiny" id="rightCount">0 online</span>
+        </div>
+        <div class="right-body">
+          <div class="voice-list" id="members"></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="right-card" style="margin-top:16px;">
+      <div class="right-header">
+        <strong>Activity</strong>
+      </div>
+      <div class="right-body">
+        <div class="log" id="log"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@skyway-sdk/room/dist/skyway_room-latest.js"></script>
+  <script>
+    const { SkyWayContext, SkyWayRoom, SkyWayStreamFactory } = skyway_room;
+    const STABLEVC_ENDPOINT = 'https://skyway-test-thing-production.up.railway.app/api/skyway-token';
+
+    const els = {
+      nameInput: document.getElementById('nameInput'),
+      roomInput: document.getElementById('roomInput'),
+      tokenEndpointInput: document.getElementById('tokenEndpointInput'),
+      roomTypeInput: document.getElementById('roomTypeInput'),
+      startBtn: document.getElementById('startBtn'),
+      muteBtn: document.getElementById('muteBtn'),
+      recordBtn: document.getElementById('recordBtn'),
+      stopRecordBtn: document.getElementById('stopRecordBtn'),
+      leaveBtn: document.getElementById('leaveBtn'),
+      status: document.getElementById('status'),
+      members: document.getElementById('members'),
+      log: document.getElementById('log'),
+      recordPill: document.getElementById('recordPill'),
+      downloadBox: document.getElementById('downloadBox'),
+      roomCountBadge: document.getElementById('roomCountBadge'),
+      topbarCount: document.getElementById('topbarCount'),
+      rightCount: document.getElementById('rightCount'),
+      roomTitle: document.getElementById('roomTitle'),
+      roomSubtitle: document.getElementById('roomSubtitle'),
+      sidebarRoomName: document.getElementById('sidebarRoomName'),
+      sidebarRoomStatus: document.getElementById('sidebarRoomStatus')
+    };
+
+    let context = null;
+    let room = null;
+    let me = null;
+    let localAudioStream = null;
+    let localMediaStream = null;
+    let roomEventDisposers = [];
+
+    const remoteMembers = new Map();
+    const speakingWatchers = new Map();
+
+    let audioContext = null;
+    let mixDestination = null;
+    let sourceNodes = new Map();
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let isMuted = false;
+
+    function setStatus(msg) {
+      els.status.textContent = msg;
+    }
+
+    function addLog(msg) {
+      const item = document.createElement('div');
+      item.className = 'log-item';
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      item.textContent = `[${time}] ${msg}`;
+      els.log.prepend(item);
+    }
+
+    function safeId(text) {
+      return String(text).trim().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 32);
+    }
+
+    function resolveEndpoint(value) {
+      const trimmed = String(value || '').trim();
+      if (!trimmed || trimmed.toLowerCase() === 'stablevc') return STABLEVC_ENDPOINT;
+      return trimmed;
+    }
+
+    function ensureAudioMixer() {
+      if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      if (!mixDestination) mixDestination = audioContext.createMediaStreamDestination();
+    }
+
+    function addStreamToMixer(id, stream) {
+      if (!stream) return;
+      ensureAudioMixer();
+      removeStreamFromMixer(id);
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(mixDestination);
+      sourceNodes.set(id, source);
+    }
+
+    function removeStreamFromMixer(id) {
+      const source = sourceNodes.get(id);
+      if (source) {
+        try { source.disconnect(); } catch {}
+        sourceNodes.delete(id);
+      }
+    }
+
+    function updateButtons(joined) {
+      els.startBtn.disabled = joined;
+      els.muteBtn.disabled = !joined;
+      els.recordBtn.disabled = !joined || !!mediaRecorder;
+      els.stopRecordBtn.disabled = !mediaRecorder;
+      els.leaveBtn.disabled = !joined;
+    }
+
+    function updateMuteButton() {
+      els.muteBtn.textContent = isMuted ? 'Unmute mic' : 'Mute mic';
+      els.muteBtn.className = isMuted ? 'green' : 'gray';
+    }
+
+    function updateRoomCount() {
+      const total = (me ? 1 : 0) + remoteMembers.size;
+      els.roomCountBadge.textContent = String(total);
+      els.topbarCount.textContent = `${total} in room`;
+      els.rightCount.textContent = `${total} online`;
+      els.sidebarRoomStatus.textContent = me ? `${total} connected` : 'Room not connected';
+    }
+
+    function initials(name) {
+      return (name || '?').trim().slice(0, 2).toUpperCase();
+    }
+
+    function createMemberCard({ id, name, label, isLocal }) {
+      const row = document.createElement('div');
+      row.className = 'member';
+      row.dataset.memberId = id;
+
+      const left = document.createElement('div');
+      left.className = 'member-left';
+
+      const avatar = document.createElement('div');
+      avatar.className = `avatar${isLocal ? ' local' : ''}`;
+      avatar.textContent = initials(name);
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const strong = document.createElement('strong');
+      strong.textContent = name || 'Unknown';
+      const span = document.createElement('span');
+      span.textContent = label;
+      meta.appendChild(strong);
+      meta.appendChild(span);
+
+      left.appendChild(avatar);
+      left.appendChild(meta);
+
+      const badge = document.createElement('div');
+      badge.className = 'audio-badge';
+      badge.textContent = isLocal ? 'You' : 'Listening';
+
+      row.appendChild(left);
+      row.appendChild(badge);
+      return row;
+    }
+
+    function renderMembers() {
+      els.members.innerHTML = '';
+
+      els.members.appendChild(createMemberCard({
+        id: me?.id || 'local',
+        name: me?.name || els.nameInput.value.trim() || 'You',
+        label: isMuted ? 'Mic muted' : 'Connected',
+        isLocal: true
+      }));
+
+      for (const [id, info] of remoteMembers.entries()) {
+        els.members.appendChild(createMemberCard({
+          id,
+          name: info.name,
+          label: 'Connected',
+          isLocal: false
+        }));
+      }
+
+      updateRoomCount();
+    }
+
+    function setSpeaking(memberId, speaking) {
+      const el = document.querySelector(`[data-member-id="${CSS.escape(memberId)}"]`);
+      if (!el) return;
+      el.classList.toggle('speaking', speaking);
+    }
+
+    function watchSpeaking(memberId, mediaStream) {
+      stopSpeakingWatch(memberId);
+      ensureAudioMixer();
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 512;
+      const src = audioContext.createMediaStreamSource(mediaStream);
+      src.connect(analyser);
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      let raf = 0;
+
+      const tick = () => {
+        analyser.getByteFrequencyData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) sum += data[i];
+        const avg = sum / data.length;
+        setSpeaking(memberId, avg > 18);
+        raf = requestAnimationFrame(tick);
+      };
+
+      tick();
+      speakingWatchers.set(memberId, { src, analyser, raf });
+    }
+
+    function stopSpeakingWatch(memberId) {
+      const watcher = speakingWatchers.get(memberId);
+      if (!watcher) return;
+      cancelAnimationFrame(watcher.raf);
+      try { watcher.src.disconnect(); } catch {}
+      try { watcher.analyser.disconnect(); } catch {}
+      speakingWatchers.delete(memberId);
+      setSpeaking(memberId, false);
+    }
+
+    async function getToken() {
+      const endpoint = resolveEndpoint(els.tokenEndpointInput.value);
+      const roomName = safeId(els.roomInput.value.trim().toLowerCase()) || 'main-room';
+      const memberName = els.nameInput.value.trim() || 'Guest';
+      const roomType = (els.roomTypeInput.value.trim().toLowerCase() || 'sfu');
+      els.tokenEndpointInput.value = endpoint === STABLEVC_ENDPOINT ? 'stablevc' : endpoint;
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomName, memberName, roomType })
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Token request failed: ${response.status} ${text}`);
+      }
+
+      const data = await response.json();
+      if (!data.token) throw new Error('Token endpoint must return JSON with a token field.');
+      return data.token;
+    }
+
+    async function initLocalAudio() {
+      const { audio } = await SkyWayStreamFactory.createMicrophoneAudioStream();
+      localAudioStream = audio;
+
+      const track = audio.track;
+      localMediaStream = new MediaStream([track]);
+
+      ensureAudioMixer();
+      addStreamToMixer('local', localMediaStream);
+      renderMembers();
+      watchSpeaking(me?.id || 'local', localMediaStream);
+    }
+
+    async function subscribeToPublication(publication) {
+      if (!me) return;
+      if (publication.publisher?.id === me.id) return;
+      if (publication.contentType !== 'audio') return;
+
+      const publisherId = publication.publisher.id;
+      const existing = remoteMembers.get(publisherId);
+      if (existing && existing.publicationId === publication.id) return;
+
+      const { stream } = await me.subscribe(publication.id);
+      const track = stream.track;
+
+      const mediaStream = new MediaStream([track]);
+      const publisherName = publication.publisher?.name || 'Guest';
+
+      remoteMembers.set(publisherId, {
+        name: publisherName,
+        stream: mediaStream,
+        publicationId: publication.id
+      });
+
+      // IMPORTANT: attach stream to audio element so you can actually hear it
+      const audioEl = document.createElement('audio');
+      audioEl.srcObject = mediaStream;
+      audioEl.autoplay = true;
+      audioEl.playsInline = true;
+      audioEl.style.display = 'none';
+      document.body.appendChild(audioEl);
+
+      addStreamToMixer(publisherId, mediaStream);
+      renderMembers();
+      watchSpeaking(publisherId, mediaStream);
+      addLog(`${publisherName} is now connected.`);
+    }
+
+    function removeRemoteByMemberId(memberId, reason) {
+      if (!remoteMembers.has(memberId)) return;
+      stopSpeakingWatch(memberId);
+      removeStreamFromMixer(memberId);
+      remoteMembers.delete(memberId);
+      renderMembers();
+      if (reason) addLog(reason);
+    }
+
+    async function setupRoomListeners() {
+      for (const publication of room.publications) {
+        try { await subscribeToPublication(publication); } catch (e) { console.error(e); }
+      }
+
+      const publishedDisposable = room.onStreamPublished.add(async ({ publication }) => {
+        try {
+          await subscribeToPublication(publication);
+        } catch (error) {
+          console.error(error);
+          addLog(`Could not subscribe to stream: ${error.message}`);
+        }
+      });
+
+      const unpublishedDisposable = room.onStreamUnpublished.add(({ publication }) => {
+        const memberId = publication.publisher?.id;
+        if (memberId) {
+          const name = remoteMembers.get(memberId)?.name || 'A user';
+          removeRemoteByMemberId(memberId, `${name} unpublished audio.`);
+        }
+      });
+
+      const leftDisposable = room.onMemberLeft.add(({ member }) => {
+        const name = remoteMembers.get(member.id)?.name || member.name || 'A user';
+        removeRemoteByMemberId(member.id, `${name} left the room.`);
+      });
+
+      roomEventDisposers = [publishedDisposable, unpublishedDisposable, leftDisposable];
+    }
+
+    async function joinRoom() {
+      const roomName = safeId(els.roomInput.value.trim().toLowerCase()) || 'main-room';
+      const memberName = els.nameInput.value.trim() || 'Guest';
+      const roomType = (els.roomTypeInput.value.trim().toLowerCase() || 'sfu');
+
+      els.roomTitle.textContent = roomName;
+      els.sidebarRoomName.textContent = roomName;
+      els.roomSubtitle.textContent = `${memberName} joining ${roomType.toUpperCase()} room`;
+      setStatus('Getting a fresh SkyWay token...');
+      const token = await getToken();
+
+      setStatus('Enabling microphone...');
+      context = await SkyWayContext.Create(token);
+      room = await SkyWayRoom.FindOrCreate(context, { type: roomType, name: roomName });
+      me = await room.join({ name: memberName });
+
+      await initLocalAudio();
+      await me.publish(localAudioStream);
+      await setupRoomListeners();
+
+      setStatus('Connected. Others in the same room can now hear you.');
+      els.roomSubtitle.textContent = `Connected to ${roomType.toUpperCase()} room`;
+      updateButtons(true);
+      updateMuteButton();
+      renderMembers();
+      addLog(`You joined ${roomName} as ${memberName}.`);
+    }
+
+    function toggleMute() {
+      if (!localMediaStream) return;
+      isMuted = !isMuted;
+      localMediaStream.getAudioTracks().forEach(track => { track.enabled = !isMuted; });
+      updateMuteButton();
+      renderMembers();
+      addLog(isMuted ? 'You muted your microphone.' : 'You unmuted your microphone.');
+    }
+
+    function startRecording() {
+      if (!mixDestination) return;
+      recordedChunks = [];
+      mediaRecorder = new MediaRecorder(mixDestination.stream, {
+        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm'
+      });
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) recordedChunks.push(event.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+        const url = URL.createObjectURL(blob);
+        const filename = `stablevc-recording-${safeId(els.roomInput.value.trim()) || 'main-room'}-${new Date().toISOString().replace(/[:.]/g, '-')}.webm`;
+        els.downloadBox.style.display = 'block';
+        els.downloadBox.innerHTML = `Recording ready: <a href="${url}" download="${filename}">${filename}</a>`;
+        addLog('Recording saved and ready to download.');
+        mediaRecorder = null;
+        els.recordPill.style.display = 'none';
+        updateButtons(true);
+      };
+
+      mediaRecorder.start(1000);
+      els.downloadBox.style.display = 'none';
+      els.downloadBox.innerHTML = '';
+      els.recordPill.style.display = 'inline-flex';
+      addLog('Started recording the room audio mix.');
+      updateButtons(true);
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    }
+
+    async function leaveRoom() {
+      stopRecording();
+
+      for (const disposer of roomEventDisposers) {
+        try { disposer.removeListener?.(); } catch {}
+        try { disposer.dispose?.(); } catch {}
+      }
+      roomEventDisposers = [];
+
+      for (const memberId of Array.from(remoteMembers.keys())) {
+        removeRemoteByMemberId(memberId);
+      }
+
+      if (me) {
+        stopSpeakingWatch(me.id);
+        try { await me.leave(); } catch {}
+        me = null;
+      }
+
+      if (context) {
+        try { await context.dispose?.(); } catch {}
+        context = null;
+      }
+
+      if (localMediaStream) {
+        localMediaStream.getTracks().forEach(track => track.stop());
+        localMediaStream = null;
+      }
+
+      localAudioStream = null;
+      room = null;
+      isMuted = false;
+      els.recordPill.style.display = 'none';
+      els.sidebarRoomStatus.textContent = 'Room not connected';
+      els.roomSubtitle.textContent = 'Connect, talk, and record the room mix';
+
+      for (const key of Array.from(sourceNodes.keys())) {
+        removeStreamFromMixer(key);
+      }
+
+      setStatus('You left the room.');
+      addLog('You left the room.');
+      renderMembers();
+      updateButtons(false);
+      updateMuteButton();
+    }
+
+    els.startBtn.addEventListener('click', async () => {
+      try {
+        await joinRoom();
+      } catch (error) {
+        console.error(error);
+        setStatus('Could not start voice chat. Check your token endpoint, browser permissions, and SkyWay config.');
+        addLog(`Failed to start: ${error.message}`);
+      }
+    });
+
+    els.muteBtn.addEventListener('click', toggleMute);
+    els.recordBtn.addEventListener('click', startRecording);
+    els.stopRecordBtn.addEventListener('click', stopRecording);
+    els.leaveBtn.addEventListener('click', leaveRoom);
+
+    window.addEventListener('beforeunload', () => {
+      try { leaveRoom(); } catch {}
+    });
+
+    renderMembers();
+    updateButtons(false);
+    updateMuteButton();
+    updateRoomCount();
+    addLog('App ready.');
+  </script>
+</body>
+</html>
+
