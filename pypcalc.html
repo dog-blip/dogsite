@@ -4,54 +4,34 @@
   <meta charset="UTF-8">
   <title>javascript calc ahh thing</title>
   <style>
-
-
-  #wrong-questions-display {
-  	text-align: left;
-  	margin-top: 15px;
-  	font-size: 14px;
-  	max-height: 220px;
-  	overflow-y: auto;
-  	overflow-x: hidden;
-  	background: #f8f9fa;
-  	padding: 10px;
-  	border-radius: 8px;
-	}
-
     html, body {
-  		overflow: hidden;
-	}
+      overflow: hidden;
+      height: 100%;
+      width: 100%;
+      position: fixed;
+      overscroll-behavior: none;
+      touch-action: none;
+    }
 
-	body {
-  	font-family: Arial, sans-serif;
-  	background: #f0f2f5;
-  	display: flex;
-  	justify-content: center;
-  	align-items: center;
-  	height: 100vh;
-  	margin: 0;
-	}
-    #wrong-questions-display {
-  text-align: left;
-  margin-top: 15px;
-  font-size: 14px;
-  max-height: 220px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  background: #f8f9fa;
-  padding: 10px;
-  border-radius: 8px;
-  overscroll-behavior: contain;
-}
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0;
+    }
 
     .game-container {
       background: white;
       padding: 30px;
       border-radius: 12px;
       box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-      width: 420px;
+      width: 450px;
+      max-height: 92vh;
       text-align: center;
       position: relative;
+      overflow: hidden;
     }
 
     .hidden {
@@ -66,17 +46,18 @@
       font-size: 16px;
       border-radius: 6px;
       cursor: pointer;
-      margin: 10px 5px;
+      margin: 8px 5px;
     }
 
     button:hover {
       background: #0056b3;
     }
 
+    input[type="text"],
     input[type="number"] {
       padding: 8px;
       font-size: 18px;
-      width: 120px;
+      width: 140px;
       text-align: center;
       margin-bottom: 15px;
     }
@@ -89,9 +70,10 @@
     }
 
     #question-text {
-      font-size: 22px;
+      font-size: 21px;
       margin: 20px 0;
-      line-height: 1.4;
+      line-height: 1.45;
+      min-height: 80px;
     }
 
     #wrong-questions-display {
@@ -100,9 +82,12 @@
       font-size: 14px;
       max-height: 220px;
       overflow-y: auto;
+      overflow-x: hidden;
       background: #f8f9fa;
       padding: 10px;
       border-radius: 8px;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
     }
 
     .wrong-question {
@@ -115,8 +100,8 @@
       position: fixed;
       top: 0;
       right: 0;
-      width: 35px;
-      height: 35px;
+      width: 45px;
+      height: 45px;
       opacity: 0;
       background: transparent;
       border: none;
@@ -135,15 +120,22 @@
     }
 
     #secret-panel input {
-      width: 120px;
+      width: 140px;
+    }
+
+    .small-btn {
+      font-size: 13px;
+      padding: 8px 12px;
     }
   </style>
 </head>
+
 <body>
 
-  <button id="secret-btn" onclick="toggleSecretPanel()"></button>
+  <button id="secret-btn" onclick="armSecretMode()"></button>
 
   <div class="game-container">
+
     <div id="setup-screen">
       <h2>Choose Your Level</h2>
       <button onclick="startGame('easy')">Ages 5-7 Easy</button>
@@ -154,10 +146,17 @@
 
     <div id="quiz-screen" class="hidden">
       <h3>Question <span id="question-num">1</span> of 10</h3>
+
       <div id="question-text"></div>
-      <input type="number" id="answer-input" placeholder="?">
+
+      <input type="text" id="answer-input" placeholder="?">
       <br>
+
       <button onclick="submitAnswer()">Submit Answer</button>
+      <br>
+
+      <button class="small-btn" onclick="goHome()" style="background:#6c757d;">Home</button>
+      <button class="small-btn" onclick="previousQuestion()" style="background:#17a2b8;">Previous Question</button>
     </div>
 
     <div id="end-screen" class="hidden">
@@ -186,9 +185,9 @@
 
     <div id="secret-panel" class="hidden">
       <h3>Secret Mode</h3>
-      <p>Set the answer. Every generated question will equal this number.</p>
+      <p>Set the answer. Future generated questions will equal this number.</p>
 
-      <input type="number" id="secret-answer-input" placeholder="answer">
+      <input type="text" id="secret-answer-input" placeholder="answer">
       <br>
 
       <button onclick="setSecretAnswer()" style="background:#6f42c1;">
@@ -201,29 +200,57 @@
 
       <p id="secret-status"></p>
     </div>
+
   </div>
 
   <script>
     let difficulty = 'easy';
     let currentQuestionNum = 1;
-    let score = 0;
     let currentCorrectAnswer = 0;
     let currentQuestionText = "";
+
+    let questions = [];
     let wrongQuestions = [];
 
     let secretMode = false;
     let secretAnswer = 0;
 
-    document.getElementById('answer-input').addEventListener('keydown', function(event) {
+    let secretArmed = false;
+    let secretArmTimer = null;
+
+    const TOTAL_QUESTIONS = 10;
+
+    const answerInput = document.getElementById('answer-input');
+
+    answerInput.addEventListener('keydown', function(event) {
       if (event.key === 'Enter') {
         submitAnswer();
+      }
+    });
+
+    answerInput.addEventListener('input', function() {
+      const value = answerInput.value.trim();
+
+      if (!secretArmed && value.toUpperCase() === "S3CR3T") {
+        answerInput.value = "";
+        return;
+      }
+
+      if (secretArmed && value.toUpperCase() === "S3CR3T") {
+        secretArmed = false;
+        clearTimeout(secretArmTimer);
+
+        answerInput.value = "";
+        answerInput.placeholder = "?";
+
+        document.getElementById('secret-panel').classList.toggle('hidden');
       }
     });
 
     function startGame(selectedLevel) {
       difficulty = selectedLevel;
       currentQuestionNum = 1;
-      score = 0;
+      questions = [];
       wrongQuestions = [];
 
       document.getElementById('setup-screen').classList.add('hidden');
@@ -237,267 +264,544 @@
       document.getElementById('wrong-questions-display').classList.add('hidden');
       document.getElementById('wrong-questions-display').innerHTML = "";
 
-      generateQuestion();
+      loadQuestion();
     }
 
-    function generateQuestion() {
-      let num1, num2, num3, operator, questionString;
-      const inputField = document.getElementById('answer-input');
+    function loadQuestion() {
+      const index = currentQuestionNum - 1;
 
-      inputField.value = '';
+      if (!questions[index]) {
+        questions[index] = createQuestion();
+      }
+
+      const q = questions[index];
+
+      currentQuestionText = q.text;
+      currentCorrectAnswer = q.answer;
+
       document.getElementById('question-num').innerText = currentQuestionNum;
-
-      if (secretMode) {
-        questionString = generateSecretEquation(secretAnswer);
-        currentCorrectAnswer = secretAnswer;
-      }
-
-      else if (difficulty === 'easy') {
-        num1 = Math.floor(Math.random() * 10) + 1;
-        num2 = Math.floor(Math.random() * 10) + 1;
-        operator = Math.random() > 0.5 ? '+' : '-';
-
-        if (operator === '-' && num1 < num2) {
-          [num1, num2] = [num2, num1];
-        }
-
-        currentCorrectAnswer = operator === '+' ? num1 + num2 : num1 - num2;
-        questionString = `${num1} ${operator} ${num2} =`;
-      }
-
-      else if (difficulty === 'medium') {
-        let choice = Math.floor(Math.random() * 3);
-
-        if (choice === 0) {
-          num1 = Math.floor(Math.random() * 50) + 10;
-          num2 = Math.floor(Math.random() * 50) + 10;
-          currentCorrectAnswer = num1 + num2;
-          questionString = `${num1} + ${num2} =`;
-        }
-
-        else if (choice === 1) {
-          num1 = Math.floor(Math.random() * 50) + 20;
-          num2 = Math.floor(Math.random() * 20) + 1;
-          currentCorrectAnswer = num1 - num2;
-          questionString = `${num1} - ${num2} =`;
-        }
-
-        else {
-          num1 = Math.floor(Math.random() * 10) + 1;
-          num2 = Math.floor(Math.random() * 9) + 1;
-          currentCorrectAnswer = num1 * num2;
-          questionString = `${num1} × ${num2} =`;
-        }
-      }
-
-      else if (difficulty === 'hard') {
-        let choice = Math.floor(Math.random() * 3);
-
-        if (choice === 0) {
-          num1 = Math.floor(Math.random() * 16) + 12;
-          num2 = Math.floor(Math.random() * 14) + 11;
-          currentCorrectAnswer = num1 * num2;
-          questionString = `${num1} × ${num2} =`;
-        }
-
-        else if (choice === 1) {
-          num1 = Math.floor(Math.random() * 80) + 20;
-          num2 = Math.floor(Math.random() * 11) + 3;
-          num3 = Math.floor(Math.random() * 8) + 3;
-
-          if (Math.random() > 0.5) {
-            currentCorrectAnswer = num1 + (num2 * num3);
-            questionString = `${num1} + ${num2} × ${num3} =`;
-          } else {
-            currentCorrectAnswer = num1 - (num2 * num3);
-            questionString = `${num1} - ${num2} × ${num3} =`;
-          }
-        }
-
-        else {
-          num2 = Math.floor(Math.random() * 8) + 2;
-          currentCorrectAnswer = Math.floor(Math.random() * 12) + 4;
-          num3 = Math.floor(Math.random() * 30) + 5;
-          num1 = (num2 * currentCorrectAnswer) + num3;
-
-          questionString = `If ${num2}x + ${num3} = ${num1}, then x =`;
-        }
-      }
-
-      else if (difficulty === 'veryhard') {
-        questionString = generateVeryHardQuestion();
-      }
-
-      currentQuestionText = questionString;
-      document.getElementById('question-text').innerText = questionString;
-      inputField.focus();
+      document.getElementById('question-text').innerText = q.text;
+      answerInput.value = q.userRawAnswer || "";
+      answerInput.placeholder = "?";
+      answerInput.focus();
     }
 
-    function generateVeryHardQuestion() {
-      const type = Math.floor(Math.random() * 5);
+    function createQuestion() {
+      if (secretMode) {
+        return {
+          text: generateSecretEquation(secretAnswer),
+          answer: secretAnswer,
+          userRawAnswer: "",
+          userNumberAnswer: null
+        };
+      }
+
+      if (difficulty === 'easy') return generateEasyQuestion();
+      if (difficulty === 'medium') return generateMediumQuestion();
+      if (difficulty === 'hard') return generateHardQuestion();
+      if (difficulty === 'veryhard') return generateVeryHardQuestion();
+    }
+
+    function generateEasyQuestion() {
+      let num1, num2, answer, text;
+      const type = Math.floor(Math.random() * 4);
 
       if (type === 0) {
-        // Kinetic energy: KE = 1/2mv²
-        let mass = Math.floor(Math.random() * 9) + 2;
-        let velocity = Math.floor(Math.random() * 8) + 2;
-
-        currentCorrectAnswer = 0.5 * mass * velocity * velocity;
-
-        return `A ball has a mass of ${mass} kg and moves at ${velocity} m/s. What is its kinetic energy in joules?`;
+        num1 = rand(1, 15);
+        num2 = rand(1, 15);
+        answer = num1 + num2;
+        text = `${num1} + ${num2} =`;
       }
 
       else if (type === 1) {
-        // Change in gravitational potential energy: ΔGPE = mgh, using g = 10
-        let mass = Math.floor(Math.random() * 9) + 2;
-        let height = Math.floor(Math.random() * 12) + 2;
-        let gravity = 10;
-
-        currentCorrectAnswer = mass * gravity * height;
-
-        return `An object of mass ${mass} kg is lifted by ${height} m. Using g = 10 N/kg, what is the change in gravitational potential energy?`;
+        num1 = rand(5, 25);
+        num2 = rand(1, num1);
+        answer = num1 - num2;
+        text = `${num1} - ${num2} =`;
       }
 
       else if (type === 2) {
-        // Square roots
-        let root = Math.floor(Math.random() * 20) + 5;
-        let square = root * root;
-
-        currentCorrectAnswer = root;
-
-        return `What is √${square}?`;
-      }
-
-      else if (type === 3) {
-        // Simultaneous linear equations
-        let x = Math.floor(Math.random() * 10) + 1;
-        let y = Math.floor(Math.random() * 10) + 1;
-
-        let a = Math.floor(Math.random() * 5) + 1;
-        let b = Math.floor(Math.random() * 5) + 1;
-        let c = Math.floor(Math.random() * 5) + 1;
-        let d = Math.floor(Math.random() * 5) + 1;
-
-        let total1 = (a * x) + (b * y);
-        let total2 = (c * x) + (d * y);
-
-        currentCorrectAnswer = x;
-
-        return `Solve the simultaneous linear equations. Find x: ${a}x + ${b}y = ${total1}, and ${c}x + ${d}y = ${total2}.`;
+        num1 = rand(2, 5);
+        num2 = rand(2, 5);
+        answer = num1 * num2;
+        text = `${num1} × ${num2} =`;
       }
 
       else {
-        // Mixed hard algebra with square root
-        let answer = Math.floor(Math.random() * 15) + 3;
-        let root = Math.floor(Math.random() * 10) + 2;
-        let square = root * root;
-        let multiplier = Math.floor(Math.random() * 6) + 2;
-        let total = (multiplier * answer) + root;
+        answer = rand(2, 10);
+        num2 = rand(2, 5);
+        num1 = answer * num2;
+        text = `${num1} ÷ ${num2} =`;
+      }
 
-        currentCorrectAnswer = answer;
+      return makeQuestion(text, answer);
+    }
 
-        return `If ${multiplier}x + √${square} = ${total}, what is x?`;
+    function generateMediumQuestion() {
+      let num1, num2, num3, answer, text;
+      const type = Math.floor(Math.random() * 6);
+
+      if (type === 0) {
+        num1 = rand(20, 99);
+        num2 = rand(20, 99);
+        answer = num1 + num2;
+        text = `${num1} + ${num2} =`;
+      }
+
+      else if (type === 1) {
+        num1 = rand(50, 120);
+        num2 = rand(10, 49);
+        answer = num1 - num2;
+        text = `${num1} - ${num2} =`;
+      }
+
+      else if (type === 2) {
+        num1 = rand(6, 12);
+        num2 = rand(6, 12);
+        answer = num1 * num2;
+        text = `${num1} × ${num2} =`;
+      }
+
+      else if (type === 3) {
+        answer = rand(5, 20);
+        num2 = rand(3, 12);
+        num1 = answer * num2;
+        text = `${num1} ÷ ${num2} =`;
+      }
+
+      else if (type === 4) {
+        num1 = rand(10, 40);
+        num2 = rand(2, 9);
+        num3 = rand(2, 9);
+        answer = num1 + num2 * num3;
+        text = `${num1} + ${num2} × ${num3} =`;
+      }
+
+      else {
+        answer = rand(4, 15);
+        num1 = rand(2, 8);
+        num2 = rand(5, 25);
+        let total = num1 * answer + num2;
+        text = `If ${num1}x + ${num2} = ${total}, what is x?`;
+      }
+
+      return makeQuestion(text, answer);
+    }
+
+    function generateHardQuestion() {
+      let answer, text;
+      const type = Math.floor(Math.random() * 8);
+
+      if (type === 0) {
+        const a = rand(12, 29);
+        const b = rand(11, 24);
+        answer = a * b;
+        text = `${a} × ${b} =`;
+      }
+
+      else if (type === 1) {
+        const a = rand(20, 100);
+        const b = rand(3, 13);
+        const c = rand(3, 10);
+        answer = a + b * c;
+        text = `${a} + ${b} × ${c} =`;
+      }
+
+      else if (type === 2) {
+        const a = rand(50, 120);
+        const b = rand(4, 13);
+        const c = rand(3, 10);
+        answer = a - b * c;
+        text = `${a} - ${b} × ${c} =`;
+      }
+
+      else if (type === 3) {
+        const x = rand(4, 15);
+        const m = rand(2, 9);
+        const c = rand(5, 34);
+        const total = m * x + c;
+        answer = x;
+        text = `If ${m}x + ${c} = ${total}, what is x?`;
+      }
+
+      else if (type === 4) {
+        const x = rand(3, 15);
+        const m = rand(2, 9);
+        const c = rand(5, 30);
+        const total = m * x - c;
+        answer = x;
+        text = `If ${m}x - ${c} = ${total}, what is x?`;
+      }
+
+      else if (type === 5) {
+        const a = rand(2, 8);
+        const b = rand(2, 8);
+        const c = rand(2, 8);
+        const d = rand(2, 8);
+        answer = (a + b) * c - d;
+        text = `(${a} + ${b}) × ${c} - ${d} =`;
+      }
+
+      else if (type === 6) {
+        const root = rand(8, 20);
+        const square = root * root;
+        const add = rand(10, 40);
+        answer = root + add;
+        text = `√${square} + ${add} =`;
+      }
+
+      else {
+        const x = rand(3, 12);
+        const m = rand(2, 7);
+        const c = rand(2, 10);
+        const total = m * (x + c);
+        answer = x;
+        text = `If ${m}(x + ${c}) = ${total}, what is x?`;
+      }
+
+      return makeQuestion(text, answer);
+    }
+
+    function generateVeryHardQuestion() {
+      const type = Math.floor(Math.random() * 10);
+
+      if (type === 0) {
+        const mass = rand(2, 12) * 2;
+        const velocity = rand(3, 14);
+        const answer = 0.5 * mass * velocity * velocity;
+        const text = `A ball has a mass of ${mass} kg and moves at ${velocity} m/s. What is its kinetic energy in joules?`;
+        return makeQuestion(text, answer);
+      }
+
+      else if (type === 1) {
+        const mass = rand(2, 15);
+        const height = rand(2, 20);
+        const g = 10;
+        const answer = mass * g * height;
+        const text = `An object of mass ${mass} kg is lifted by ${height} m. Using g = 10 N/kg, what is the change in gravitational potential energy?`;
+        return makeQuestion(text, answer);
+      }
+
+      else if (type === 2) {
+        return generateHardSquareRootQuestion();
+      }
+
+      else if (type === 3) {
+        const x = rand(1, 12);
+        const y = rand(1, 12);
+
+        const total1 = x + y;
+        const total2 = 2 * x - y;
+
+        const text = `Solve the simultaneous linear equations. Find x: x + y = ${total1}, and 2x - y = ${total2}.`;
+        return makeQuestion(text, x);
+      }
+
+      else if (type === 4) {
+        const x = rand(3, 15);
+        const root = rand(5, 15);
+        const square = root * root;
+        const m = rand(2, 8);
+        const total = m * x + root;
+        const text = `If ${m}x + √${square} = ${total}, what is x?`;
+        return makeQuestion(text, x);
+      }
+
+      else if (type === 5) {
+        const x = rand(2, 10);
+        const a = rand(2, 6);
+        const b = rand(1, 8);
+        const c = rand(2, 5);
+        const total = a * (x + b) - c;
+        const text = `If ${a}(x + ${b}) - ${c} = ${total}, what is x?`;
+        return makeQuestion(text, x);
+      }
+
+      else if (type === 6) {
+        const speed = rand(5, 20);
+        const time = rand(3, 12);
+        const answer = speed * time;
+        const text = `A cyclist travels at ${speed} m/s for ${time} seconds. How far do they travel in metres?`;
+        return makeQuestion(text, answer);
+      }
+
+      else if (type === 7) {
+        const original = rand(50, 300);
+        const percent = [10, 20, 25, 50][rand(0, 3)];
+        const answer = original * percent / 100;
+        const text = `What is ${percent}% of ${original}?`;
+        return makeQuestion(text, answer);
+      }
+
+      else if (type === 8) {
+        const a = rand(3, 9);
+        const b = rand(2, 6);
+        const c = rand(10, 40);
+        const answer = a * a + b * b - c;
+        const text = `${a}² + ${b}² - ${c} =`;
+        return makeQuestion(text, answer);
+      }
+
+      else {
+        const answer = rand(2, 12);
+        const divisor = rand(2, 8);
+        const add = rand(5, 20);
+        const total = answer * divisor + add;
+        const text = `(${total} - ${add}) ÷ ${divisor} =`;
+        return makeQuestion(text, answer);
+      }
+    }
+
+    function generateHardSquareRootQuestion() {
+      const root = rand(10, 35);
+      const square = root * root;
+      const style = Math.floor(Math.random() * 5);
+
+      if (style === 0) {
+        const a = rand(2, 9);
+        const b = rand(2, 9);
+        const answer = root + a * b;
+        return makeQuestion(`Calculate: √${square} + ${a} × ${b}`, answer);
+      }
+
+      else if (style === 1) {
+        const a = rand(2, 9);
+        const answer = root - a * a;
+        return makeQuestion(`Calculate: √${square} - ${a}²`, answer);
+      }
+
+      else if (style === 2) {
+        const divisor = getFactor(root);
+        const add = rand(5, 25);
+        const answer = root / divisor + add;
+        return makeQuestion(`Calculate: (√${square} ÷ ${divisor}) + ${add}`, answer);
+      }
+
+      else if (style === 3) {
+        const multiplier = rand(2, 7);
+        const x = rand(3, 15);
+        const total = multiplier * x + root;
+        return makeQuestion(`If ${multiplier}x + √${square} = ${total}, what is x?`, x);
+      }
+
+      else {
+        const a = rand(2, 9);
+        const b = rand(10, 50);
+        const answer = root * a - b;
+        return makeQuestion(`Calculate: ${a}√${square} - ${b}`, answer);
       }
     }
 
     function generateSecretEquation(answer) {
       if (difficulty === 'easy') {
-        let a = Math.floor(Math.random() * 10) + 1;
-        let b = answer - a;
-        return `${a} + ${b} =`;
+        const type = Math.floor(Math.random() * 2);
+
+        if (type === 0) {
+          const a = rand(1, 10);
+          const b = answer - a;
+          return `${a} + ${b} =`;
+        } else {
+          const b = rand(1, 10);
+          const a = answer + b;
+          return `${a} - ${b} =`;
+        }
       }
 
       else if (difficulty === 'medium') {
-        let divisor = Math.floor(Math.random() * 9) + 2;
-        let total = answer * divisor;
-        return `${total} ÷ ${divisor} =`;
-      }
-
-      else if (difficulty === 'hard') {
-        let m = Math.floor(Math.random() * 8) + 2;
-        let c = Math.floor(Math.random() * 20) + 1;
-        let total = (m * answer) + c;
-        return `If ${m}x + ${c} = ${total}, then x =`;
-      }
-
-      else if (difficulty === 'veryhard') {
-        let type = Math.floor(Math.random() * 4);
+        const type = Math.floor(Math.random() * 3);
 
         if (type === 0) {
-          let mass = 2;
-          let velocitySquared = answer;
-          return `A particle has mass ${mass} kg. If its kinetic energy is ${answer} J, what number is being used as the answer in this secret question?`;
+          const divisor = rand(2, 9);
+          const total = answer * divisor;
+          return `${total} ÷ ${divisor} =`;
         }
 
         else if (type === 1) {
-          let rootSquare = answer * answer;
-          return `What is √${rootSquare}?`;
+          const b = rand(2, 9);
+          const c = rand(2, 9);
+          const a = answer - b * c;
+          return `${a} + ${b} × ${c} =`;
+        }
+
+        else {
+          const m = rand(2, 7);
+          const c = rand(1, 15);
+          const total = m * answer + c;
+          return `If ${m}x + ${c} = ${total}, what is x?`;
+        }
+      }
+
+      else if (difficulty === 'hard') {
+        const type = Math.floor(Math.random() * 4);
+
+        if (type === 0) {
+          const m = rand(2, 9);
+          const c = rand(10, 30);
+          const total = m * answer + c;
+          return `If ${m}x + ${c} = ${total}, what is x?`;
+        }
+
+        else if (type === 1) {
+          const a = rand(5, 20);
+          const b = rand(2, 10);
+          const c = rand(2, 10);
+          const d = a + b * c - answer;
+          return `${a} + ${b} × ${c} - ${d} =`;
         }
 
         else if (type === 2) {
-          let m = Math.floor(Math.random() * 6) + 2;
-          let c = Math.floor(Math.random() * 20) + 1;
-          let total = (m * answer) + c;
+          const root = Math.abs(answer) + rand(2, 10);
+          const square = root * root;
+          const adjust = answer - root;
+          return `√${square} + ${adjust} =`;
+        }
+
+        else {
+          const c = rand(2, 10);
+          const m = rand(2, 7);
+          const total = m * (answer + c);
+          return `If ${m}(x + ${c}) = ${total}, what is x?`;
+        }
+      }
+
+      else if (difficulty === 'veryhard') {
+        const type = Math.floor(Math.random() * 5);
+
+        if (type === 0) {
+          const rootSquare = answer * answer;
+          const add = rand(5, 25);
+          const total = answer + add;
+          return `If √${rootSquare} + ${add} = ${total}, what is √${rootSquare}?`;
+        }
+
+        else if (type === 1) {
+          const m = rand(2, 9);
+          const c = rand(10, 30);
+          const total = m * answer + c;
+          return `If ${m}x + ${c} = ${total}, what is x?`;
+        }
+
+        else if (type === 2) {
+          const y = rand(1, 10);
+          const total1 = answer + y;
+          const total2 = 2 * answer - y;
+          return `Solve the simultaneous linear equations. Find x: x + y = ${total1}, and 2x - y = ${total2}.`;
+        }
+
+        else if (type === 3) {
+          const m = rand(2, 7);
+          const c = rand(1, 20);
+          const total = m * answer + c;
           return `If ${m}x + ${c} = ${total}, what is x?`;
         }
 
         else {
-          let y = Math.floor(Math.random() * 8) + 1;
-          let a = 2;
-          let b = 3;
-          let c = 4;
-          let d = 1;
-
-          let total1 = (a * answer) + (b * y);
-          let total2 = (c * answer) + (d * y);
-
-          return `Solve the simultaneous linear equations. Find x: ${a}x + ${b}y = ${total1}, and ${c}x + ${d}y = ${total2}.`;
+          const divisor = rand(2, 8);
+          const add = rand(5, 20);
+          const total = answer * divisor + add;
+          return `(${total} - ${add}) ÷ ${divisor} =`;
         }
       }
     }
 
     function submitAnswer() {
-      const userAnswer = parseInt(document.getElementById('answer-input').value);
-
-      if (isNaN(userAnswer)) {
-        alert("Please type a number first!");
+      if (!secretArmed && answerInput.value.trim().toUpperCase() === "S3CR3T") {
+        answerInput.value = "";
+        alert("Please type a valid number first!");
         return;
       }
 
-      if (userAnswer === currentCorrectAnswer) {
-        score++;
-      } else {
-        wrongQuestions.push({
-          questionNumber: currentQuestionNum,
-          question: currentQuestionText,
-          userAnswer: userAnswer,
-          correctAnswer: currentCorrectAnswer
-        });
+      const rawAnswer = answerInput.value.trim();
+      const userAnswer = Number(rawAnswer);
+
+      if (rawAnswer === "" || isNaN(userAnswer)) {
+        alert("Please type a valid number first!");
+        return;
       }
 
-      if (currentQuestionNum < 10) {
+      const index = currentQuestionNum - 1;
+      questions[index].userRawAnswer = rawAnswer;
+      questions[index].userNumberAnswer = userAnswer;
+
+      if (currentQuestionNum < TOTAL_QUESTIONS) {
         currentQuestionNum++;
-        generateQuestion();
+        loadQuestion();
       } else {
         document.getElementById('quiz-screen').classList.add('hidden');
         document.getElementById('end-screen').classList.remove('hidden');
       }
     }
 
+    function previousQuestion() {
+      if (currentQuestionNum <= 1) {
+        alert("You are already on the first question!");
+        return;
+      }
+
+      currentQuestionNum--;
+      loadQuestion();
+    }
+
+    function goHome() {
+      const confirmHome = confirm("Go back to the home page? Your current quiz progress will be lost.");
+
+      if (!confirmHome) return;
+
+      resetGame();
+    }
+
     function revealScore() {
       const scoreDiv = document.getElementById('score-display');
 
-      scoreDiv.innerText = `You scored ${score} / 10!`;
+      const score = calculateScore();
+      wrongQuestions = getWrongQuestions();
+
+      scoreDiv.innerText = `You scored ${score} / ${TOTAL_QUESTIONS}!`;
       scoreDiv.classList.remove('hidden');
 
       document.getElementById('restart-btn').classList.remove('hidden');
 
       if (wrongQuestions.length > 0) {
         document.getElementById('wrong-btn').classList.remove('hidden');
+      } else {
+        document.getElementById('wrong-btn').classList.add('hidden');
       }
+    }
+
+    function calculateScore() {
+      let score = 0;
+
+      for (const q of questions) {
+        if (q && isCorrect(q.userNumberAnswer, q.answer)) {
+          score++;
+        }
+      }
+
+      return score;
+    }
+
+    function getWrongQuestions() {
+      const wrong = [];
+
+      questions.forEach((q, index) => {
+        if (!q) return;
+
+        if (!isCorrect(q.userNumberAnswer, q.answer)) {
+          wrong.push({
+            questionNumber: index + 1,
+            question: q.text,
+            userAnswer: q.userRawAnswer || "No answer",
+            correctAnswer: q.answer
+          });
+        }
+      });
+
+      return wrong;
     }
 
     function showWrongQuestions() {
       const wrongDisplay = document.getElementById('wrong-questions-display');
+      wrongQuestions = getWrongQuestions();
 
       if (wrongQuestions.length === 0) {
         wrongDisplay.innerHTML = "<p>You got everything correct!</p>";
@@ -524,20 +828,30 @@
       document.getElementById('wrong-questions-display').classList.add('hidden');
       document.getElementById('hide-wrong-btn').classList.add('hidden');
 
-      if (wrongQuestions.length > 0) {
+      if (getWrongQuestions().length > 0) {
         document.getElementById('wrong-btn').classList.remove('hidden');
       }
     }
 
-    function toggleSecretPanel() {
-      document.getElementById('secret-panel').classList.toggle('hidden');
+    function armSecretMode() {
+      secretArmed = true;
+      answerInput.value = "";
+      answerInput.placeholder = "Enter secret code";
+
+      clearTimeout(secretArmTimer);
+
+      secretArmTimer = setTimeout(() => {
+        secretArmed = false;
+        answerInput.placeholder = "?";
+      }, 7000);
     }
 
     function setSecretAnswer() {
-      const value = parseInt(document.getElementById('secret-answer-input').value);
+      const rawValue = document.getElementById('secret-answer-input').value.trim();
+      const value = Number(rawValue);
 
-      if (isNaN(value)) {
-        alert("Type a number first!");
+      if (rawValue === "" || isNaN(value)) {
+        alert("Type a valid number first!");
         return;
       }
 
@@ -545,19 +859,26 @@
       secretMode = true;
 
       document.getElementById('secret-status').innerText =
-        `Secret mode on. Every question now has the answer ${secretAnswer}.`;
+        `Secret mode on. Future generated questions will have the answer ${secretAnswer}.`;
+
+      const index = currentQuestionNum - 1;
 
       if (!document.getElementById('quiz-screen').classList.contains('hidden')) {
-        generateQuestion();
+        questions[index] = createQuestion();
+        loadQuestion();
       }
     }
 
     function turnOffSecretMode() {
       secretMode = false;
+
       document.getElementById('secret-status').innerText = "Secret mode off.";
 
+      const index = currentQuestionNum - 1;
+
       if (!document.getElementById('quiz-screen').classList.contains('hidden')) {
-        generateQuestion();
+        questions[index] = createQuestion();
+        loadQuestion();
       }
     }
 
@@ -574,11 +895,58 @@
       document.getElementById('wrong-questions-display').innerHTML = "";
 
       currentQuestionNum = 1;
-      score = 0;
       currentCorrectAnswer = 0;
       currentQuestionText = "";
+      questions = [];
       wrongQuestions = [];
     }
+
+    function makeQuestion(text, answer) {
+      return {
+        text: text,
+        answer: answer,
+        userRawAnswer: "",
+        userNumberAnswer: null
+      };
+    }
+
+    function isCorrect(userAnswer, correctAnswer) {
+      if (userAnswer === null || userAnswer === undefined || isNaN(userAnswer)) {
+        return false;
+      }
+
+      return Math.abs(userAnswer - correctAnswer) < 0.000001;
+    }
+
+    function rand(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function getFactor(number) {
+      const factors = [];
+
+      for (let i = 2; i <= Math.abs(number); i++) {
+        if (number % i === 0) {
+          factors.push(i);
+        }
+      }
+
+      if (factors.length === 0) return 1;
+
+      return factors[rand(0, factors.length - 1)];
+    }
+
+    document.addEventListener('wheel', function(event) {
+      if (!event.target.closest('#wrong-questions-display')) {
+        event.preventDefault();
+      }
+    }, { passive: false });
+
+    document.addEventListener('touchmove', function(event) {
+      if (!event.target.closest('#wrong-questions-display')) {
+        event.preventDefault();
+      }
+    }, { passive: false });
   </script>
 </body>
 </html>
