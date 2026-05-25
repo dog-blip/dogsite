@@ -4,22 +4,52 @@
   <meta charset="UTF-8">
   <title>javascript calc ahh thing</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f0f2f5;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
+
+
+  #wrong-questions-display {
+  	text-align: left;
+  	margin-top: 15px;
+  	font-size: 14px;
+  	max-height: 220px;
+  	overflow-y: auto;
+  	overflow-x: hidden;
+  	background: #f8f9fa;
+  	padding: 10px;
+  	border-radius: 8px;
+	}
+
+    html, body {
+  		overflow: hidden;
+	}
+
+	body {
+  	font-family: Arial, sans-serif;
+  	background: #f0f2f5;
+  	display: flex;
+  	justify-content: center;
+  	align-items: center;
+  	height: 100vh;
+  	margin: 0;
+	}
+    #wrong-questions-display {
+  text-align: left;
+  margin-top: 15px;
+  font-size: 14px;
+  max-height: 220px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #f8f9fa;
+  padding: 10px;
+  border-radius: 8px;
+  overscroll-behavior: contain;
+}
 
     .game-container {
       background: white;
       padding: 30px;
       border-radius: 12px;
       box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-      width: 350px;
+      width: 420px;
       text-align: center;
       position: relative;
     }
@@ -46,7 +76,7 @@
     input[type="number"] {
       padding: 8px;
       font-size: 18px;
-      width: 100px;
+      width: 120px;
       text-align: center;
       margin-bottom: 15px;
     }
@@ -56,6 +86,12 @@
       font-weight: bold;
       color: #28a745;
       margin-top: 15px;
+    }
+
+    #question-text {
+      font-size: 22px;
+      margin: 20px 0;
+      line-height: 1.4;
     }
 
     #wrong-questions-display {
@@ -75,7 +111,6 @@
       padding-bottom: 8px;
     }
 
-    /* Invisible secret button in top-right corner */
     #secret-btn {
       position: fixed;
       top: 0;
@@ -106,28 +141,25 @@
 </head>
 <body>
 
-  <!-- Invisible secret button -->
   <button id="secret-btn" onclick="toggleSecretPanel()"></button>
 
   <div class="game-container">
-    <!-- Setup Screen -->
     <div id="setup-screen">
-      <h2>Choose Your Age Level</h2>
-      <button onclick="startGame('easy')">Ages 5-7 (Easy)</button>
-      <button onclick="startGame('medium')">Ages 8-10 (Medium)</button>
-      <button onclick="startGame('hard')">Ages 11+ (Hard)</button>
+      <h2>Choose Your Level</h2>
+      <button onclick="startGame('easy')">Ages 5-7 Easy</button>
+      <button onclick="startGame('medium')">Ages 8-10 Medium</button>
+      <button onclick="startGame('hard')">Ages 11+ Hard</button>
+      <button onclick="startGame('veryhard')" style="background:#6610f2;">Very Hard Questions</button>
     </div>
 
-    <!-- Quiz Screen -->
     <div id="quiz-screen" class="hidden">
       <h3>Question <span id="question-num">1</span> of 10</h3>
-      <div id="question-text" style="font-size: 24px; margin: 20px 0;"></div>
+      <div id="question-text"></div>
       <input type="number" id="answer-input" placeholder="?">
       <br>
       <button onclick="submitAnswer()">Submit Answer</button>
     </div>
 
-    <!-- End Screen -->
     <div id="end-screen" class="hidden">
       <h2>Challenge Complete!</h2>
       <p>Click below to reveal your final score.</p>
@@ -152,10 +184,9 @@
       <div id="wrong-questions-display" class="hidden"></div>
     </div>
 
-    <!-- Secret Panel -->
     <div id="secret-panel" class="hidden">
       <h3>Secret Mode</h3>
-      <p>Set the answer. Every generated equation will equal this number.</p>
+      <p>Set the answer. Every generated question will equal this number.</p>
 
       <input type="number" id="secret-answer-input" placeholder="answer">
       <br>
@@ -240,21 +271,23 @@
         if (choice === 0) {
           num1 = Math.floor(Math.random() * 50) + 10;
           num2 = Math.floor(Math.random() * 50) + 10;
-          operator = '+';
           currentCorrectAnswer = num1 + num2;
-        } else if (choice === 1) {
-          num1 = Math.floor(Math.random() * 50) + 20;
-          num2 = Math.floor(Math.random() * 20) + 1;
-          operator = '-';
-          currentCorrectAnswer = num1 - num2;
-        } else {
-          num1 = Math.floor(Math.random() * 10) + 1;
-          num2 = Math.floor(Math.random() * 9) + 1;
-          operator = '×';
-          currentCorrectAnswer = num1 * num2;
+          questionString = `${num1} + ${num2} =`;
         }
 
-        questionString = `${num1} ${operator} ${num2} =`;
+        else if (choice === 1) {
+          num1 = Math.floor(Math.random() * 50) + 20;
+          num2 = Math.floor(Math.random() * 20) + 1;
+          currentCorrectAnswer = num1 - num2;
+          questionString = `${num1} - ${num2} =`;
+        }
+
+        else {
+          num1 = Math.floor(Math.random() * 10) + 1;
+          num2 = Math.floor(Math.random() * 9) + 1;
+          currentCorrectAnswer = num1 * num2;
+          questionString = `${num1} × ${num2} =`;
+        }
       }
 
       else if (difficulty === 'hard') {
@@ -291,115 +324,136 @@
         }
       }
 
+      else if (difficulty === 'veryhard') {
+        questionString = generateVeryHardQuestion();
+      }
+
       currentQuestionText = questionString;
       document.getElementById('question-text').innerText = questionString;
       inputField.focus();
     }
 
+    function generateVeryHardQuestion() {
+      const type = Math.floor(Math.random() * 5);
+
+      if (type === 0) {
+        // Kinetic energy: KE = 1/2mv²
+        let mass = Math.floor(Math.random() * 9) + 2;
+        let velocity = Math.floor(Math.random() * 8) + 2;
+
+        currentCorrectAnswer = 0.5 * mass * velocity * velocity;
+
+        return `A ball has a mass of ${mass} kg and moves at ${velocity} m/s. What is its kinetic energy in joules?`;
+      }
+
+      else if (type === 1) {
+        // Change in gravitational potential energy: ΔGPE = mgh, using g = 10
+        let mass = Math.floor(Math.random() * 9) + 2;
+        let height = Math.floor(Math.random() * 12) + 2;
+        let gravity = 10;
+
+        currentCorrectAnswer = mass * gravity * height;
+
+        return `An object of mass ${mass} kg is lifted by ${height} m. Using g = 10 N/kg, what is the change in gravitational potential energy?`;
+      }
+
+      else if (type === 2) {
+        // Square roots
+        let root = Math.floor(Math.random() * 20) + 5;
+        let square = root * root;
+
+        currentCorrectAnswer = root;
+
+        return `What is √${square}?`;
+      }
+
+      else if (type === 3) {
+        // Simultaneous linear equations
+        let x = Math.floor(Math.random() * 10) + 1;
+        let y = Math.floor(Math.random() * 10) + 1;
+
+        let a = Math.floor(Math.random() * 5) + 1;
+        let b = Math.floor(Math.random() * 5) + 1;
+        let c = Math.floor(Math.random() * 5) + 1;
+        let d = Math.floor(Math.random() * 5) + 1;
+
+        let total1 = (a * x) + (b * y);
+        let total2 = (c * x) + (d * y);
+
+        currentCorrectAnswer = x;
+
+        return `Solve the simultaneous linear equations. Find x: ${a}x + ${b}y = ${total1}, and ${c}x + ${d}y = ${total2}.`;
+      }
+
+      else {
+        // Mixed hard algebra with square root
+        let answer = Math.floor(Math.random() * 15) + 3;
+        let root = Math.floor(Math.random() * 10) + 2;
+        let square = root * root;
+        let multiplier = Math.floor(Math.random() * 6) + 2;
+        let total = (multiplier * answer) + root;
+
+        currentCorrectAnswer = answer;
+
+        return `If ${multiplier}x + √${square} = ${total}, what is x?`;
+      }
+    }
+
     function generateSecretEquation(answer) {
-  if (difficulty === 'easy') {
-    const type = Math.floor(Math.random() * 2);
+      if (difficulty === 'easy') {
+        let a = Math.floor(Math.random() * 10) + 1;
+        let b = answer - a;
+        return `${a} + ${b} =`;
+      }
 
-    if (type === 0) {
-      // Addition: a + b = answer
-      let a = Math.floor(Math.random() * 10) + 1;
-      let b = answer - a;
-      return `${a} + ${b} =`;
-    } else {
-      // Subtraction: a - b = answer
-      let b = Math.floor(Math.random() * 10) + 1;
-      let a = answer + b;
-      return `${a} - ${b} =`;
+      else if (difficulty === 'medium') {
+        let divisor = Math.floor(Math.random() * 9) + 2;
+        let total = answer * divisor;
+        return `${total} ÷ ${divisor} =`;
+      }
+
+      else if (difficulty === 'hard') {
+        let m = Math.floor(Math.random() * 8) + 2;
+        let c = Math.floor(Math.random() * 20) + 1;
+        let total = (m * answer) + c;
+        return `If ${m}x + ${c} = ${total}, then x =`;
+      }
+
+      else if (difficulty === 'veryhard') {
+        let type = Math.floor(Math.random() * 4);
+
+        if (type === 0) {
+          let mass = 2;
+          let velocitySquared = answer;
+          return `A particle has mass ${mass} kg. If its kinetic energy is ${answer} J, what number is being used as the answer in this secret question?`;
+        }
+
+        else if (type === 1) {
+          let rootSquare = answer * answer;
+          return `What is √${rootSquare}?`;
+        }
+
+        else if (type === 2) {
+          let m = Math.floor(Math.random() * 6) + 2;
+          let c = Math.floor(Math.random() * 20) + 1;
+          let total = (m * answer) + c;
+          return `If ${m}x + ${c} = ${total}, what is x?`;
+        }
+
+        else {
+          let y = Math.floor(Math.random() * 8) + 1;
+          let a = 2;
+          let b = 3;
+          let c = 4;
+          let d = 1;
+
+          let total1 = (a * answer) + (b * y);
+          let total2 = (c * answer) + (d * y);
+
+          return `Solve the simultaneous linear equations. Find x: ${a}x + ${b}y = ${total1}, and ${c}x + ${d}y = ${total2}.`;
+        }
+      }
     }
-  }
-
-  else if (difficulty === 'medium') {
-    const type = Math.floor(Math.random() * 4);
-
-    if (type === 0) {
-      // Multiplication
-      let multiplier = Math.floor(Math.random() * 9) + 2;
-      let total = answer * multiplier;
-      return `${total} ÷ ${multiplier} =`;
-    }
-
-    else if (type === 1) {
-      // Division-style question
-      let divisor = Math.floor(Math.random() * 9) + 2;
-      let total = answer * divisor;
-      return `${total} ÷ ${divisor} =`;
-    }
-
-    else if (type === 2) {
-      // Two-step addition/multiplication
-      let b = Math.floor(Math.random() * 8) + 2;
-      let c = Math.floor(Math.random() * 8) + 2;
-      let a = answer - (b * c);
-      return `${a} + ${b} × ${c} =`;
-    }
-
-    else {
-      // Simple algebra
-      let m = Math.floor(Math.random() * 6) + 2;
-      let c = Math.floor(Math.random() * 15) + 1;
-      let total = (m * answer) + c;
-      return `If ${m}x + ${c} = ${total}, then x =`;
-    }
-  }
-
-  else if (difficulty === 'hard') {
-    const type = Math.floor(Math.random() * 5);
-
-    if (type === 0) {
-      // Harder order of operations
-      let a = Math.floor(Math.random() * 20) + 5;
-      let b = Math.floor(Math.random() * 10) + 2;
-      let c = Math.floor(Math.random() * 10) + 2;
-      let d = answer - (a + b * c);
-      return `${a} + ${b} × ${c} + ${d} =`;
-    }
-
-    else if (type === 1) {
-      // Brackets
-      let b = Math.floor(Math.random() * 8) + 2;
-      let c = Math.floor(Math.random() * 8) + 2;
-      let inside = answer - c;
-      let a = inside / b;
-
-      // Make sure it stays as a clean integer
-      a = Math.floor(Math.random() * 10) + 2;
-      let total = (a * b) + c;
-      let adjust = answer - total;
-
-      return `(${a} × ${b}) + ${c} + ${adjust} =`;
-    }
-
-    else if (type === 2) {
-      // Algebra with subtraction
-      let m = Math.floor(Math.random() * 10) + 2;
-      let c = Math.floor(Math.random() * 30) + 5;
-      let total = (m * answer) - c;
-      return `If ${m}x - ${c} = ${total}, then x =`;
-    }
-
-    else if (type === 3) {
-      // Algebra with brackets
-      let m = Math.floor(Math.random() * 6) + 2;
-      let c = Math.floor(Math.random() * 10) + 1;
-      let total = m * (answer + c);
-      return `If ${m}(x + ${c}) = ${total}, then x =`;
-    }
-
-    else {
-      // Mixed negative/positive equation
-      let a = Math.floor(Math.random() * 50) + 20;
-      let b = Math.floor(Math.random() * 12) + 2;
-      let c = Math.floor(Math.random() * 12) + 2;
-      let d = a + (b * c) - answer;
-      return `${a} + ${b} × ${c} - ${d} =`;
-    }
-  }
-}
 
     function submitAnswer() {
       const userAnswer = parseInt(document.getElementById('answer-input').value);
@@ -491,7 +545,7 @@
       secretMode = true;
 
       document.getElementById('secret-status').innerText =
-        `Secret mode on. Every equation now equals ${secretAnswer}.`;
+        `Secret mode on. Every question now has the answer ${secretAnswer}.`;
 
       if (!document.getElementById('quiz-screen').classList.contains('hidden')) {
         generateQuestion();
