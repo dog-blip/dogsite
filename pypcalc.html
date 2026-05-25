@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>javascript calc ahh thing</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .game-container {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      width: 350px;
+      text-align: center;
+    }
+    .hidden {
+      display: none;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    input[type="number"] {
+      padding: 8px;
+      font-size: 18px;
+      width: 100px;
+      text-align: center;
+      margin-bottom: 15px;
+    }
+    .score-text {
+      font-size: 24px;
+      font-weight: bold;
+      color: #28a745;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="game-container">
+    <!-- select age -->
+    <div id="setup-screen">
+      <h2>Choose Your Age Level</h2>
+      <button onclick="startGame('easy')">Ages 5-7 (Easy)</button>
+      <button onclick="startGame('medium')">Ages 8-10 (Medium)</button>
+      <button onclick="startGame('hard')">Ages 11+ (Hard)</button>
+    </div>
+
+    <!-- ZE QUIZ!!!!! -->
+    <div id="quiz-screen" class="hidden">
+      <h3>Question <span id="question-num">1</span> of 10</h3>
+      <div id="question-text" style="font-size: 24px; margin: 20px 0;"></div>
+      <input type="number" id="answer-input" placeholder="?">
+      <br>
+      <button onclick="submitAnswer()">Submit Answer</button>
+    </div>
+
+    <!-- GG -->
+    <div id="end-screen" class="hidden">
+      <h2>Challenge Complete!</h2>
+      <p>Click below to reveal your final score.</p>
+      <button onclick="revealScore()">Show Score</button>
+      <div id="score-display" class="hidden score-text"></div>
+      <br>
+      <button id="restart-btn" class="hidden" onclick="resetGame()" style="background:#6c757d;">Play Again</button>
+    </div>
+  </div>
+
+  <script>
+    let difficulty = 'easy';
+    let currentQuestionNum = 1;
+    let score = 0;
+    let currentCorrectAnswer = 0;
+
+    // Listen for Enter key press on the answer input box
+    document.getElementById('answer-input').addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            submitAnswer();
+        }
+    });
+
+    // Starts the game and picks difficulty logic
+    function startGame(selectedLevel) {
+        difficulty = selectedLevel;
+        currentQuestionNum = 1;
+        score = 0;
+        
+        document.getElementById('setup-screen').classList.add('hidden');
+        document.getElementById('quiz-screen').classList.remove('hidden');
+        
+        generateQuestion();
+    }
+
+    // Generates math math problems dynamically based on age level chosen
+    function generateQuestion() {
+        let num1, num2, num3, operator, questionString;
+        const inputField = document.getElementById('answer-input');
+        inputField.value = '';
+        document.getElementById('question-num').innerText = currentQuestionNum;
+
+        if (difficulty === 'easy') {
+            num1 = Math.floor(Math.random() * 10) + 1;
+            num2 = Math.floor(Math.random() * 10) + 1;
+            operator = Math.random() > 0.5 ? '+' : '-';
+            if (operator === '-' && num1 < num2) { [num1, num2] = [num2, num1]; }
+            currentCorrectAnswer = operator === '+' ? num1 + num2 : num1 - num2;
+            questionString = `${num1} ${operator} ${num2} =`;
+        } 
+        else if (difficulty === 'medium') {
+            let choice = Math.floor(Math.random() * 3);
+            if (choice === 0) {
+                num1 = Math.floor(Math.random() * 50) + 10;
+                num2 = Math.floor(Math.random() * 50) + 10;
+                operator = '+';
+                currentCorrectAnswer = num1 + num2;
+            } else if (choice === 1) {
+                num1 = Math.floor(Math.random() * 50) + 20;
+                num2 = Math.floor(Math.random() * 20) + 1;
+                operator = '-';
+                currentCorrectAnswer = num1 - num2;
+            } else {
+                num1 = Math.floor(Math.random() * 10) + 1;
+                num2 = Math.floor(Math.random() * 9) + 1;
+                operator = '×';
+                currentCorrectAnswer = num1 * num2;
+            }
+            questionString = `${num1} ${operator} ${num2} =`;
+        } 
+        else if (difficulty === 'hard') {
+            // Hard difficulty now has 3 brutal variations
+            let choice = Math.floor(Math.random() * 3);
+            
+            if (choice === 0) {
+                // 1. Double digit multiplication (e.g., 14 x 17)
+                num1 = Math.floor(Math.random() * 16) + 12; // 12 to 27
+                num2 = Math.floor(Math.random() * 14) + 11; // 11 to 24
+                currentCorrectAnswer = num1 * num2;
+                questionString = `${num1} × ${num2} =`;
+            } 
+            else if (choice === 1) {
+                // 2. Order of Operations / 3 numbers (e.g., 25 + 4 x 8)
+                num1 = Math.floor(Math.random() * 80) + 20;  // 20 to 100
+                num2 = Math.floor(Math.random() * 11) + 3;   // 3 to 13
+                num3 = Math.floor(Math.random() * 8) + 3;    // 3 to 10
+                
+                if (Math.random() > 0.5) {
+                    currentCorrectAnswer = num1 + (num2 * num3);
+                    questionString = `${num1} + ${num2} × ${num3} =`;
+                } else {
+                    currentCorrectAnswer = num1 - (num2 * num3);
+                    questionString = `${num1} - ${num2} × ${num3} =`;
+                }
+            } 
+            else {
+                // 3. Simple algebra / Solve for X (e.g., 3x + 12 = 42)
+                num2 = Math.floor(Math.random() * 8) + 2;   // The multiplier (2 to 9)
+                currentCorrectAnswer = Math.floor(Math.random() * 12) + 4; // The answer 'X' (4 to 15)
+                num3 = Math.floor(Math.random() * 30) + 5;   // The constant added (5 to 34)
+                num1 = (num2 * currentCorrectAnswer) + num3; // Total value
+                
+                questionString = `If ${num2}x + ${num3} = ${num1}, then x =`;
+            }
+        }
+
+        document.getElementById('question-text').innerText = questionString;
+        inputField.focus(); // Automatically focus input box so player doesn't have to click
+    }
+
+    // Checks the answer and proceeds
+    function submitAnswer() {
+        const userAnswer = parseInt(document.getElementById('answer-input').value);
+        
+        if (isNaN(userAnswer)) {
+            alert("Please type a number first!");
+            return;
+        }
+
+        if (userAnswer === currentCorrectAnswer) {
+            score++;
+        }
+
+        if (currentQuestionNum < 10) {
+            currentQuestionNum++;
+            generateQuestion();
+        } else {
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.remove('hidden');
+        }
+    }
+
+    // Handles the final action button press
+    function revealScore() {
+        const scoreDiv = document.getElementById('score-display');
+        scoreDiv.innerText = `You scored ${score} / 10!`;
+        scoreDiv.classList.remove('hidden');
+        document.getElementById('restart-btn').classList.remove('hidden');
+    }
+
+    // Resets to initial age selection screen
+    function resetGame() {
+        document.getElementById('end-screen').classList.add('hidden');
+        document.getElementById('score-display').classList.add('hidden');
+        document.getElementById('restart-btn').classList.add('hidden');
+        document.getElementById('setup-screen').classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>
