@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>sealsense admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #111; --surface: #1a1a1a; --surface2: #222; --surface3: #2a2a2a;
+      --border: rgba(255,255,255,0.08); --border-bright: rgba(255,255,255,0.15);
+      --green: #4cff72; --green-dim: rgba(76,255,114,0.1); --green-glow: rgba(76,255,114,0.2);
+      --red: #ff4444; --red-dim: rgba(255,68,68,0.12);
+      --yellow: #ffcc00;
+      --text: #e0e0e0; --text-dim: #666; --text-mid: #999;
+      --font: 'Inter', sans-serif;
+    }
+    html,body { height:100%; background:var(--bg); color:var(--text); font-family:var(--font); font-size:14px; }
+
+    #login-screen { display:flex; align-items:center; justify-content:center; height:100vh; background:#111; }
+    .login-card { width:360px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:36px; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+    .login-logo { font-size:24px; font-weight:700; margin-bottom:4px; letter-spacing:-0.5px; }
+    .login-logo span { color:var(--green); }
+    .login-sub { font-size:12px; color:var(--text-dim); margin-bottom:28px; }
+    .login-label { font-size:11px; color:var(--text-dim); font-weight:500; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; display:block; }
+    .login-input { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:var(--font); font-size:14px; padding:10px 14px; outline:none; transition:border-color 0.2s; margin-bottom:16px; }
+    .login-input:focus { border-color:var(--green); }
+    .login-btn { width:100%; background:var(--green); border:none; color:#111; font-family:var(--font); font-size:13px; font-weight:700; padding:11px; border-radius:6px; cursor:pointer; transition:opacity 0.2s; }
+    .login-btn:hover { opacity:0.85; }
+    .login-btn:disabled { opacity:0.5; cursor:not-allowed; }
+    .login-err { margin-top:12px; font-size:12px; color:var(--red); text-align:center; min-height:16px; }
+
+    #app { display:none; flex-direction:column; height:100vh; }
+    header { display:flex; align-items:center; justify-content:space-between; padding:0 24px; height:48px; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; }
+    .header-logo { font-size:16px; font-weight:700; letter-spacing:-0.3px; }
+    .header-logo span { color:var(--green); }
+    .header-right { display:flex; align-items:center; gap:16px; }
+    .header-badge { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:var(--green); background:var(--green-dim); border:1px solid rgba(76,255,114,0.2); padding:3px 10px; border-radius:4px; }
+    .logout-btn { font-size:12px; font-weight:500; color:var(--text-dim); cursor:pointer; background:none; border:1px solid var(--border); border-radius:4px; padding:4px 12px; transition:all 0.15s; font-family:var(--font); }
+    .logout-btn:hover { color:var(--red); border-color:var(--red); }
+
+    .main-area { display:flex; flex:1; overflow:hidden; }
+
+    nav { width:160px; flex-shrink:0; background:var(--surface); border-right:1px solid var(--border); padding:12px 8px; display:flex; flex-direction:column; gap:2px; }
+    .nav-item { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:6px; cursor:pointer; color:var(--text-dim); font-size:13px; font-weight:500; transition:all 0.15s; border:1px solid transparent; }
+    .nav-item:hover { background:var(--surface2); color:var(--text); }
+    .nav-item.active { background:var(--green-dim); color:var(--green); border-color:rgba(76,255,114,0.15); }
+    .nav-item svg { width:15px; height:15px; flex-shrink:0; }
+
+    .content-area { flex:1; overflow:hidden; display:flex; flex-direction:column; }
+    .panel { display:none; flex:1; overflow:hidden; flex-direction:column; padding:24px; gap:14px; }
+    .panel.active { display:flex; }
+
+    .panel-header { display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+    .panel-title { font-size:16px; font-weight:700; letter-spacing:-0.3px; }
+    .panel-title span { color:var(--green); }
+    .panel-actions { display:flex; gap:8px; align-items:center; }
+
+    .search-bar { display:flex; gap:8px; flex-shrink:0; align-items:center; }
+    .search-input { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:var(--font); font-size:13px; padding:8px 14px; outline:none; transition:border-color 0.2s; }
+    .search-input:focus { border-color:var(--green); }
+    .search-input::placeholder { color:var(--text-dim); }
+
+    .form-row { display:flex; gap:10px; flex-shrink:0; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; align-items:flex-end; flex-wrap:wrap; }
+    .form-group { display:flex; flex-direction:column; gap:6px; }
+    .form-group label { font-size:11px; color:var(--text-dim); font-weight:500; text-transform:uppercase; letter-spacing:0.8px; }
+    .form-input { background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:var(--font); font-size:13px; padding:7px 12px; outline:none; transition:border-color 0.2s; height:34px; }
+    .form-input:focus { border-color:var(--green); }
+    .form-input.short { width:80px; } .form-input.medium { width:160px; } .form-input.flex { flex:1; min-width:140px; }
+
+    .btn { height:34px; padding:0 16px; border-radius:6px; cursor:pointer; font-family:var(--font); font-size:12px; font-weight:600; letter-spacing:0.3px; transition:all 0.15s; border:1px solid; flex-shrink:0; }
+    .btn-green { background:var(--green); border-color:var(--green); color:#111; }
+    .btn-green:hover { opacity:0.85; }
+    .btn-outline { background:transparent; border-color:var(--border); color:var(--text-mid); }
+    .btn-outline:hover { border-color:var(--border-bright); color:var(--text); }
+    .btn-red { background:var(--red-dim); border-color:var(--red); color:var(--red); }
+    .btn-red:hover { background:rgba(255,68,68,0.2); }
+    .btn-red:disabled { opacity:0.4; cursor:not-allowed; }
+    .btn-yellow { background:rgba(255,204,0,0.1); border-color:var(--yellow); color:var(--yellow); font-size:11px; height:28px; padding:0 10px; }
+    .btn-yellow:hover { background:rgba(255,204,0,0.2); }
+    .btn-sm-red { background:var(--red-dim); border:1px solid var(--red); color:var(--red); font-size:11px; height:26px; padding:0 10px; border-radius:5px; cursor:pointer; font-family:var(--font); font-weight:600; transition:background 0.15s; flex-shrink:0; }
+    .btn-sm-red:hover { background:rgba(255,68,68,0.2); }
+
+    .table-wrap { flex:1; overflow-y:auto; background:var(--surface); border:1px solid var(--border); border-radius:8px; }
+    table { width:100%; border-collapse:collapse; }
+    thead { position:sticky; top:0; background:var(--surface2); z-index:1; }
+    thead th { padding:10px 16px; text-align:left; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-dim); border-bottom:1px solid var(--border); }
+    thead th.th-check { width:36px; padding:10px 0 10px 16px; }
+    tbody tr { border-bottom:1px solid rgba(255,255,255,0.04); transition:background 0.1s; }
+    tbody tr:hover { background:rgba(255,255,255,0.03); }
+    tbody tr.selected { background:rgba(76,255,114,0.05); }
+    tbody tr.ip-diff { outline:1px solid var(--red); outline-offset:-1px; background:rgba(255,68,68,0.04); }
+    tbody tr.ip-diff:hover { background:rgba(255,68,68,0.07); }
+    tbody tr.ip-diff.selected { background:rgba(255,68,68,0.08); }
+    tbody td { padding:10px 16px; font-size:13px; }
+    tbody td.td-check { padding:10px 0 10px 16px; width:36px; }
+    .col-key { color:var(--green); font-size:11px; font-family:monospace; }
+    .col-nick { color:var(--text); font-weight:500; }
+    .col-ingame { color:#a78bfa; font-size:12px; }
+    .col-dim { color:var(--text-dim); font-size:12px; }
+    .col-ip { color:var(--text-dim); font-size:11px; font-family:monospace; }
+    .col-ts { color:var(--text-dim); font-size:11px; font-family:monospace; white-space:nowrap; }
+    .status-active { color:var(--green); font-size:11px; font-weight:600; }
+    .status-expired { color:var(--red); font-size:11px; font-weight:600; }
+    .status-inactive { color:var(--text-dim); font-size:11px; }
+    .action-cell { display:flex; gap:6px; align-items:center; }
+    .empty-state { padding:60px; text-align:center; color:var(--text-dim); font-size:13px; }
+
+    /* checkbox styling */
+    input[type=checkbox] { width:14px; height:14px; accent-color:var(--green); cursor:pointer; }
+
+    /* bulk action bar */
+    .bulk-bar {
+      display:none; align-items:center; gap:10px; flex-shrink:0;
+      background:var(--surface2); border:1px solid var(--border);
+      border-radius:6px; padding:8px 14px; font-size:12px; color:var(--text-mid);
+    }
+    .bulk-bar.show { display:flex; }
+    .bulk-count { font-weight:600; color:var(--text); }
+
+    .editor-wrap { flex:1; display:flex; flex-direction:column; background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+    .editor-toolbar { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; background:var(--surface2); border-bottom:1px solid var(--border); flex-shrink:0; }
+    .editor-filename { font-size:12px; color:var(--text-dim); font-family:monospace; }
+    .editor-filename span { color:var(--green); }
+    .editor-actions { display:flex; gap:8px; align-items:center; }
+    .editor-status { font-size:11px; font-family:monospace; color:var(--text-dim); min-width:130px; text-align:right; }
+    .editor-status.ok { color:var(--green); } .editor-status.err { color:var(--red); } .editor-status.saving { color:var(--yellow); }
+    textarea#core-editor { flex:1; resize:none; outline:none; background:var(--bg); color:var(--text); font-family:monospace; font-size:12.5px; line-height:1.65; border:none; padding:20px 24px; tab-size:2; }
+
+    #toast { position:fixed; bottom:20px; right:20px; font-size:12px; font-weight:500; padding:10px 18px; border-radius:6px; border:1px solid; opacity:0; transition:opacity 0.2s,transform 0.2s; transform:translateY(6px); pointer-events:none; z-index:999; }
+    #toast.show { opacity:1; transform:translateY(0); }
+    #toast.success { background:var(--green-dim); border-color:var(--green); color:var(--green); }
+    #toast.error { background:var(--red-dim); border-color:var(--red); color:var(--red); }
+    #toast.info { background:var(--surface2); border-color:var(--border-bright); color:var(--text); }
+
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:100; backdrop-filter:blur(4px); }
+    .modal-overlay.show { display:flex; }
+    .modal-box { background:var(--surface); border:1px solid var(--border-bright); border-radius:8px; padding:24px 28px; width:340px; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+    .modal-title { font-size:15px; font-weight:700; margin-bottom:8px; }
+    .modal-body { font-size:13px; color:var(--text-dim); line-height:1.6; margin-bottom:20px; }
+    .modal-actions { display:flex; gap:8px; justify-content:flex-end; }
+    .btn-ghost { height:32px; padding:0 14px; border-radius:6px; cursor:pointer; font-family:var(--font); font-size:12px; font-weight:500; background:none; border:1px solid var(--border); color:var(--text-dim); }
+    .btn-ghost:hover { border-color:var(--border-bright); color:var(--text); }
+    .extend-key-info { font-size:11px; color:var(--green); font-family:monospace; margin-bottom:14px; }
+
+    ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+  </style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">seal<span>sense</span></div>
+    <div class="login-sub">admin panel</div>
+    <label class="login-label">Password</label>
+    <input type="password" class="login-input" id="login-input" placeholder="Enter admin secret…" />
+    <button class="login-btn" id="login-btn">Sign in</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="header-logo">seal<span>sense</span></div>
+    <div class="header-right">
+      <div class="header-badge">ADMIN</div>
+      <button class="logout-btn" id="logout-btn">Sign out</button>
+    </div>
+  </header>
+  <div class="main-area">
+    <nav>
+      <div class="nav-item active" data-panel="keys">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        Keys
+      </div>
+      <div class="nav-item" data-panel="activity">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+        Activity
+      </div>
+      <div class="nav-item" data-panel="script">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Script
+      </div>
+    </nav>
+
+    <div class="content-area">
+
+      <!-- Keys -->
+      <div class="panel active" id="panel-keys">
+        <div class="panel-header">
+          <div class="panel-title">Key <span>Manager</span></div>
+          <div class="panel-actions">
+            <button class="btn btn-outline" id="refresh-btn">Refresh</button>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Nickname</label><input class="form-input medium" type="text" id="new-nick" placeholder="Player name" /></div>
+          <div class="form-group"><label>Days (0 = lifetime)</label><input class="form-input short" type="number" id="new-days" value="30" min="0" /></div>
+          <div class="form-group" style="flex:1"><label>Custom Key (optional)</label><input class="form-input flex" type="text" id="new-key" placeholder="Auto-generated if empty" /></div>
+          <button class="btn btn-green" id="add-key-btn">+ Add Key</button>
+        </div>
+        <div class="search-bar">
+          <input class="search-input" type="text" id="keys-search" placeholder="Search keys or nicknames…" />
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Key</th><th>Nickname</th><th>Expires</th><th>Time Left</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="keys-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Activity -->
+      <div class="panel" id="panel-activity">
+        <div class="panel-header">
+          <div class="panel-title">Activity <span>Log</span></div>
+          <div class="panel-actions">
+            <button class="btn btn-outline" id="refresh-activity-btn">Refresh</button>
+            <button class="btn btn-red" id="delete-all-btn" style="height:34px;padding:0 14px;font-size:12px">Delete All</button>
+          </div>
+        </div>
+        <div class="search-bar">
+          <input class="search-input" type="text" id="activity-search" placeholder="Search by in-game name, key, nickname, or IP…" />
+        </div>
+        <!-- Bulk action bar -->
+        <div class="bulk-bar" id="bulk-bar">
+          <span><span class="bulk-count" id="bulk-count">0</span> selected</span>
+          <button class="btn btn-red" style="height:28px;padding:0 12px;font-size:11px" id="delete-selected-btn">Delete Selected</button>
+          <button class="btn btn-outline" style="height:28px;padding:0 12px;font-size:11px" id="deselect-all-btn">Deselect All</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="th-check"><input type="checkbox" id="select-all-cb" title="Select all"></th>
+                <th>Timestamp</th><th>Nickname</th><th>In-Game Name</th><th>Key</th><th>IP</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="activity-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Script -->
+      <div class="panel" id="panel-script">
+        <div class="panel-header">
+          <div class="panel-title">Script <span>Editor</span></div>
+        </div>
+        <div class="editor-wrap">
+          <div class="editor-toolbar">
+            <div class="editor-filename">supabase › scripts › <span>core</span></div>
+            <div class="editor-actions">
+              <div class="editor-status" id="editor-status">— not loaded</div>
+              <button class="btn btn-outline" id="load-script-btn">Load</button>
+              <button class="btn btn-green" id="save-script-btn" style="display:none">Save</button>
+            </div>
+          </div>
+          <textarea id="core-editor" spellcheck="false" placeholder="Click Load to fetch the current script…"></textarea>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Delete key modal -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal-box">
+    <div class="modal-title">Delete Key</div>
+    <div class="modal-body" id="delete-modal-body"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="delete-cancel">Cancel</button>
+      <button class="btn btn-red" style="height:32px;padding:0 14px;font-size:12px" id="delete-confirm">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Extend modal -->
+<div class="modal-overlay" id="extend-modal">
+  <div class="modal-box">
+    <div class="modal-title">Extend Expiry</div>
+    <div class="extend-key-info" id="extend-key-display"></div>
+    <div class="form-group" style="margin-bottom:18px">
+      <label style="font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;display:block">Days from today (0 = lifetime)</label>
+      <input class="form-input medium" type="number" id="extend-days" value="30" min="0"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="extend-cancel">Cancel</button>
+      <button class="btn btn-green" style="height:32px;padding:0 14px;font-size:12px" id="extend-confirm">Extend</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm modal (generic) -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="confirm-title">Confirm</div>
+    <div class="modal-body" id="confirm-body"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="confirm-cancel">Cancel</button>
+      <button class="btn btn-red" style="height:32px;padding:0 14px;font-size:12px" id="confirm-ok">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = 'https://seal.sealfr07.workers.dev';
+  const SESSION_KEY = '_ss_admin_session';
+  const SESSION_TTL = 24 * 60 * 60 * 1000;
+
+  let ADMIN_SECRET = '';
+  let allKeys = [];
+  let allActivity = [];
+  let selectedIds = new Set();
+
+  // ── Session ───────────────────────────────────────────────────────────────
+  function saveSession(s) { localStorage.setItem(SESSION_KEY, JSON.stringify({ secret: s, ts: Date.now() })); }
+  function loadSession() {
+    try { const s = JSON.parse(localStorage.getItem(SESSION_KEY)); if (s?.secret && (Date.now()-s.ts) < SESSION_TTL) return s.secret; } catch {}
+    return null;
+  }
+  function clearSession() { localStorage.removeItem(SESSION_KEY); }
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  const loginScreen = document.getElementById('login-screen');
+  const appEl       = document.getElementById('app');
+  const loginInput  = document.getElementById('login-input');
+  const loginBtn    = document.getElementById('login-btn');
+  const loginErr    = document.getElementById('login-err');
+
+  async function attemptLogin(secret) {
+    if (!secret) { loginErr.textContent = 'Enter your password'; return; }
+    loginBtn.textContent = 'Signing in…'; loginBtn.disabled = true;
+    try {
+      const r = await fetch(`${API}/admin/keys`, { headers: { 'x-admin-secret': secret } });
+      if (r.status === 401) { loginErr.textContent = 'Invalid password'; loginBtn.textContent = 'Sign in'; loginBtn.disabled = false; clearSession(); return; }
+      ADMIN_SECRET = secret; saveSession(secret);
+      loginScreen.style.display = 'none'; appEl.style.display = 'flex';
+      loginBtn.textContent = 'Sign in'; loginBtn.disabled = false;
+      allKeys = (await r.json()).keys || []; renderKeys();
+    } catch { loginErr.textContent = 'Connection failed'; loginBtn.textContent = 'Sign in'; loginBtn.disabled = false; }
+  }
+
+  loginBtn.addEventListener('click', () => attemptLogin(loginInput.value.trim()));
+  loginInput.addEventListener('keydown', e => e.key === 'Enter' && attemptLogin(loginInput.value.trim()));
+  document.getElementById('logout-btn').addEventListener('click', () => {
+    ADMIN_SECRET = ''; clearSession();
+    appEl.style.display = 'none'; loginScreen.style.display = 'flex';
+    loginInput.value = ''; loginErr.textContent = '';
+  });
+
+  const savedSession = loadSession();
+  if (savedSession) attemptLogin(savedSession);
+
+  // ── Tabs ──────────────────────────────────────────────────────────────────
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      item.classList.add('active');
+      document.getElementById('panel-' + item.dataset.panel).classList.add('active');
+      if (item.dataset.panel === 'activity') fetchActivity();
+    });
+  });
+
+  // ── Toast ─────────────────────────────────────────────────────────────────
+  let toastTimer;
+  function toast(msg, type = 'info') {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.className = 'show ' + type;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+  }
+
+  async function api(method, path, body) {
+    const opts = { method, headers: { 'Content-Type': 'application/json', 'x-admin-secret': ADMIN_SECRET } };
+    if (body !== undefined) opts.body = JSON.stringify(body);
+    const r = await fetch(`${API}${path}`, opts);
+    return r.json();
+  }
+
+  // ── Generic confirm modal ─────────────────────────────────────────────────
+  function confirm(title, body) {
+    return new Promise(resolve => {
+      document.getElementById('confirm-title').textContent = title;
+      document.getElementById('confirm-body').textContent = body;
+      const modal = document.getElementById('confirm-modal');
+      modal.classList.add('show');
+      const ok = document.getElementById('confirm-ok');
+      const cancel = document.getElementById('confirm-cancel');
+      const cleanup = (val) => { modal.classList.remove('show'); ok.replaceWith(ok.cloneNode(true)); cancel.replaceWith(cancel.cloneNode(true)); resolve(val); };
+      document.getElementById('confirm-ok').addEventListener('click', () => cleanup(true));
+      document.getElementById('confirm-cancel').addEventListener('click', () => cleanup(false));
+    });
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function fmtDate(iso) { if (!iso) return 'Lifetime'; return new Date(iso).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }); }
+  function fmtTimeLeft(iso) {
+    if (!iso) return 'Lifetime';
+    const ms = new Date(iso) - Date.now();
+    if (ms <= 0) return 'Expired';
+    const d = Math.ceil(ms/86400000);
+    return d < 30 ? d+'d' : Math.floor(d/30)+'mo';
+  }
+  function fmtTimestamp(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) + ' ' +
+           d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  }
+  function keyStatus(row) {
+    if (!row.active) return ['Inactive','status-inactive'];
+    if (row.expires_at && new Date(row.expires_at) < new Date()) return ['Expired','status-expired'];
+    return ['Active','status-active'];
+  }
+  function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  // ── Keys ──────────────────────────────────────────────────────────────────
+  function renderKeys() {
+    const q = document.getElementById('keys-search').value.trim().toLowerCase();
+    const tbody = document.getElementById('keys-tbody');
+    let rows = allKeys;
+    if (q) rows = rows.filter(r => r.key.toLowerCase().includes(q) || (r.nick||'').toLowerCase().includes(q));
+    if (!rows.length) { tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">${q?'No results.':'No keys yet.'}</div></td></tr>`; return; }
+    tbody.innerHTML = rows.map(row => {
+      const [st,cls] = keyStatus(row);
+      return `<tr>
+        <td class="col-key">${esc(row.key)}</td>
+        <td class="col-nick">${esc(row.nick||'—')}</td>
+        <td class="col-dim">${fmtDate(row.expires_at)}</td>
+        <td class="col-dim">${fmtTimeLeft(row.expires_at)}</td>
+        <td class="${cls}">${st}</td>
+        <td><div class="action-cell">
+          <button class="btn btn-yellow" onclick="openExtend('${esc(row.key)}')">Extend</button>
+          <button class="btn btn-red" style="height:28px;padding:0 10px;font-size:11px" onclick="openDelete('${esc(row.key)}')">Delete</button>
+        </div></td>
+      </tr>`;
+    }).join('');
+  }
+  document.getElementById('keys-search').addEventListener('input', renderKeys);
+  async function fetchKeys() { const data = await api('GET','/admin/keys'); allKeys=data.keys||[]; renderKeys(); }
+  document.getElementById('refresh-btn').addEventListener('click', fetchKeys);
+  document.getElementById('add-key-btn').addEventListener('click', async () => {
+    const nick = document.getElementById('new-nick').value.trim()||'User';
+    const days = Number(document.getElementById('new-days').value)||0;
+    const customKey = document.getElementById('new-key').value.trim()||undefined;
+    const data = await api('POST','/admin/keys',{nick,days,key:customKey});
+    if (data.error) { toast('Error: '+data.error,'error'); return; }
+    toast('Key created: '+data.key,'success');
+    document.getElementById('new-nick').value=''; document.getElementById('new-days').value='30'; document.getElementById('new-key').value='';
+    fetchKeys();
+  });
+
+  let pendingDelete=null;
+  function openDelete(key) { pendingDelete=key; document.getElementById('delete-modal-body').textContent=`Delete "${key}"? This cannot be undone.`; document.getElementById('delete-modal').classList.add('show'); }
+  document.getElementById('delete-cancel').addEventListener('click', ()=>document.getElementById('delete-modal').classList.remove('show'));
+  document.getElementById('delete-confirm').addEventListener('click', async ()=>{
+    document.getElementById('delete-modal').classList.remove('show');
+    if (!pendingDelete) return;
+    const data = await api('DELETE','/admin/keys/'+encodeURIComponent(pendingDelete));
+    if (data.error) { toast('Error: '+data.error,'error'); return; }
+    toast('Key deleted','success'); fetchKeys(); pendingDelete=null;
+  });
+
+  let pendingExtend=null;
+  function openExtend(key) { pendingExtend=key; document.getElementById('extend-key-display').textContent=key; document.getElementById('extend-days').value='30'; document.getElementById('extend-modal').classList.add('show'); }
+  document.getElementById('extend-cancel').addEventListener('click', ()=>document.getElementById('extend-modal').classList.remove('show'));
+  document.getElementById('extend-confirm').addEventListener('click', async ()=>{
+    document.getElementById('extend-modal').classList.remove('show');
+    if (!pendingExtend) return;
+    const days = Number(document.getElementById('extend-days').value);
+    const data = await api('PATCH','/admin/keys/'+encodeURIComponent(pendingExtend),{days});
+    if (data.error) { toast('Error: '+data.error,'error'); return; }
+    toast('Updated — '+(data.timeLeft||''),'success'); fetchKeys(); pendingExtend=null;
+  });
+
+  // ── Activity ──────────────────────────────────────────────────────────────
+  function updateBulkBar() {
+    const bar = document.getElementById('bulk-bar');
+    const count = selectedIds.size;
+    document.getElementById('bulk-count').textContent = count;
+    bar.classList.toggle('show', count > 0);
+  }
+
+  function renderActivity() {
+    const q = document.getElementById('activity-search').value.trim().toLowerCase();
+    const tbody = document.getElementById('activity-tbody');
+    let rows = allActivity;
+    if (q) rows = rows.filter(r =>
+      (r.ingame_name||'').toLowerCase().includes(q) ||
+      (r.key||'').toLowerCase().includes(q) ||
+      (r.ip||'').toLowerCase().includes(q) ||
+      (r.nick||'').toLowerCase().includes(q)
+    );
+    if (!rows.length) { tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">${q?'No results.':'No activity yet.'}</div></td></tr>`; return; }
+
+    // Build IP map for multi-IP detection
+    const keyIPs = {};
+    allActivity.forEach(r => { if (!keyIPs[r.key]) keyIPs[r.key]=new Set(); if(r.ip) keyIPs[r.key].add(r.ip); });
+
+    tbody.innerHTML = rows.map(row => {
+      const multiIP = keyIPs[row.key]?.size > 1;
+      const checked = selectedIds.has(row.id);
+      return `<tr class="${multiIP?'ip-diff':''} ${checked?'selected':''}" data-id="${row.id}">
+        <td class="td-check"><input type="checkbox" class="row-cb" data-id="${row.id}" ${checked?'checked':''}></td>
+        <td class="col-ts">${fmtTimestamp(row.logged_at)}</td>
+        <td class="col-nick">${esc(row.nick||'—')}</td>
+        <td class="col-ingame">${esc(row.ingame_name||'—')}</td>
+        <td class="col-key">${esc(row.key)}</td>
+        <td class="col-ip">${esc(row.ip||'—')}${multiIP?' <span style="color:var(--red);font-size:10px">⚠</span>':''}</td>
+        <td><button class="btn-sm-red" onclick="deleteLog(${row.id})">Delete</button></td>
+      </tr>`;
+    }).join('');
+
+    // Attach checkbox listeners
+    tbody.querySelectorAll('.row-cb').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const id = Number(cb.dataset.id);
+        if (cb.checked) selectedIds.add(id); else selectedIds.delete(id);
+        cb.closest('tr').classList.toggle('selected', cb.checked);
+        updateSelectAllCb();
+        updateBulkBar();
+      });
+    });
+  }
+
+  function updateSelectAllCb() {
+    const cbs = document.querySelectorAll('.row-cb');
+    const allChecked = cbs.length > 0 && [...cbs].every(c => c.checked);
+    document.getElementById('select-all-cb').checked = allChecked;
+    document.getElementById('select-all-cb').indeterminate = !allChecked && selectedIds.size > 0;
+  }
+
+  document.getElementById('select-all-cb').addEventListener('change', e => {
+    const checked = e.target.checked;
+    document.querySelectorAll('.row-cb').forEach(cb => {
+      cb.checked = checked;
+      const id = Number(cb.dataset.id);
+      if (checked) selectedIds.add(id); else selectedIds.delete(id);
+      cb.closest('tr').classList.toggle('selected', checked);
+    });
+    updateBulkBar();
+  });
+
+  document.getElementById('deselect-all-btn').addEventListener('click', () => {
+    selectedIds.clear();
+    document.querySelectorAll('.row-cb').forEach(cb => { cb.checked = false; cb.closest('tr').classList.remove('selected'); });
+    document.getElementById('select-all-cb').checked = false;
+    document.getElementById('select-all-cb').indeterminate = false;
+    updateBulkBar();
+  });
+
+  document.getElementById('activity-search').addEventListener('input', renderActivity);
+
+  async function fetchActivity() {
+    const tbody = document.getElementById('activity-tbody');
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">Loading…</div></td></tr>`;
+    const data = await api('GET','/admin/activity');
+    allActivity = data.activity || [];
+    selectedIds.clear(); updateBulkBar();
+    renderActivity();
+  }
+  document.getElementById('refresh-activity-btn').addEventListener('click', fetchActivity);
+
+  // Delete single log
+  async function deleteLog(id) {
+    const ok = await confirm('Delete Log', 'Delete this log entry?');
+    if (!ok) return;
+    const data = await api('DELETE', `/admin/activity/${id}`);
+    if (data.error) { toast('Error: '+data.error,'error'); return; }
+    selectedIds.delete(id);
+    allActivity = allActivity.filter(r => r.id !== id);
+    renderActivity(); updateBulkBar();
+    toast('Log deleted','success');
+  }
+
+  // Delete selected
+  document.getElementById('delete-selected-btn').addEventListener('click', async () => {
+    if (!selectedIds.size) return;
+    const ok = await confirm('Delete Selected', `Delete ${selectedIds.size} selected log${selectedIds.size>1?'s':''}?`);
+    if (!ok) return;
+    const data = await api('POST', '/admin/activity/delete-many', { ids: [...selectedIds] });
+    if (data.error) { toast('Error: '+data.error,'error'); return; }
+    allActivity = allActivity.filter(r => !selectedIds.has(r.id));
+    selectedIds.clear(); updateBulkBar();
+    renderActivity();
+    toast(`Deleted ${data.deleted} logs`,'success');
+  });
+
+  // Delete all
+  document.getElementById('delete-all-btn').addEventListener('click', async () => {
+    if (!allActivity.length) { toast('No logs to delete','info'); return; }
+    const ok = await confirm('Delete All Logs', `Delete all ${allActivity.length} log entries? This cannot be undone.`);
+    if (!ok) return;
+    const data = await api('DELETE', '/admin/activity');
+    if (data.error) { toast('Error: '+data.error,'error'); return; }
+    allActivity = []; selectedIds.clear(); updateBulkBar();
+    renderActivity();
+    toast('All logs deleted','success');
+  });
+
+  // ── Script editor ─────────────────────────────────────────────────────────
+  const editorStatus = document.getElementById('editor-status');
+  const coreEditor   = document.getElementById('core-editor');
+  const saveBtn      = document.getElementById('save-script-btn');
+
+  document.getElementById('load-script-btn').addEventListener('click', async () => {
+    editorStatus.className='editor-status saving'; editorStatus.textContent='— loading…';
+    const data = await api('GET','/admin/script');
+    if (data.error) { editorStatus.className='editor-status err'; editorStatus.textContent='— '+data.error; return; }
+    coreEditor.value=data.content; saveBtn.style.display='';
+    const lines=(data.content.match(/\n/g)||[]).length+1;
+    editorStatus.className='editor-status ok'; editorStatus.textContent=`— ${lines} lines`;
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    editorStatus.className='editor-status saving'; editorStatus.textContent='— saving…';
+    const data = await api('PUT','/admin/script',{content:coreEditor.value});
+    if (data.error) { editorStatus.className='editor-status err'; editorStatus.textContent='— '+data.error; toast('Save failed','error'); return; }
+    editorStatus.className='editor-status ok'; editorStatus.textContent='— saved ✓';
+    toast('Script saved','success');
+  });
+
+  coreEditor.addEventListener('keydown', e => {
+    if ((e.ctrlKey||e.metaKey)&&e.key==='s') { e.preventDefault(); if(saveBtn.style.display!=='none') saveBtn.click(); }
+    if (e.key==='Tab') { e.preventDefault(); const s=coreEditor.selectionStart; coreEditor.value=coreEditor.value.substring(0,s)+'  '+coreEditor.value.substring(coreEditor.selectionEnd); coreEditor.selectionStart=coreEditor.selectionEnd=s+2; }
+  });
+</script>
+</body>
+</html>
