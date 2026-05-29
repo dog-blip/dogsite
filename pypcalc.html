@@ -200,10 +200,22 @@
       <h2>Leaderboard</h2>
       <p>Choose how to rank the leaderboard.</p>
 
-      <button class="small-btn" onclick="loadLeaderboard('level')" style="background:#6610f2;">By Level</button>
-      <button class="small-btn" onclick="loadLeaderboard('time')" style="background:#28a745;">By Time</button>
-      <button class="small-btn" onclick="loadLeaderboard('score')" style="background:#dc3545;">By Score</button>
-      <button class="small-btn" onclick="loadLeaderboard('global')" style="background:#fd7e14;">Global</button>
+      <button class="small-btn" onclick="showLevelLeaderboardControls()" style="background:#6610f2;">Levels Rank</button>
+      <button class="small-btn" onclick="hideLevelLeaderboardControls(); loadLeaderboard('global')" style="background:#fd7e14;">Global</button>
+
+      <div id="level-leaderboard-controls" class="hidden" style="margin-top:10px;">
+        <div>
+          <button class="small-btn" onclick="setLeaderboardLevel('easy')" style="background:#6c757d;">Easy</button>
+          <button class="small-btn" onclick="setLeaderboardLevel('medium')" style="background:#6c757d;">Medium</button>
+          <button class="small-btn" onclick="setLeaderboardLevel('hard')" style="background:#6c757d;">Hard</button>
+          <button class="small-btn" onclick="setLeaderboardLevel('veryhard')" style="background:#6c757d;">Very Hard</button>
+        </div>
+        <div>
+          <button class="small-btn" onclick="setLeaderboardSort('accuracy')" style="background:#28a745;">Rank by Accuracy</button>
+          <button class="small-btn" onclick="setLeaderboardSort('score')" style="background:#dc3545;">Rank by Score</button>
+          <button class="small-btn" onclick="setLeaderboardSort('time')" style="background:#17a2b8;">Rank by Time</button>
+        </div>
+      </div>
       <button class="small-btn" onclick="goLeaderboardHome()" style="background:#6c757d;">Home</button>
 
       <div id="main-leaderboard-title" style="font-weight:bold; margin-top:10px;">Leaderboard</div>
@@ -294,6 +306,7 @@
       <button onclick="startTimer()" style="background:#28a745;">Start Timer</button>
       <button onclick="stopTimer()" style="background:#dc3545;">Stop Timer</button>
       <button onclick="resetTimer()" style="background:#6c757d;">Reset Timer</button>
+      <button onclick="toggleAlwaysTimer()" id="always-timer-btn" style="background:#fd7e14;">Always Set Timer: Off</button>
 
       <p id="timer-status"></p>
     </div>
@@ -340,9 +353,14 @@
     let quizTimer = null;
     let timerSecondsLeft = 0;
     let timerOriginalSeconds = 0;
+    let alwaysTimerEnabled = false;
+    let alwaysTimerSeconds = 0;
+    let timerStartedByFirstAnswer = false;
     let quizStartTime = null;
     let finalTimeSeconds = null;
     let leaderboardSubmitted = false;
+    let selectedLeaderboardLevel = 'easy';
+    let selectedLeaderboardSort = 'accuracy';
 
     const TOTAL_QUESTIONS = 10;
 
@@ -381,6 +399,14 @@
       quizStartTime = Date.now();
       finalTimeSeconds = null;
       leaderboardSubmitted = false;
+      timerStartedByFirstAnswer = false;
+
+      if (alwaysTimerEnabled && alwaysTimerSeconds > 0) {
+        timerSecondsLeft = alwaysTimerSeconds;
+        timerOriginalSeconds = alwaysTimerSeconds;
+        document.getElementById('timer-display').classList.remove('hidden');
+        updateTimerDisplay();
+      }
 
       document.getElementById('setup-screen').classList.add('hidden');
       document.getElementById('quiz-screen').classList.remove('hidden');
@@ -838,6 +864,11 @@
     }
 
     function submitAnswer() {
+      if (alwaysTimerEnabled && !timerStartedByFirstAnswer && !quizTimer && timerSecondsLeft > 0) {
+        timerStartedByFirstAnswer = true;
+        startTimerCountdownOnly();
+      }
+
       if (!secretArmed && answerInput.value.trim().toUpperCase() === "S3CR3T") {
         answerInput.value = "";
         alert("Please type a valid number first!");
@@ -880,9 +911,10 @@
     }
 
     function goHome() {
-      const confirmHome = confirm("Go back to the home page? Your current quiz progress will be lost.");
-
-      if (!confirmHome) return;
+      if (hasAnsweredAnyQuestion()) {
+        const confirmHome = confirm("Go back to the home page? Your current quiz progress will be lost.");
+        if (!confirmHome) return;
+      }
 
       resetGame();
     }
@@ -1026,11 +1058,7 @@
     }
 
     function startTimer() {
-      const hours = Number(document.getElementById('timer-hours').value) || 0;
-      const minutes = Number(document.getElementById('timer-minutes').value) || 0;
-      const seconds = Number(document.getElementById('timer-seconds').value) || 0;
-
-      const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
+      const totalSeconds = getTimerInputSeconds();
 
       if (totalSeconds <= 0) {
         alert("Set a timer first!");
@@ -1039,10 +1067,14 @@
 
       timerSecondsLeft = totalSeconds;
       timerOriginalSeconds = totalSeconds;
+      timerStartedByFirstAnswer = true;
 
       document.getElementById('timer-display').classList.remove('hidden');
       updateTimerDisplay();
+      startTimerCountdownOnly();
+    }
 
+    function startTimerCountdownOnly() {
       clearInterval(quizTimer);
 
       quizTimer = setInterval(() => {
@@ -1070,6 +1102,7 @@
 
       timerSecondsLeft = 0;
       timerOriginalSeconds = 0;
+      timerStartedByFirstAnswer = false;
 
       document.getElementById('timer-hours').value = "";
       document.getElementById('timer-minutes').value = "";
@@ -1077,6 +1110,35 @@
       document.getElementById('timer-display').innerText = "Time left: 00:00:00";
       document.getElementById('timer-display').classList.add('hidden');
       document.getElementById('timer-status').innerText = "Timer reset.";
+    }
+
+    function toggleAlwaysTimer() {
+      const totalSeconds = getTimerInputSeconds();
+
+      if (!alwaysTimerEnabled && totalSeconds <= 0) {
+        alert("Set a timer first before turning on Always Set Timer.");
+        return;
+      }
+
+      alwaysTimerEnabled = !alwaysTimerEnabled;
+
+      if (alwaysTimerEnabled) {
+        alwaysTimerSeconds = totalSeconds;
+        document.getElementById('always-timer-btn').innerText = "Always Set Timer: On";
+        document.getElementById('timer-status').innerText = `Always timer enabled: ${formatSeconds(alwaysTimerSeconds)}. It will start after the first answer.`;
+      } else {
+        alwaysTimerSeconds = 0;
+        document.getElementById('always-timer-btn').innerText = "Always Set Timer: Off";
+        document.getElementById('timer-status').innerText = "Always timer disabled.";
+      }
+    }
+
+    function getTimerInputSeconds() {
+      const hours = Number(document.getElementById('timer-hours').value) || 0;
+      const minutes = Number(document.getElementById('timer-minutes').value) || 0;
+      const seconds = Number(document.getElementById('timer-seconds').value) || 0;
+
+      return (hours * 3600) + (minutes * 60) + seconds;
     }
 
     function updateTimerDisplay() {
@@ -1119,10 +1181,19 @@
 
       clearInterval(quizTimer);
       quizTimer = null;
-      timerSecondsLeft = 0;
-      timerOriginalSeconds = 0;
-      document.getElementById('timer-display').innerText = "Time left: 00:00:00";
-      document.getElementById('timer-display').classList.add('hidden');
+      timerStartedByFirstAnswer = false;
+
+      if (alwaysTimerEnabled && alwaysTimerSeconds > 0) {
+        timerSecondsLeft = alwaysTimerSeconds;
+        timerOriginalSeconds = alwaysTimerSeconds;
+        document.getElementById('timer-display').innerText = "Time left: 00:00:00";
+        document.getElementById('timer-display').classList.add('hidden');
+      } else {
+        timerSecondsLeft = 0;
+        timerOriginalSeconds = 0;
+        document.getElementById('timer-display').innerText = "Time left: 00:00:00";
+        document.getElementById('timer-display').classList.add('hidden');
+      }
 
       currentQuestionNum = 1;
       currentCorrectAnswer = 0;
@@ -1176,7 +1247,7 @@
       loadLeaderboard();
     }
 
-    async function loadLeaderboard(sortMode = 'level') {
+    async function loadLeaderboard(sortMode = 'level', levelFilter = null, levelSort = 'accuracy') {
       if (!supabaseClient) {
         alert("Leaderboard is not set up yet. Add your Supabase URL and anon key first.");
         return;
@@ -1193,17 +1264,41 @@
       leaderboardBox.innerHTML = "Loading leaderboard...";
 
       if (titleBox && isMainScreenOpen) {
-        if (sortMode === 'time') titleBox.innerText = "Fastest Times";
-        else if (sortMode === 'score') titleBox.innerText = "Highest Scores";
-        else if (sortMode === 'global') titleBox.innerText = "Global Leaderboard: Accuracy + Time";
-        else titleBox.innerText = "Highest Level Rankings";
+        if (sortMode === 'levelFiltered') {
+          titleBox.innerText = `${formatLevel(levelFilter)} Leaderboard: Rank by ${capitalize(levelSort)}`;
+        } else if (sortMode === 'global') {
+          titleBox.innerText = "Global Leaderboard: Accuracy + Time";
+        } else {
+          titleBox.innerText = "Leaderboard";
+        }
       }
 
       let query = supabaseClient
         .from('quiz_scores')
         .select('name, level, level_rank, score, accuracy, time_seconds, created_at');
 
-      if (sortMode === 'time') {
+      if (sortMode === 'levelFiltered' && levelFilter) {
+        query = query.eq('level', levelFilter);
+      }
+
+      if (sortMode === 'levelFiltered') {
+        if (levelSort === 'time') {
+          query = query
+            .order('time_seconds', { ascending: true })
+            .order('accuracy', { ascending: false })
+            .order('score', { ascending: false });
+        } else if (levelSort === 'score') {
+          query = query
+            .order('score', { ascending: false })
+            .order('accuracy', { ascending: false })
+            .order('time_seconds', { ascending: true });
+        } else {
+          query = query
+            .order('accuracy', { ascending: false })
+            .order('score', { ascending: false })
+            .order('time_seconds', { ascending: true });
+        }
+      } else if (sortMode === 'time') {
         query = query
           .order('time_seconds', { ascending: true })
           .order('accuracy', { ascending: false })
@@ -1255,7 +1350,30 @@
       document.getElementById('quiz-screen').classList.add('hidden');
       document.getElementById('end-screen').classList.add('hidden');
       document.getElementById('leaderboard-screen').classList.remove('hidden');
-      loadLeaderboard('level');
+      loadLeaderboard('global');
+    }
+
+    function showLevelLeaderboardControls() {
+      document.getElementById('level-leaderboard-controls').classList.remove('hidden');
+      loadLevelLeaderboard();
+    }
+
+    function hideLevelLeaderboardControls() {
+      document.getElementById('level-leaderboard-controls').classList.add('hidden');
+    }
+
+    function setLeaderboardLevel(level) {
+      selectedLeaderboardLevel = level;
+      loadLevelLeaderboard();
+    }
+
+    function setLeaderboardSort(sortMode) {
+      selectedLeaderboardSort = sortMode;
+      loadLevelLeaderboard();
+    }
+
+    function loadLevelLeaderboard() {
+      loadLeaderboard('levelFiltered', selectedLeaderboardLevel, selectedLeaderboardSort);
     }
 
     function goLeaderboardHome() {
@@ -1268,6 +1386,10 @@
       if (level === 'hard') return 'Hard';
       if (level === 'medium') return 'Medium';
       return 'Easy';
+    }
+
+    function capitalize(text) {
+      return String(text).charAt(0).toUpperCase() + String(text).slice(1);
     }
 
     function getLevelRank(level) {
@@ -1299,6 +1421,10 @@
         .replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#039;');
+    }
+
+    function hasAnsweredAnyQuestion() {
+      return questions.some(q => q && q.userRawAnswer && q.userRawAnswer.trim() !== "");
     }
 
     function makeQuestion(text, answer) {
