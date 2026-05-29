@@ -62,11 +62,24 @@
       margin-bottom: 15px;
     }
 
+    .timer-input {
+      width: 80px !important;
+      font-size: 14px !important;
+      margin: 4px;
+    }
+
     .score-text {
       font-size: 24px;
       font-weight: bold;
       color: #28a745;
       margin-top: 15px;
+    }
+
+    #timer-display {
+      font-size: 18px;
+      font-weight: bold;
+      color: #dc3545;
+      margin-bottom: 10px;
     }
 
     #question-text {
@@ -147,6 +160,8 @@
     <div id="quiz-screen" class="hidden">
       <h3>Question <span id="question-num">1</span> of 10</h3>
 
+      <div id="timer-display" class="hidden">Time left: 00:00:00</div>
+
       <div id="question-text"></div>
 
       <input type="text" id="answer-input" placeholder="?">
@@ -198,6 +213,20 @@
         Turn Off
       </button>
 
+      <hr>
+
+      <h3>Timer</h3>
+      <p>Set a quiz timer.</p>
+
+      <input class="timer-input" type="number" id="timer-hours" placeholder="hours" min="0">
+      <input class="timer-input" type="number" id="timer-minutes" placeholder="mins" min="0" max="59">
+      <input class="timer-input" type="number" id="timer-seconds" placeholder="secs" min="0" max="59">
+      <br>
+
+      <button onclick="startTimer()" style="background:#28a745;">Start Timer</button>
+      <button onclick="stopTimer()" style="background:#dc3545;">Stop Timer</button>
+      <button onclick="resetTimer()" style="background:#6c757d;">Reset Timer</button>
+
       <p id="secret-status"></p>
     </div>
 
@@ -217,6 +246,10 @@
 
     let secretArmed = false;
     let secretArmTimer = null;
+
+    let quizTimer = null;
+    let timerSecondsLeft = 0;
+    let timerOriginalSeconds = 0;
 
     const TOTAL_QUESTIONS = 10;
 
@@ -712,7 +745,7 @@
       }
 
       const rawAnswer = answerInput.value.trim();
-      const userAnswer = Number(rawAnswer);
+      const userAnswer = parseQuizNumber(rawAnswer);
 
       if (rawAnswer === "" || isNaN(userAnswer)) {
         alert("Please type a valid number first!");
@@ -727,6 +760,9 @@
         currentQuestionNum++;
         loadQuestion();
       } else {
+        clearInterval(quizTimer);
+        quizTimer = null;
+
         document.getElementById('quiz-screen').classList.add('hidden');
         document.getElementById('end-screen').classList.remove('hidden');
       }
@@ -836,7 +872,7 @@
     function armSecretMode() {
       secretArmed = true;
       answerInput.value = "";
-      answerInput.placeholder = "Enter secret code";
+      answerInput.placeholder = "??";
 
       clearTimeout(secretArmTimer);
 
@@ -848,7 +884,7 @@
 
     function setSecretAnswer() {
       const rawValue = document.getElementById('secret-answer-input').value.trim();
-      const value = Number(rawValue);
+      const value = parseQuizNumber(rawValue);
 
       if (rawValue === "" || isNaN(value)) {
         alert("Type a valid number first!");
@@ -882,6 +918,83 @@
       }
     }
 
+    function startTimer() {
+      const hours = Number(document.getElementById('timer-hours').value) || 0;
+      const minutes = Number(document.getElementById('timer-minutes').value) || 0;
+      const seconds = Number(document.getElementById('timer-seconds').value) || 0;
+
+      const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
+
+      if (totalSeconds <= 0) {
+        alert("Set a timer first!");
+        return;
+      }
+
+      timerSecondsLeft = totalSeconds;
+      timerOriginalSeconds = totalSeconds;
+
+      document.getElementById('timer-display').classList.remove('hidden');
+      updateTimerDisplay();
+
+      clearInterval(quizTimer);
+
+      quizTimer = setInterval(() => {
+        timerSecondsLeft--;
+        updateTimerDisplay();
+
+        if (timerSecondsLeft <= 0) {
+          clearInterval(quizTimer);
+          quizTimer = null;
+          document.getElementById('timer-display').innerText = "Time left: 00:00:00";
+          alert("Time is up!");
+          endQuizFromTimer();
+        }
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(quizTimer);
+      quizTimer = null;
+    }
+
+    function resetTimer() {
+      clearInterval(quizTimer);
+      quizTimer = null;
+      timerSecondsLeft = timerOriginalSeconds;
+
+      if (timerOriginalSeconds > 0) {
+        document.getElementById('timer-display').classList.remove('hidden');
+        updateTimerDisplay();
+      } else {
+        document.getElementById('timer-display').innerText = "Time left: 00:00:00";
+        document.getElementById('timer-display').classList.add('hidden');
+      }
+    }
+
+    function updateTimerDisplay() {
+      const hours = Math.floor(timerSecondsLeft / 3600);
+      const minutes = Math.floor((timerSecondsLeft % 3600) / 60);
+      const seconds = timerSecondsLeft % 60;
+
+      const formatted =
+        String(hours).padStart(2, "0") + ":" +
+        String(minutes).padStart(2, "0") + ":" +
+        String(seconds).padStart(2, "0");
+
+      document.getElementById('timer-display').innerText = `Time left: ${formatted}`;
+    }
+
+    function endQuizFromTimer() {
+      for (let i = 0; i < TOTAL_QUESTIONS; i++) {
+        if (!questions[i]) {
+          questions[i] = createQuestion();
+        }
+      }
+
+      document.getElementById('quiz-screen').classList.add('hidden');
+      document.getElementById('end-screen').classList.remove('hidden');
+    }
+
     function resetGame() {
       document.getElementById('end-screen').classList.add('hidden');
       document.getElementById('quiz-screen').classList.add('hidden');
@@ -893,6 +1006,13 @@
       document.getElementById('hide-wrong-btn').classList.add('hidden');
       document.getElementById('wrong-questions-display').classList.add('hidden');
       document.getElementById('wrong-questions-display').innerHTML = "";
+
+      clearInterval(quizTimer);
+      quizTimer = null;
+      timerSecondsLeft = 0;
+      timerOriginalSeconds = 0;
+      document.getElementById('timer-display').innerText = "Time left: 00:00:00";
+      document.getElementById('timer-display').classList.add('hidden');
 
       currentQuestionNum = 1;
       currentCorrectAnswer = 0;
@@ -916,6 +1036,16 @@
       }
 
       return Math.abs(userAnswer - correctAnswer) < 0.000001;
+    }
+
+    function parseQuizNumber(value) {
+      let cleaned = value.trim().toLowerCase();
+
+      if (/^-?\d+(\.\d+)?e$/.test(cleaned)) {
+        cleaned += "1";
+      }
+
+      return Number(cleaned);
     }
 
     function rand(min, max) {
