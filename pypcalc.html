@@ -306,7 +306,7 @@
       <button onclick="startTimer()" style="background:#28a745;">Start Timer</button>
       <button onclick="stopTimer()" style="background:#dc3545;">Stop Timer</button>
       <button onclick="resetTimer()" style="background:#6c757d;">Reset Timer</button>
-      <button onclick="toggleAlwaysTimer()" id="always-timer-btn" style="background:#fd7e14;">Always Set Timer: Off</button>
+      <button onclick="toggleAlwaysTimer()" id="always-timer-btn" style="background:#fd7e14;">Always Set Time: Off</button>
 
       <p id="timer-status"></p>
     </div>
@@ -318,7 +318,7 @@
     // Supabase leaderboard setup
     // Replace these with your own Supabase Project URL and anon/public key.
     // The quiz still works even if these are not filled in yet.
-    const SUPABASE_URL = "https://acuknvkcrwxxkkwgpikh.supabase.co";
+        const SUPABASE_URL = "https://acuknvkcrwxxkkwgpikh.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjdWtudmtjcnd4eGtrd2dwaWtoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5MTgxNjYsImV4cCI6MjA3NzQ5NDE2Nn0.qMWmi6nEBCJQxJfmZJ1qpmU7Sjoyyra9H1v2HhU8xA0";
     let supabaseClient = null;
 
@@ -864,11 +864,6 @@
     }
 
     function submitAnswer() {
-      if (alwaysTimerEnabled && !timerStartedByFirstAnswer && !quizTimer && timerSecondsLeft > 0) {
-        timerStartedByFirstAnswer = true;
-        startTimerCountdownOnly();
-      }
-
       if (!secretArmed && answerInput.value.trim().toUpperCase() === "S3CR3T") {
         answerInput.value = "";
         alert("Please type a valid number first!");
@@ -884,8 +879,19 @@
       }
 
       const index = currentQuestionNum - 1;
+      const wasFirstValidAnswer = !hasAnsweredAnyQuestion();
+
       questions[index].userRawAnswer = rawAnswer;
       questions[index].userNumberAnswer = userAnswer;
+
+      if (alwaysTimerEnabled && wasFirstValidAnswer && !timerStartedByFirstAnswer) {
+        timerStartedByFirstAnswer = true;
+        timerSecondsLeft = alwaysTimerSeconds;
+        timerOriginalSeconds = alwaysTimerSeconds;
+        document.getElementById('timer-display').classList.remove('hidden');
+        updateTimerDisplay();
+        startTimerCountdownOnly();
+      }
 
       if (currentQuestionNum < TOTAL_QUESTIONS) {
         currentQuestionNum++;
@@ -911,11 +917,7 @@
     }
 
     function goHome() {
-      if (hasAnsweredAnyQuestion()) {
-        const confirmHome = confirm("Go back to the home page? Your current quiz progress will be lost.");
-        if (!confirmHome) return;
-      }
-
+      // Directly return to the main menu. This avoids the browser confirm popup getting stuck on some devices.
       resetGame();
     }
 
@@ -1124,11 +1126,11 @@
 
       if (alwaysTimerEnabled) {
         alwaysTimerSeconds = totalSeconds;
-        document.getElementById('always-timer-btn').innerText = "Always Set Timer: On";
+        document.getElementById('always-timer-btn').innerText = "Always Set Time: On";
         document.getElementById('timer-status').innerText = `Always timer enabled: ${formatSeconds(alwaysTimerSeconds)}. It will start after the first answer.`;
       } else {
         alwaysTimerSeconds = 0;
-        document.getElementById('always-timer-btn').innerText = "Always Set Timer: Off";
+        document.getElementById('always-timer-btn').innerText = "Always Set Time: Off";
         document.getElementById('timer-status').innerText = "Always timer disabled.";
       }
     }
@@ -1424,7 +1426,14 @@
     }
 
     function hasAnsweredAnyQuestion() {
-      return questions.some(q => q && q.userRawAnswer && q.userRawAnswer.trim() !== "");
+      for (const q of questions) {
+        if (!q) continue;
+        const raw = q.userRawAnswer;
+        if (raw !== null && raw !== undefined && String(raw).trim() !== "") {
+          return true;
+        }
+      }
+      return false;
     }
 
     function makeQuestion(text, answer) {
