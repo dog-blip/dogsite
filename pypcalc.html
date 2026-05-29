@@ -124,7 +124,23 @@
       z-index: 9999;
     }
 
-    #secret-panel {
+    #timer-secret-btn {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 45px;
+      height: 45px;
+      opacity: 0;
+      background: transparent;
+      border: none;
+      padding: 0;
+      margin: 0;
+      cursor: default;
+      z-index: 9999;
+    }
+
+    #secret-panel,
+    #timer-panel {
       margin-top: 15px;
       background: #f8f9fa;
       padding: 12px;
@@ -132,8 +148,28 @@
       font-size: 14px;
     }
 
-    #secret-panel input {
+    #secret-panel input,
+    #timer-panel input {
       width: 140px;
+    }
+
+    #leaderboard-box {
+      text-align: left;
+      margin-top: 15px;
+      font-size: 14px;
+      max-height: 180px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 8px;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+    }
+
+    .leaderboard-row {
+      border-bottom: 1px solid #ddd;
+      padding: 6px 0;
     }
 
     .small-btn {
@@ -146,6 +182,7 @@
 <body>
 
   <button id="secret-btn" onclick="armSecretMode()"></button>
+  <button id="timer-secret-btn" onclick="toggleTimerPanel()"></button>
 
   <div class="game-container">
 
@@ -155,6 +192,24 @@
       <button onclick="startGame('medium')">Ages 8-10 Medium</button>
       <button onclick="startGame('hard')">Ages 11+ Hard</button>
       <button onclick="startGame('veryhard')" style="background:#6610f2;">Very Hard Questions</button>
+      <br>
+      <button onclick="openLeaderboardScreen()" style="background:#17a2b8;">View Leaderboard</button>
+    </div>
+
+    <div id="leaderboard-screen" class="hidden">
+      <h2>Leaderboard</h2>
+      <p>Choose how to rank the leaderboard.</p>
+
+      <button class="small-btn" onclick="loadLeaderboard('level')" style="background:#6610f2;">By Level</button>
+      <button class="small-btn" onclick="loadLeaderboard('time')" style="background:#28a745;">By Time</button>
+      <button class="small-btn" onclick="loadLeaderboard('score')" style="background:#dc3545;">By Score</button>
+      <button class="small-btn" onclick="loadLeaderboard('global')" style="background:#fd7e14;">Global</button>
+      <button class="small-btn" onclick="goLeaderboardHome()" style="background:#6c757d;">Home</button>
+
+      <div id="main-leaderboard-title" style="font-weight:bold; margin-top:10px;">Leaderboard</div>
+      <div id="main-leaderboard-box" style="text-align:left; margin-top:15px; font-size:14px; max-height:300px; overflow-y:auto; overflow-x:hidden; background:#f8f9fa; padding:10px; border-radius:8px; overscroll-behavior:contain; touch-action:pan-y;">
+        Click a tab above to load scores.
+      </div>
     </div>
 
     <div id="quiz-screen" class="hidden">
@@ -181,6 +236,16 @@
       <button onclick="revealScore()">Show Score</button>
 
       <div id="score-display" class="hidden score-text"></div>
+      <br>
+
+      <div id="leaderboard-submit" class="hidden">
+        <input type="text" id="player-name-input" placeholder="your name">
+        <br>
+        <button onclick="submitLeaderboardScore()" style="background:#28a745;">Submit to Leaderboard</button>
+        <button onclick="loadLeaderboard()" style="background:#17a2b8;">Show Leaderboard</button>
+      </div>
+
+      <div id="leaderboard-box" class="hidden"></div>
       <br>
 
       <button id="wrong-btn" class="hidden" onclick="showWrongQuestions()" style="background:#dc3545;">
@@ -213,8 +278,11 @@
         Turn Off
       </button>
 
-      <hr>
+      <p id="secret-status"></p>
+    </div>
 
+
+    <div id="timer-panel" class="hidden">
       <h3>Timer</h3>
       <p>Set a quiz timer.</p>
 
@@ -227,12 +295,34 @@
       <button onclick="stopTimer()" style="background:#dc3545;">Stop Timer</button>
       <button onclick="resetTimer()" style="background:#6c757d;">Reset Timer</button>
 
-      <p id="secret-status"></p>
+      <p id="timer-status"></p>
     </div>
 
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
+    // Supabase leaderboard setup
+    // Replace these with your own Supabase Project URL and anon/public key.
+    // The quiz still works even if these are not filled in yet.
+    const SUPABASE_URL = "https://acuknvkcrwxxkkwgpikh.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjdWtudmtjcnd4eGtrd2dwaWtoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5MTgxNjYsImV4cCI6MjA3NzQ5NDE2Nn0.qMWmi6nEBCJQxJfmZJ1qpmU7Sjoyyra9H1v2HhU8xA0";
+    let supabaseClient = null;
+
+    function setupSupabase() {
+      const hasRealUrl = SUPABASE_URL && SUPABASE_URL.startsWith("https://");
+      const hasRealKey = SUPABASE_ANON_KEY && SUPABASE_ANON_KEY !== "YOUR_SUPABASE_ANON_KEY";
+
+      if (!hasRealUrl || !hasRealKey || !window.supabase) {
+        console.warn("Supabase is not configured yet. Quiz will still work, but leaderboard is disabled.");
+        return;
+      }
+
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+
+    setupSupabase();
+
     let difficulty = 'easy';
     let currentQuestionNum = 1;
     let currentCorrectAnswer = 0;
@@ -250,6 +340,9 @@
     let quizTimer = null;
     let timerSecondsLeft = 0;
     let timerOriginalSeconds = 0;
+    let quizStartTime = null;
+    let finalTimeSeconds = null;
+    let leaderboardSubmitted = false;
 
     const TOTAL_QUESTIONS = 10;
 
@@ -285,10 +378,14 @@
       currentQuestionNum = 1;
       questions = [];
       wrongQuestions = [];
+      quizStartTime = Date.now();
+      finalTimeSeconds = null;
+      leaderboardSubmitted = false;
 
       document.getElementById('setup-screen').classList.add('hidden');
       document.getElementById('quiz-screen').classList.remove('hidden');
       document.getElementById('end-screen').classList.add('hidden');
+      document.getElementById('leaderboard-screen').classList.add('hidden');
 
       document.getElementById('score-display').classList.add('hidden');
       document.getElementById('restart-btn').classList.add('hidden');
@@ -296,6 +393,9 @@
       document.getElementById('hide-wrong-btn').classList.add('hidden');
       document.getElementById('wrong-questions-display').classList.add('hidden');
       document.getElementById('wrong-questions-display').innerHTML = "";
+      document.getElementById('leaderboard-submit').classList.add('hidden');
+      document.getElementById('leaderboard-box').classList.add('hidden');
+      document.getElementById('leaderboard-box').innerHTML = "";
 
       loadQuestion();
     }
@@ -762,6 +862,7 @@
       } else {
         clearInterval(quizTimer);
         quizTimer = null;
+        finalTimeSeconds = getElapsedSeconds();
 
         document.getElementById('quiz-screen').classList.add('hidden');
         document.getElementById('end-screen').classList.remove('hidden');
@@ -792,10 +893,12 @@
       const score = calculateScore();
       wrongQuestions = getWrongQuestions();
 
-      scoreDiv.innerText = `You scored ${score} / ${TOTAL_QUESTIONS}!`;
+      const timeText = finalTimeSeconds !== null ? ` Time: ${formatSeconds(finalTimeSeconds)}.` : "";
+      scoreDiv.innerText = `You scored ${score} / ${TOTAL_QUESTIONS}!${timeText}`;
       scoreDiv.classList.remove('hidden');
 
       document.getElementById('restart-btn').classList.remove('hidden');
+      document.getElementById('leaderboard-submit').classList.remove('hidden');
 
       if (wrongQuestions.length > 0) {
         document.getElementById('wrong-btn').classList.remove('hidden');
@@ -918,6 +1021,10 @@
       }
     }
 
+    function toggleTimerPanel() {
+      document.getElementById('timer-panel').classList.toggle('hidden');
+    }
+
     function startTimer() {
       const hours = Number(document.getElementById('timer-hours').value) || 0;
       const minutes = Number(document.getElementById('timer-minutes').value) || 0;
@@ -960,15 +1067,16 @@
     function resetTimer() {
       clearInterval(quizTimer);
       quizTimer = null;
-      timerSecondsLeft = timerOriginalSeconds;
 
-      if (timerOriginalSeconds > 0) {
-        document.getElementById('timer-display').classList.remove('hidden');
-        updateTimerDisplay();
-      } else {
-        document.getElementById('timer-display').innerText = "Time left: 00:00:00";
-        document.getElementById('timer-display').classList.add('hidden');
-      }
+      timerSecondsLeft = 0;
+      timerOriginalSeconds = 0;
+
+      document.getElementById('timer-hours').value = "";
+      document.getElementById('timer-minutes').value = "";
+      document.getElementById('timer-seconds').value = "";
+      document.getElementById('timer-display').innerText = "Time left: 00:00:00";
+      document.getElementById('timer-display').classList.add('hidden');
+      document.getElementById('timer-status').innerText = "Timer reset.";
     }
 
     function updateTimerDisplay() {
@@ -985,6 +1093,7 @@
     }
 
     function endQuizFromTimer() {
+      finalTimeSeconds = getElapsedSeconds();
       for (let i = 0; i < TOTAL_QUESTIONS; i++) {
         if (!questions[i]) {
           questions[i] = createQuestion();
@@ -999,6 +1108,7 @@
       document.getElementById('end-screen').classList.add('hidden');
       document.getElementById('quiz-screen').classList.add('hidden');
       document.getElementById('setup-screen').classList.remove('hidden');
+      document.getElementById('leaderboard-screen').classList.add('hidden');
 
       document.getElementById('score-display').classList.add('hidden');
       document.getElementById('restart-btn').classList.add('hidden');
@@ -1019,6 +1129,176 @@
       currentQuestionText = "";
       questions = [];
       wrongQuestions = [];
+    }
+
+    async function submitLeaderboardScore() {
+      if (!supabaseClient) {
+        alert("Leaderboard is not set up yet. Add your Supabase URL and anon key first.");
+        return;
+      }
+
+      const playerName = document.getElementById('player-name-input').value.trim();
+
+      if (!playerName) {
+        alert("Type your name first!");
+        return;
+      }
+
+      if (leaderboardSubmitted) {
+        alert("You already submitted this score.");
+        return;
+      }
+
+      const score = calculateScore();
+      const accuracy = Math.round((score / TOTAL_QUESTIONS) * 100);
+      const timeSeconds = finalTimeSeconds !== null ? finalTimeSeconds : getElapsedSeconds();
+      const levelRank = getLevelRank(difficulty);
+
+      const { error } = await supabaseClient
+        .from('quiz_scores')
+        .insert({
+          name: playerName,
+          level: difficulty,
+          level_rank: levelRank,
+          score: score,
+          accuracy: accuracy,
+          time_seconds: timeSeconds
+        });
+
+      if (error) {
+        console.error(error);
+        alert("Could not submit score. Check your Supabase URL/key, table name, and RLS policy.");
+        return;
+      }
+
+      leaderboardSubmitted = true;
+      alert("Score submitted!");
+      loadLeaderboard();
+    }
+
+    async function loadLeaderboard(sortMode = 'level') {
+      if (!supabaseClient) {
+        alert("Leaderboard is not set up yet. Add your Supabase URL and anon key first.");
+        return;
+      }
+
+      const isMainScreenOpen = !document.getElementById('leaderboard-screen').classList.contains('hidden');
+      const leaderboardBox = isMainScreenOpen
+        ? document.getElementById('main-leaderboard-box')
+        : document.getElementById('leaderboard-box');
+
+      const titleBox = document.getElementById('main-leaderboard-title');
+
+      leaderboardBox.classList.remove('hidden');
+      leaderboardBox.innerHTML = "Loading leaderboard...";
+
+      if (titleBox && isMainScreenOpen) {
+        if (sortMode === 'time') titleBox.innerText = "Fastest Times";
+        else if (sortMode === 'score') titleBox.innerText = "Highest Scores";
+        else if (sortMode === 'global') titleBox.innerText = "Global Leaderboard: Accuracy + Time";
+        else titleBox.innerText = "Highest Level Rankings";
+      }
+
+      let query = supabaseClient
+        .from('quiz_scores')
+        .select('name, level, level_rank, score, accuracy, time_seconds, created_at');
+
+      if (sortMode === 'time') {
+        query = query
+          .order('time_seconds', { ascending: true })
+          .order('accuracy', { ascending: false })
+          .order('level_rank', { ascending: false });
+      } else if (sortMode === 'global') {
+        query = query
+          .order('accuracy', { ascending: false })
+          .order('time_seconds', { ascending: true })
+          .order('level_rank', { ascending: false });
+      } else if (sortMode === 'score') {
+        query = query
+          .order('score', { ascending: false })
+          .order('accuracy', { ascending: false })
+          .order('time_seconds', { ascending: true });
+      } else {
+        query = query
+          .order('level_rank', { ascending: false })
+          .order('accuracy', { ascending: false })
+          .order('time_seconds', { ascending: true });
+      }
+
+      const { data, error } = await query.limit(20);
+
+      if (error) {
+        console.error(error);
+        leaderboardBox.innerHTML = "Could not load leaderboard.";
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        leaderboardBox.innerHTML = "No scores yet.";
+        return;
+      }
+
+      leaderboardBox.innerHTML = "";
+
+      data.forEach((row, index) => {
+        leaderboardBox.innerHTML += `
+          <div class="leaderboard-row">
+            <strong>#${index + 1} ${escapeHtml(row.name)}</strong><br>
+            Level: ${escapeHtml(formatLevel(row.level))} | Score: ${row.score}/${TOTAL_QUESTIONS} | Accuracy: ${row.accuracy}% | Time: ${formatSeconds(row.time_seconds)}
+          </div>
+        `;
+      });
+    }
+
+    function openLeaderboardScreen() {
+      document.getElementById('setup-screen').classList.add('hidden');
+      document.getElementById('quiz-screen').classList.add('hidden');
+      document.getElementById('end-screen').classList.add('hidden');
+      document.getElementById('leaderboard-screen').classList.remove('hidden');
+      loadLeaderboard('level');
+    }
+
+    function goLeaderboardHome() {
+      document.getElementById('leaderboard-screen').classList.add('hidden');
+      document.getElementById('setup-screen').classList.remove('hidden');
+    }
+
+    function formatLevel(level) {
+      if (level === 'veryhard') return 'Very Hard';
+      if (level === 'hard') return 'Hard';
+      if (level === 'medium') return 'Medium';
+      return 'Easy';
+    }
+
+    function getLevelRank(level) {
+      if (level === 'veryhard') return 4;
+      if (level === 'hard') return 3;
+      if (level === 'medium') return 2;
+      return 1;
+    }
+
+    function getElapsedSeconds() {
+      if (!quizStartTime) return 0;
+      return Math.max(0, Math.round((Date.now() - quizStartTime) / 1000));
+    }
+
+    function formatSeconds(totalSeconds) {
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+
+      return String(hours).padStart(2, "0") + ":" +
+             String(minutes).padStart(2, "0") + ":" +
+             String(seconds).padStart(2, "0");
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
     }
 
     function makeQuestion(text, answer) {
@@ -1067,13 +1347,13 @@
     }
 
     document.addEventListener('wheel', function(event) {
-      if (!event.target.closest('#wrong-questions-display')) {
+      if (!event.target.closest('#wrong-questions-display') && !event.target.closest('#leaderboard-box') && !event.target.closest('#main-leaderboard-box')) {
         event.preventDefault();
       }
     }, { passive: false });
 
     document.addEventListener('touchmove', function(event) {
-      if (!event.target.closest('#wrong-questions-display')) {
+      if (!event.target.closest('#wrong-questions-display') && !event.target.closest('#leaderboard-box')) {
         event.preventDefault();
       }
     }, { passive: false });
