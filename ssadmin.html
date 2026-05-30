@@ -297,7 +297,7 @@
 <div id="login-screen">
   <div class="login-card">
     <div class="login-logo">seal<span>sense</span></div>
-    <div class="login-sub">admin</div>
+    <div class="login-sub">admin panel</div>
     <div id="api-status" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:20px;font-size:12px;font-weight:600;letter-spacing:0.5px;">
       <span id="api-dot" style="width:8px;height:8px;border-radius:50%;background:var(--text-dim);display:inline-block;flex-shrink:0;transition:background 0.3s;"></span>
       <span id="api-status-text" style="color:var(--text-dim)">Checking API...</span>
@@ -624,7 +624,7 @@
         <td class="col-dim">${fmtTimeLeft(row.expires_at)}</td>
         <td class="${cls}">${st}</td>
         <td><div class="action-cell">
-          <button class="btn btn-yellow" onclick="openEdit('${esc(row.key)}','${esc(row.nick||'')}',row.expires_at?Math.max(0,Math.round((new Date(row.expires_at)-Date.now())/86400000)):0)">Edit</button>
+          <button class="btn btn-yellow" onclick="openEdit('${esc(row.key)}','${esc(row.nick||'')}',${row.expires_at ? Math.max(0,Math.round((new Date(row.expires_at)-Date.now())/86400000)) : 0})">Edit</button>
           <button class="btn btn-red" style="height:28px;padding:0 10px;font-size:11px" onclick="openDelete('${esc(row.key)}')">Delete</button>
         </div></td>
       </tr>`;
@@ -645,7 +645,7 @@
   });
 
   let pendingDelete=null;
-  function openDelete(key) { pendingDelete=key; document.getElementById('delete-modal-body').textContent=`Delete "${key}"? This cannot be undone.`; document.getElementById('delete-modal').classList.add('show'); }
+  window.openDelete = function openDelete(key) { pendingDelete=key; document.getElementById('delete-modal-body').textContent=`Delete "${key}"? This cannot be undone.`; document.getElementById('delete-modal').classList.add('show'); }
   document.getElementById('delete-cancel').addEventListener('click', ()=>document.getElementById('delete-modal').classList.remove('show'));
   document.getElementById('delete-confirm').addEventListener('click', async ()=>{
     document.getElementById('delete-modal').classList.remove('show');
@@ -656,7 +656,7 @@
   });
 
   let pendingEditKey=null;
-  function openEdit(key, nick, days) {
+  window.openEdit = function openEdit(key, nick, days) {
     pendingEditKey = key;
     document.getElementById('edit-key').value = key;
     document.getElementById('edit-nick').value = nick || '';
