@@ -297,7 +297,11 @@
 <div id="login-screen">
   <div class="login-card">
     <div class="login-logo">seal<span>sense</span></div>
-    <div class="login-sub">admin panel</div>
+    <div class="login-sub">admin</div>
+    <div id="api-status" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:20px;font-size:12px;font-weight:600;letter-spacing:0.5px;">
+      <span id="api-dot" style="width:8px;height:8px;border-radius:50%;background:var(--text-dim);display:inline-block;flex-shrink:0;transition:background 0.3s;"></span>
+      <span id="api-status-text" style="color:var(--text-dim)">Checking API...</span>
+    </div>
     <label class="login-label" for="login-input">Admin Secret</label>
     <input class="login-input" type="password" id="login-input" placeholder="Enter secret..." autocomplete="current-password"/>
     <button class="login-btn" id="login-btn">Login</button>
@@ -490,6 +494,31 @@
   const loginInput  = document.getElementById('login-input');
   const loginBtn    = document.getElementById('login-btn');
   const loginErr    = document.getElementById('login-err');
+
+  // ── API health check ───────────────────────────────────────────────────────
+  async function checkHealth() {
+    const dot = document.getElementById('api-dot');
+    const txt = document.getElementById('api-status-text');
+    try {
+      const r = await fetch(`${API}/api/health`);
+      const data = await r.json();
+      if (data.ok) {
+        dot.style.background = 'var(--green)';
+        dot.style.boxShadow = '0 0 6px var(--green)';
+        txt.style.color = 'var(--green)';
+        txt.textContent = 'API Online';
+      } else {
+        throw new Error('not ok');
+      }
+    } catch {
+      dot.style.background = 'var(--red)';
+      dot.style.boxShadow = '0 0 6px var(--red)';
+      txt.style.color = 'var(--red)';
+      txt.textContent = 'API Offline';
+    }
+  }
+  checkHealth();
+  setInterval(checkHealth, 30000);
 
   async function attemptLogin(secret) {
     if (!secret) { loginErr.textContent = 'Enter your password'; return; }
