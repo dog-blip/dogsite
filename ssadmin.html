@@ -715,7 +715,7 @@
       const checked = selectedIds.has(row.id);
       return `<tr class="${multiIP?'ip-diff':''} ${checked?'selected':''}" data-id="${row.id}">
         <td class="td-check"><input type="checkbox" class="row-cb" data-id="${row.id}" ${checked?'checked':''}></td>
-        <td class="col-ts">${fmtTimestamp(row.logged_at)}</td>
+        <td class="col-ts">${fmtTimestamp(row.logged_at||row.created_at)}</td>
         <td class="col-nick">${esc(row.nick||'—')}</td>
         <td class="col-ingame">${esc(row.ingame_name||'—')}</td>
         <td class="col-key">${esc(row.key)}</td>
