@@ -312,7 +312,11 @@
 <!-- App -->
 <div id="app">
   <header>
-    <div class="header-logo">seal<span>sense</span></div>
+    <div class="header-logo" style="display:flex;align-items:center;gap:10px;">
+      seal<span>sense</span>
+      <span id="header-api-dot" title="API Status" style="width:8px;height:8px;border-radius:50%;background:var(--text-dim);display:inline-block;flex-shrink:0;transition:background 0.3s,box-shadow 0.3s;"></span>
+      <span id="header-api-text" style="font-size:11px;font-weight:600;color:var(--text-dim);letter-spacing:0.5px;"></span>
+    </div>
     <div class="header-right">
       <div class="header-badge">Admin</div>
       <button class="logout-btn" id="logout-btn">Logout</button>
@@ -497,24 +501,22 @@
 
   // ── API health check ───────────────────────────────────────────────────────
   async function checkHealth() {
-    const dot = document.getElementById('api-dot');
-    const txt = document.getElementById('api-status-text');
+    const dot     = document.getElementById('api-dot');
+    const txt     = document.getElementById('api-status-text');
+    const hdot    = document.getElementById('header-api-dot');
+    const htxt    = document.getElementById('header-api-text');
     try {
       const r = await fetch(`${API}/api/health`);
       const data = await r.json();
       if (data.ok) {
-        dot.style.background = 'var(--green)';
-        dot.style.boxShadow = '0 0 6px var(--green)';
-        txt.style.color = 'var(--green)';
-        txt.textContent = 'API Online';
-      } else {
-        throw new Error('not ok');
-      }
+        [dot, hdot].forEach(el => { if(el){el.style.background='var(--green)';el.style.boxShadow='0 0 6px var(--green)';} });
+        [txt].forEach(el => { if(el){el.style.color='var(--green)';el.textContent='API Online';} });
+        if(htxt){htxt.style.color='var(--green)';htxt.textContent='Online';}
+      } else { throw new Error('not ok'); }
     } catch {
-      dot.style.background = 'var(--red)';
-      dot.style.boxShadow = '0 0 6px var(--red)';
-      txt.style.color = 'var(--red)';
-      txt.textContent = 'API Offline';
+      [dot, hdot].forEach(el => { if(el){el.style.background='var(--red)';el.style.boxShadow='0 0 6px var(--red)';} });
+      [txt].forEach(el => { if(el){el.style.color='var(--red)';el.textContent='API Offline';} });
+      if(htxt){htxt.style.color='var(--red)';htxt.textContent='Offline';}
     }
   }
   checkHealth();
@@ -625,6 +627,7 @@
         <td class="${cls}">${st}</td>
         <td><div class="action-cell">
           <button class="btn btn-yellow" onclick="openEdit('${esc(row.key)}','${esc(row.nick||'')}',${row.expires_at ? Math.max(0,Math.round((new Date(row.expires_at)-Date.now())/86400000)) : 0})">Edit</button>
+          <button class="btn btn-outline" onclick="copyKey('${esc(row.key)}')" title="Copy key">Copy</button>
           <button class="btn btn-red" style="height:28px;padding:0 10px;font-size:11px" onclick="openDelete('${esc(row.key)}')">Delete</button>
         </div></td>
       </tr>`;
@@ -656,6 +659,14 @@
   });
 
   let pendingEditKey=null;
+  window.copyKey = function copyKey(key) {
+    navigator.clipboard.writeText(key).then(() => toast('Key copied!', 'success')).catch(() => {
+      const el = document.createElement('textarea');
+      el.value = key; document.body.appendChild(el); el.select();
+      document.execCommand('copy'); document.body.removeChild(el);
+      toast('Key copied!', 'success');
+    });
+  };
   window.openEdit = function openEdit(key, nick, days) {
     pendingEditKey = key;
     document.getElementById('edit-key').value = key;
