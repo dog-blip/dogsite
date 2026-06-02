@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Embedded Eggfish Game</title>
+  <style>
+    body {
+      margin: 0;
+      background: #1a1a1a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .embed-container {
+      position: relative;
+      width: 960px;
+      height: 600px;
+      border-radius: 12px;
+      overflow: hidden;
+      max-width: 100vw;
+      max-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 0;
+      /* Remove any border, so iframe doesn't pick up container border */
+      border: none;
+      box-shadow: none;
+    }
+    @media (max-width: 980px) {
+      .embed-container {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+        border: none;
+      }
+    }
+
+    .embed-iframe {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      border: none !important;
+      outline: none !important;
+      display: block;
+      z-index: 1;
+      box-shadow: none !important;
+      background: none;
+    }
+    .eggfish-on-top {
+      position: absolute;
+      right: 30px;
+      top: 30px;
+      width: 140px;
+      z-index: 2;
+      max-width: 30vw;
+      height: auto;
+      pointer-events: none;
+      user-select: none;
+    }
+    .password-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(17, 17, 17, 0.97);
+      z-index: 1000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .password-box {
+      background: #222;
+      padding: 32px 24px;
+      border-radius: 10px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 280px;
+    }
+    .password-box label {
+      color: #fff;
+      font-size: 1.2rem;
+      margin-bottom: 14px;
+      letter-spacing: 1px;
+    }
+    .password-box input[type="password"] {
+      padding: 8px 12px;
+      border-radius: 5px;
+      border: 1px solid #444;
+      font-size: 1rem;
+      margin-bottom: 14px;
+      outline: none;
+      width: 180px;
+      background: #181818;
+      color: #eee;
+    }
+    .password-box button {
+      padding: 8px 20px;
+      border-radius: 4px;
+      border: none;
+      background: #4a90e2;
+      color: #fff;
+      font-size: 1.05rem;
+      cursor: pointer;
+      margin-bottom: 5px;
+      transition: background 0.15s;
+    }
+    .password-box button:hover {
+      background: #357acf;
+    }
+    .password-error {
+      color: #e24646;
+      margin-top: 4px;
+      font-size: 0.93rem;
+      min-height: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div id="password-overlay" class="password-overlay">
+    <form class="password-box" id="password-form" autocomplete="off" onsubmit="return false;">
+      <label for="password-input">Enter Password</label>
+      <input type="password" id="password-input" autofocus autocomplete="off" />
+      <button type="submit">Enter</button>
+      <div id="password-error" class="password-error"></div>
+    </form>
+  </div>
+
+  <div class="embed-container" id="game-container" style="display: none;">
+    <iframe
+      class="embed-iframe"
+      src="https://html-classic.itch.zone/html/17755514/index.html?v=1780251176&quot"
+      width="960"
+      height="600"
+      frameborder="0"
+      allowfullscreen
+      title="EGGFISH OUR GOAT"
+      style="border:none;outline:none;box-shadow:none;background:none;"
+    ></iframe>
+    <img
+      class="eggfish-on-top"
+      src="https://img.itch.zone/aW1nLzI2Nzc0MjkyLnBuZw==/original/MZEdMD.png"
+      alt="Eggfish Logo"
+    >
+  </div>
+
+  <script>
+    const BASE64_PASSWORD = "ZWdnZmlzaE9VUkdPQVQ=";
+    function base64Decode(str) {
+      try {
+        return atob(str);
+      } catch {
+        return '';
+      }
+    }
+
+    const CORRECT_PASSWORD = base64Decode(BASE64_PASSWORD);
+    const LOGIN_KEY = "eggfish_login";
+    const LOGIN_TIME_KEY = "eggfish_login_time";
+    const LOGIN_DURATION_MS = 60 * 60 * 1000; // 1 hour
+
+    const overlay = document.getElementById("password-overlay");
+    const container = document.getElementById("game-container");
+    const input = document.getElementById("password-input");
+    const form = document.getElementById("password-form");
+    const errorMsg = document.getElementById("password-error");
+
+    function doLogin(setTime=true) {
+      overlay.style.display = "none";
+      container.style.display = "flex";
+      input.value = "";
+      errorMsg.textContent = "";
+      if (setTime) {
+        try {
+          localStorage.setItem(LOGIN_KEY, "1");
+          localStorage.setItem(LOGIN_TIME_KEY, String(Date.now()));
+        } catch {}
+      }
+    }
+
+    function doLogout() {
+      overlay.style.display = "flex";
+      container.style.display = "none";
+      try {
+        localStorage.removeItem(LOGIN_KEY);
+        localStorage.removeItem(LOGIN_TIME_KEY);
+      } catch {}
+    }
+
+    function isLoginValid() {
+      try {
+        const loginFlag = localStorage.getItem(LOGIN_KEY);
+        const loginTime = Number(localStorage.getItem(LOGIN_TIME_KEY));
+        if (loginFlag !== "1" || isNaN(loginTime)) return false;
+        // Check time expiration (1 hour)
+        if ((Date.now() - loginTime) <= LOGIN_DURATION_MS) {
+          return true;
+        } else {
+          localStorage.removeItem(LOGIN_KEY);
+          localStorage.removeItem(LOGIN_TIME_KEY);
+        }
+      } catch {}
+      return false;
+    }
+
+    // On load, check if auto-login is allowed
+    if (isLoginValid()) {
+      doLogin(false); // Don't set a new login time
+    }
+
+    form.addEventListener('submit', function() {
+      let val = String(input.value || "").trim();
+      if (val === CORRECT_PASSWORD) {
+        doLogin();
+      } else {
+        errorMsg.textContent = "Incorrect password. Please try again.";
+        input.value = "";
+        input.focus();
+        doLogout();
+      }
+    });
+
+    input.addEventListener('keydown', function(e) {
+      if (e.key === "Enter") {
+        form.dispatchEvent(new Event("submit"));
+      }
+    });
+  </script>
+</body>
+</html>
