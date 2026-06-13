@@ -373,6 +373,133 @@
     .result-actions { grid-template-columns: 1fr !important; }
   }
 
+
+  /* ===== Home screen ===== */
+  .home-screen.hidden { display: none; }
+  .home-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 28px 16px;
+    background: radial-gradient(circle at 50% 0%, rgba(69,133,241,.10), transparent 35%), #050608;
+  }
+  .home-card {
+    width: min(92vw, 720px);
+    background: linear-gradient(180deg, rgba(31,32,39,.98), rgba(20,21,27,.98));
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 34px;
+    padding: 44px;
+    box-shadow: 0 36px 90px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .home-title {
+    font-size: clamp(42px, 7vw, 72px);
+    line-height: 1;
+    font-weight: 800;
+    letter-spacing: -.04em;
+    text-align: center;
+    color: #f5f5f7;
+    margin-bottom: 10px;
+  }
+  .home-subtitle {
+    color: #a9abb8;
+    font-size: 18px;
+    text-align: center;
+    margin-bottom: 34px;
+  }
+  .home-section {
+    background: rgba(255,255,255,.035);
+    border: 1px solid rgba(255,255,255,.055);
+    border-radius: 22px;
+    padding: 20px;
+    margin-top: 16px;
+  }
+  .home-label {
+    font-size: 13px;
+    color: #a9abb8;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .mode-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .mode-btn {
+    background: #33343d;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 16px;
+    padding: 18px 16px;
+    color: #e8e8ed;
+    text-align: left;
+    transition: transform .14s ease, background-color .14s ease, border-color .14s ease;
+  }
+  .mode-btn:hover { transform: translateY(-1px); background: #3d3e48; }
+  .mode-btn.active {
+    background: rgba(97,195,106,.17);
+    border-color: rgba(97,195,106,.72);
+    box-shadow: inset 0 0 0 1px rgba(97,195,106,.2);
+  }
+  .mode-title { display:block; font-size: 20px; font-weight: 800; margin-bottom: 3px; }
+  .mode-sub { display:block; color: #a9abb8; font-size: 13px; }
+  .home-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .elo-readout {
+    font-size: 28px;
+    font-weight: 800;
+    color: #f5f5f7;
+  }
+  .elo-rank {
+    color: #a9abb8;
+    font-size: 14px;
+    margin-top: 2px;
+  }
+  input[type="range"].elo-range {
+    width: 100%;
+    accent-color: #61c36a;
+    margin-top: 18px;
+  }
+  .elo-ticks {
+    display: flex;
+    justify-content: space-between;
+    color: #747786;
+    font-size: 12px;
+    margin-top: 7px;
+  }
+  .home-select {
+    background: #33343d;
+    border: 1px solid rgba(255,255,255,.11);
+    border-radius: 12px;
+    color: #f5f5f7;
+    padding: 12px 14px;
+    min-width: 170px;
+  }
+  .start-btn {
+    width: 100%;
+    margin-top: 22px;
+    border-radius: 20px;
+    padding: 20px 22px;
+    font-size: 26px;
+    font-weight: 800;
+    color: white;
+    background: #61c36a;
+    box-shadow: 0 0 28px rgba(97,195,106,.20);
+    transition: transform .14s ease, background-color .14s ease;
+  }
+  .start-btn:hover { background: #69cb72; transform: translateY(-1px); }
+  @media (max-width: 640px) {
+    .home-card { padding: 28px 20px; border-radius: 28px; }
+    .mode-grid { grid-template-columns: 1fr; }
+    .start-btn { font-size: 22px; padding: 18px; }
+  }
+
   @media (prefers-reduced-motion: reduce) { *,*::after { animation:none!important; transition:none!important; } }
 </style>
 </head>
@@ -380,7 +507,57 @@
 <!-- Markup uses barricade.gg's own Tailwind utility classes -->
 <body class="bg-zinc-950 text-zinc-50 min-h-screen">
 
-  <div class="max-w-5xl mx-auto px-4 py-8">
+  <!-- ===================== HOME SCREEN ===================== -->
+  <div id="homeScreen" class="home-screen">
+    <div class="home-card">
+      <h1 class="home-title">Barricade</h1>
+      <p class="home-subtitle">Choose your mode, then race to the opposite side.</p>
+
+      <div class="home-section">
+        <div class="home-label">Game mode</div>
+        <div class="mode-grid">
+          <button id="homeComputerBtn" class="mode-btn active" type="button">
+            <span class="mode-title">Play Machine</span>
+            <span class="mode-sub">Choose the machine ELO with a slider.</span>
+          </button>
+          <button id="homeHumanBtn" class="mode-btn" type="button">
+            <span class="mode-title">Local 2 Player</span>
+            <span class="mode-sub">Two players on the same device.</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="homeEloSection" class="home-section">
+        <div class="home-row">
+          <div>
+            <div class="home-label" style="margin-bottom:0">Machine ELO</div>
+            <div id="homeEloRank" class="elo-rank">Casual</div>
+          </div>
+          <div id="homeEloValue" class="elo-readout">900</div>
+        </div>
+        <input id="homeEloRange" class="elo-range" type="range" min="300" max="2400" step="50" value="900" />
+        <div class="elo-ticks"><span>300</span><span>900</span><span>1500</span><span>2100</span><span>2400</span></div>
+      </div>
+
+      <div class="home-section">
+        <div class="home-row">
+          <div>
+            <div class="home-label" style="margin-bottom:0">Board size</div>
+            <div class="elo-rank">Classic is 9 × 9.</div>
+          </div>
+          <select id="homeSizeSelect" class="home-select">
+            <option value="7">7 × 7</option>
+            <option value="9" selected>9 × 9</option>
+            <option value="11">11 × 11</option>
+          </select>
+        </div>
+      </div>
+
+      <button id="startGameBtn" class="start-btn" type="button">Start Game</button>
+    </div>
+  </div>
+
+  <div id="gameShell" class="max-w-5xl mx-auto px-4 py-8 hidden">
 
     <div class="grid md:grid-cols-3 gap-6 items-start">
 
@@ -473,10 +650,15 @@
               <label class="text-xs uppercase tracking-wide text-zinc-500" for="oppSelect">Opponent</label>
               <select id="oppSelect" class="bg-zinc-800 border border-zinc-700 rounded-lg p-2 text-zinc-50">
                 <option value="human">Local 2-Player</option>
-                <option value="easy" selected>Computer (Easy)</option>
-                <option value="medium">Computer (Medium)</option>
-                <option value="hard">Computer (Hard)</option>
+                <option value="computer" selected>Computer</option>
               </select>
+            </div>
+            <div id="panelEloSection" class="flex flex-col gap-1.5">
+              <div class="flex items-center justify-between gap-2">
+                <label class="text-xs uppercase tracking-wide text-zinc-500" for="eloSelect">Machine ELO</label>
+                <span id="eloSelectValue" class="text-sm font-bold text-zinc-100">900</span>
+              </div>
+              <input id="eloSelect" class="elo-range" type="range" min="300" max="2400" step="50" value="900" />
             </div>
             <div class="flex flex-col gap-1.5">
               <label class="text-xs uppercase tracking-wide text-zinc-500" for="sizeSelect">Board size</label>
@@ -545,15 +727,15 @@ const Sound = (() => {
 const State = {
   N:9, cell:0, gap:0, players:[], turn:0,
   hWalls:[], vWalls:[], opponent:'human', over:false, history:[], busy:false,
-  moveLog:[], replay:[], review:false,
+  moveLog:[], replay:[], review:false, aiElo:900,
 };
 const Review = { active:false, index:0, timer:null };
 function freshGrid(n, fill=false){ return Array.from({length:n},()=>Array.from({length:n},()=>fill)); }
 
-function initGame(N, opponent){
+function initGame(N, opponent, aiElo=900){
   stopReplay(false);
   Review.active=false; Review.index=0;
-  State.N=N; State.opponent=opponent; State.turn=0; State.over=false; State.busy=false;
+  State.N=N; State.opponent=opponent; State.aiElo=aiElo; State.turn=0; State.over=false; State.busy=false;
   State.history=[]; State.moveLog=[]; State.replay=[];
   State.hWalls=freshGrid(N-1); State.vWalls=freshGrid(N-1);
   const supply = N===7?8:N===9?10:14, mid=Math.floor(N/2);
@@ -898,12 +1080,34 @@ window.addEventListener('mouseup',   (e)=>{ if(dragState) onHandleEnd(e); });
 
 /* ---------- 5. INTERACTION + TURN FLOW ---------- */
 function isHumanTurn(){ return State.opponent==='human' ? true : State.turn===0; }
+function eloRank(elo){
+  if(elo<700) return 'Beginner';
+  if(elo<1100) return 'Casual';
+  if(elo<1500) return 'Intermediate';
+  if(elo<1900) return 'Advanced';
+  if(elo<2200) return 'Expert';
+  return 'Master';
+}
+function syncEloUI(value){
+  const elo=Math.max(300,Math.min(2400,parseInt(value,10)||900));
+  ['homeEloRange','eloSelect'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=elo; });
+  const hv=document.getElementById('homeEloValue'); if(hv) hv.textContent=elo;
+  const pv=document.getElementById('eloSelectValue'); if(pv) pv.textContent=elo;
+  const rank=document.getElementById('homeEloRank'); if(rank) rank.textContent=eloRank(elo);
+  return elo;
+}
+function setHomeMode(mode){
+  const computer=mode!=='human';
+  document.getElementById('homeComputerBtn')?.classList.toggle('active',computer);
+  document.getElementById('homeHumanBtn')?.classList.toggle('active',!computer);
+  const eloBox=document.getElementById('homeEloSection'); if(eloBox) eloBox.style.display=computer?'block':'none';
+  const opp=document.getElementById('oppSelect'); if(opp) opp.value=computer?'computer':'human';
+  const panelElo=document.getElementById('panelEloSection'); if(panelElo) panelElo.style.display=computer?'flex':'none';
+}
 
 function updatePanel(){
   const t=State.turn;
-  const oppName = State.opponent==='human' ? 'Player 2'
-    : State.opponent==='easy' ? 'Computer (Easy)'
-    : State.opponent==='medium' ? 'Computer (Medium)' : 'Computer (Hard)';
+  const oppName = State.opponent==='human' ? 'Player 2' : `Computer (${State.aiElo} ELO)`;
   document.getElementById('card1name').textContent='Player 1';
   document.getElementById('card2name').textContent=oppName;
 
@@ -1047,6 +1251,19 @@ const AI={
     }}
     if(bw&&bv>advance)return{type:'wall',wall:bw};
     return{type:'move',to:bm||m[0]}; },
+  elo(idx){
+    const elo=State.aiElo||900;
+    if(elo<700){
+      const m=legalMoves(idx);
+      return Math.random()<0.55&&m.length ? {type:'move',to:m[(Math.random()*m.length)|0]} : this.easy(idx);
+    }
+    if(elo<1000) return Math.random()<0.72 ? this.easy(idx) : this.medium(idx);
+    if(elo<1300) return Math.random()<0.55 ? this.medium(idx) : this.easy(idx);
+    if(elo<1600) return this.medium(idx);
+    if(elo<1900) return Math.random()<0.60 ? this.hard(idx) : this.medium(idx);
+    if(elo<2200) return Math.random()<0.85 ? this.hard(idx) : this.medium(idx);
+    return this.hard(idx);
+  },
   bestBlockingWall(idx,foe){ const before=shortestPath(foe); let best=null,bg=0;
     for(const[r,c,o]of this.candidateWalls(foe)){
       const g=o==='h'?State.hWalls:State.vWalls; g[r][c]=true;
@@ -1059,7 +1276,12 @@ const AI={
 function aiTakeTurn(){
   if(State.over){State.busy=false;return;}
   const idx=State.turn; let d;
-  try{ d=State.opponent==='easy'?AI.easy(idx):State.opponent==='medium'?AI.medium(idx):AI.hard(idx); }
+  try{
+    d = State.opponent==='computer' ? AI.elo(idx)
+      : State.opponent==='easy' ? AI.easy(idx)
+      : State.opponent==='medium' ? AI.medium(idx)
+      : AI.hard(idx);
+  }
   catch(e){ d={type:'move',to:legalMoves(idx)[0]}; }
   if(d.type==='wall'&&d.wall&&canPlaceWall(d.wall[0],d.wall[1],d.wall[2])){
     State.busy=false; pushHistory(); applyWall(idx,d.wall[0],d.wall[1],d.wall[2]);
@@ -1080,7 +1302,10 @@ window.Online=Online;
 function newGame(){
   const N=parseInt(document.getElementById('sizeSelect').value,10);
   const opp=document.getElementById('oppSelect').value;
-  initGame(N,opp);
+  const elo=syncEloUI(document.getElementById('eloSelect')?.value||document.getElementById('homeEloRange')?.value||900);
+  document.getElementById('homeScreen')?.classList.add('hidden');
+  document.getElementById('gameShell')?.classList.remove('hidden');
+  initGame(N,opp,elo);
   const ov=document.getElementById('overlay'); ov.classList.add('hidden'); ov.classList.remove('flex');
   const rc=document.getElementById('replayControls'); if(rc){ rc.classList.add('hidden'); rc.classList.remove('flex'); }
   buildBoard(); updatePanel(); renderMoveHistory();
@@ -1312,11 +1537,34 @@ async function downloadGameClip(){
   }
 }
 
+function showHome(){
+  stopReplay(false);
+  Review.active=false;
+  State.over=true;
+  State.busy=true;
+  document.getElementById('overlay')?.classList.add('hidden');
+  document.getElementById('overlay')?.classList.remove('flex');
+  document.getElementById('replayControls')?.classList.add('hidden');
+  document.getElementById('replayControls')?.classList.remove('flex');
+  document.getElementById('gameShell')?.classList.add('hidden');
+  document.getElementById('homeScreen')?.classList.remove('hidden');
+}
+function startFromHome(){
+  const mode=document.getElementById('homeComputerBtn')?.classList.contains('active')?'computer':'human';
+  const opp=document.getElementById('oppSelect'); if(opp) opp.value=mode;
+  const size=document.getElementById('homeSizeSelect')?.value || '9';
+  const boardSize=document.getElementById('sizeSelect'); if(boardSize) boardSize.value=size;
+  const elo=syncEloUI(document.getElementById('homeEloRange')?.value||900);
+  setHomeMode(mode);
+  const panelElo=document.getElementById('eloSelect'); if(panelElo) panelElo.value=elo;
+  newGame();
+}
+
 document.getElementById('restartBtn').addEventListener('click',resignGame);
 document.getElementById('playAgainBtn').addEventListener('click',newGame);
-document.getElementById('backLobbyBtn').addEventListener('click',newGame);
+document.getElementById('backLobbyBtn').addEventListener('click',showHome);
 document.getElementById('analyzeBtn').addEventListener('click',enterAnalysis);
-document.getElementById('lobbyBtn').addEventListener('click',newGame);
+document.getElementById('lobbyBtn').addEventListener('click',showHome);
 document.getElementById('replayStartBtn').addEventListener('click',()=>replayGo(0));
 document.getElementById('replayPrevBtn').addEventListener('click',()=>replayStep(-1));
 document.getElementById('replayNextBtn').addEventListener('click',()=>replayStep(1));
@@ -1324,8 +1572,14 @@ document.getElementById('replayEndBtn').addEventListener('click',()=>replayGo((S
 document.getElementById('replayPlayBtn').addEventListener('click',toggleReplayPlay);
 document.getElementById('speedSelect').addEventListener('change',()=>{ if(Review.timer){ stopReplay(false); toggleReplayPlay(); }});
 document.getElementById('downloadClipBtn').addEventListener('click',downloadGameClip);
-document.getElementById('oppSelect').addEventListener('change',newGame);
+document.getElementById('oppSelect').addEventListener('change',()=>{ setHomeMode(document.getElementById('oppSelect').value); newGame(); });
 document.getElementById('sizeSelect').addEventListener('change',newGame);
+document.getElementById('eloSelect').addEventListener('input',(e)=>{ syncEloUI(e.target.value); });
+document.getElementById('eloSelect').addEventListener('change',newGame);
+document.getElementById('homeComputerBtn').addEventListener('click',()=>setHomeMode('computer'));
+document.getElementById('homeHumanBtn').addEventListener('click',()=>setHomeMode('human'));
+document.getElementById('homeEloRange').addEventListener('input',(e)=>syncEloUI(e.target.value));
+document.getElementById('startGameBtn').addEventListener('click',startFromHome);
 
 document.getElementById('undoBtn').addEventListener('click',()=>{
   if(State.busy||State.history.length===0)return;
@@ -1357,7 +1611,9 @@ window.addEventListener('keydown',(e)=>{
   if(exact) tryMove(exact[0],exact[1]);
 });
 
-newGame();
+syncEloUI(900);
+setHomeMode('computer');
+showHome();
 </script>
 </body>
 </html>
